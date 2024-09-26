@@ -1,0 +1,24 @@
+[package]
+name = "filterx"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.89"
+clap = { version = "4.5.17" , features = ["derive"] }
+polars = { version = "0.43.1", features = [
+    "lazy",
+    "csv",
+    "strings",
+    "regex",
+    "semi_anti_join",
+] }
+rustpython-parser = "0.4.0"
+thiserror = "1.0.63"
+
+[profile.release]
+opt-level = "z"
+strip = true
+lto = true
+codegen-units = 4
+panic = "abort"
