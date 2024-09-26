@@ -86,7 +86,7 @@ f
 
 ```bash
 # $1 means the first column in the file
-filterx data.csv -H "b in 'filter.txt'$1"  
+filterx data.csv -H "b in 'filter.txt$1'"
 ```
 
 ### Column choosing
@@ -100,23 +100,23 @@ filterx data.csv "col(1) > 1"
 
 ### Create a new column
 ```bash
-filterx data.csv -H "alias('new') == 1"
+filterx data.csv -H "alias('new') = 1;alias('fk') = a + 5"
 ```
 
 The output is
 
 ```csv
-a,b,c,new
-1,"a","apple",1
-2,"b","banana",1
-3,"b","dog",1
-4,"b","cat",1
-5,"e","elephant",1
-6,"f","fish",1
-7,"g","goat",1
-8,"h","horse",1
-9,"i","iguana",1
-10,"j","jaguar",1
+a,b,c,new,fk
+1,"a","apple",1,6
+2,"b","banana",1,7
+3,"b","dog",1,8
+4,"b","cat",1,9
+5,"e","elephant",1,10
+6,"f","fish",1,11
+7,"g","goat",1,12
+8,"h","horse",1,13
+9,"i","iguana",1,14
+10,"j","jaguar",1,15
 ```
 
 ### Select columns to output
@@ -189,9 +189,9 @@ The expression language is a subset of python language. It supports the followin
 - `drop(c, ...)`: drop column with name c, support multiple columns
 
 
-## More functions
+## Future
 
-I am a bioinformatician and I need to filter large csv files frequently. I will add more functions to the tool. If you have any suggestions, please let me know.
+I am a graduate student studying bioinformatics and I need to filter large csv files regularly. I will add more features to this tool. If you have any suggestions, please let me know.
 
 
 ## License
