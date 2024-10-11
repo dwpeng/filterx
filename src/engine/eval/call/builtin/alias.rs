@@ -23,10 +23,11 @@ pub fn alias<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
         }
     };
 
-    // TODO: check if the column name is already in the columns
-    vm.new_columns.push(col.col_name.clone());
-
+    if vm.status.is_column_exist(&col.col_name) {
+        col.new = false;
+    } else {
+        col.new = true;
+    }
     col.force = false;
-    col.new = true;
     Ok(value::Value::Column(col))
 }

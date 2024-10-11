@@ -23,9 +23,19 @@ pub fn drop<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::V
         };
         drop_columns.push(col.col_name.clone());
     }
-    let lazy = vm.lazy.clone();
-    let lazy = lazy.drop(drop_columns);
-    vm.lazy = lazy;
+
+    match &mut vm.source {
+        Source::Dataframe(ref mut df_source) => {
+            let lazy = df_source.lazy.clone();
+            let lazy = lazy.drop(drop_columns);
+            df_source.lazy = lazy;
+        }
+        _ => {
+            return Err(FilterxError::RuntimeError(
+                "Only support dataframe.".to_string(),
+            ));
+        }
+    }
 
     Ok(value::Value::None)
 }

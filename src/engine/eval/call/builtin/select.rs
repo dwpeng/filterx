@@ -36,10 +36,20 @@ pub fn select<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value:
         }
         check.insert(col);
     }
-    let exprs: Vec<Expr> = select_dolumns.iter().map(|c| col(c)).collect();
-    let lazy = vm.lazy.clone();
-    let lazy = lazy.select(exprs);
-    vm.lazy = lazy;
+
+    match &mut vm.source {
+        Source::Dataframe(ref mut df_source) => {
+            let exprs: Vec<Expr> = select_dolumns.iter().map(|c| col(c)).collect();
+            let lazy = df_source.lazy.clone();
+            let lazy = lazy.select(exprs);
+            df_source.lazy = lazy;
+        }
+        _ => {
+            return Err(FilterxError::RuntimeError(
+                "Only support dataframe.".to_string(),
+            ));
+        }
+    }
 
     Ok(value::Value::None)
 }

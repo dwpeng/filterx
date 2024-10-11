@@ -4,14 +4,16 @@ use polars::prelude::col;
 use polars::prelude::lit;
 
 use super::super::ast;
-use super::super::value;
+use super::super::value::Value;
 
 use crate::engine::eval::Eval;
 use crate::engine::vm::Vm;
+use crate::source::DataframeSource;
+use crate::source::Source;
 use crate::{FilterxError, FilterxResult};
 
 impl<'a> Eval<'a> for ast::StmtAssign {
-    type Output = value::Value;
+    type Output = Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
         if self.targets.len() != 1 {
             return Err(FilterxError::RuntimeError(
@@ -30,7 +32,7 @@ impl<'a> Eval<'a> for ast::StmtAssign {
         };
 
         let new_col = match new_col {
-            value::Value::Column(c) => {
+            Value::Column(c) => {
                 if c.new == false && c.force == false {
                     return Err(FilterxError::RuntimeError(format!(
                         "Column `{}` already exist, use `Alias({})` to force creation.",
@@ -64,66 +66,84 @@ impl<'a> Eval<'a> for ast::StmtAssign {
             }
         };
 
-        match value {
-            value::Value::Column(c) => {
-                let lazy = vm.lazy.clone();
-                let lazy = lazy.with_column(col(c.col_name).alias(new_col));
-                vm.lazy = lazy;
-            }
-
-            value::Value::Int(i) => {
-                let lazy = vm.lazy.clone();
-                let lazy = lazy.with_column(lit(i).alias(new_col));
-                vm.lazy = lazy;
-            }
-
-            value::Value::Float(f) => {
-                let lazy = vm.lazy.clone();
-                let lazy = lazy.with_column(lit(f).alias(new_col));
-                vm.lazy = lazy;
-            }
-
-            value::Value::Str(s) => {
-                let lazy = vm.lazy.clone();
-                let lazy = lazy.with_column(lit(s).alias(new_col));
-                vm.lazy = lazy;
-            }
-
-            value::Value::MultiColumn(m) => {
-                let lazy = vm.lazy.clone();
-                let mut expr = m.left.expr()?;
-                for (i, op) in m.op.iter().enumerate() {
-                    let other = m.other[i].clone();
-                    expr = match op {
-                        ast::CmpOp::Eq => expr.eq(other.expr()?),
-                        ast::CmpOp::Gt => expr.gt(other.expr()?),
-                        ast::CmpOp::NotEq => expr.neq(other.expr()?),
-                        ast::CmpOp::Lt => expr.lt(other.expr()?),
-                        ast::CmpOp::LtE => expr.lt_eq(other.expr()?),
-                        ast::CmpOp::GtE => expr.gt_eq(other.expr()?),
-                        _ => {
-                            return Err(FilterxError::RuntimeError(
-                                format!("Not support {:?}.", op).into(),
-                            ))
-                        }
-                    };
-                }
-                let lazy = lazy.with_column(expr);
-                vm.lazy = lazy;
-            }
-            value::Value::Expr(e) => {
-                let lazy = vm.lazy.clone();
-                let lazy = lazy.with_column(e.alias(new_col));
-                vm.lazy = lazy;
+        match vm.source {
+            Source::Dataframe(ref mut df_source) => {
+                assign_in_dataframe(value, new_col, df_source)?;
             }
             _ => {
                 return Err(FilterxError::RuntimeError(
-                    "use `alias` to create a new column, like alias(new_col) = col1 + col2"
-                        .to_string(),
-                ))
+                    "Only support dataframe.".to_string(),
+                ));
             }
         }
 
-        Ok(value::Value::None)
+        Ok(Value::None)
     }
+}
+
+fn assign_in_dataframe<'a>(
+    value: Value,
+    new_col: String,
+    df_source: &'a mut DataframeSource,
+) -> FilterxResult<Value> {
+    match value {
+        Value::Column(c) => {
+            let lazy = df_source.lazy.clone();
+            let lazy = lazy.with_column(col(c.col_name).alias(new_col));
+            df_source.lazy = lazy;
+        }
+
+        Value::Int(i) => {
+            let lazy = df_source.lazy.clone();
+            let lazy = lazy.with_column(lit(i).alias(new_col));
+            df_source.lazy = lazy;
+        }
+
+        Value::Float(f) => {
+            let lazy = df_source.lazy.clone();
+            let lazy = lazy.with_column(lit(f).alias(new_col));
+            df_source.lazy = lazy;
+        }
+
+        Value::Str(s) => {
+            let lazy = df_source.lazy.clone();
+            let lazy = lazy.with_column(lit(s).alias(new_col));
+            df_source.lazy = lazy;
+        }
+
+        Value::MultiColumn(m) => {
+            let lazy = df_source.lazy.clone();
+            let mut expr = m.left.expr()?;
+            for (i, op) in m.op.iter().enumerate() {
+                let other = m.other[i].clone();
+                expr = match op {
+                    ast::CmpOp::Eq => expr.eq(other.expr()?),
+                    ast::CmpOp::Gt => expr.gt(other.expr()?),
+                    ast::CmpOp::NotEq => expr.neq(other.expr()?),
+                    ast::CmpOp::Lt => expr.lt(other.expr()?),
+                    ast::CmpOp::LtE => expr.lt_eq(other.expr()?),
+                    ast::CmpOp::GtE => expr.gt_eq(other.expr()?),
+                    _ => {
+                        return Err(FilterxError::RuntimeError(
+                            format!("Not support {:?}.", op).into(),
+                        ))
+                    }
+                };
+            }
+            let lazy = lazy.with_column(expr);
+            df_source.lazy = lazy;
+        }
+        Value::Expr(e) => {
+            let lazy = df_source.lazy.clone();
+            let lazy = lazy.with_column(e.alias(new_col));
+            df_source.lazy = lazy;
+        }
+        _ => {
+            return Err(FilterxError::RuntimeError(
+                "use `alias` to create a new column, like alias(new_col) = col1 + col2".to_string(),
+            ))
+        }
+    }
+
+    Ok(Value::None)
 }

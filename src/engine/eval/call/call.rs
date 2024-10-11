@@ -5,6 +5,7 @@ use super::super::value;
 
 use crate::engine::eval::Eval;
 use crate::engine::vm::Vm;
+use crate::source::Source;
 use crate::{FilterxError, FilterxResult};
 
 use crate::engine::eval::call;
@@ -37,14 +38,43 @@ impl<'a> Eval<'a> for ast::ExprCall {
             )));
         }
 
-        match function_name.as_str() {
-            "Alias" => call::Alias(vm, &self.args),
-            "alias" => call::alias(vm, &self.args),
-            "drop" => call::drop(vm, &self.args),
-            "select" => call::select(vm, &self.args),
-            "col" => call::col(vm, &self.args),
-            "row" => call::row(vm, &self.args),
-            _ => unreachable!(),
+        match vm.source {
+            Source::Dataframe(_) => match function_name.as_str() {
+                "Alias" => call::Alias(vm, &self.args),
+                "alias" => call::alias(vm, &self.args),
+                "drop" => call::drop(vm, &self.args),
+                "select" => call::select(vm, &self.args),
+                "col" => call::col(vm, &self.args),
+                "row" => call::row(vm, &self.args),
+                _ => Err(FilterxError::RuntimeError(format!(
+                    "Function `{}` is not defined.",
+                    function_name
+                ))),
+            },
+            Source::Fasta(_) => match function_name.as_str() {
+                "Alias" => call::Alias(vm, &self.args),
+                "alias" => call::alias(vm, &self.args),
+                "drop" => call::drop(vm, &self.args),
+                "select" => call::select(vm, &self.args),
+                "col" => call::col(vm, &self.args),
+                "row" => call::row(vm, &self.args),
+                _ => Err(FilterxError::RuntimeError(format!(
+                    "Function `{}` is not defined.",
+                    function_name
+                ))),
+            },
+            Source::Fastq(_) => match function_name.as_str() {
+                "Alias" => call::Alias(vm, &self.args),
+                "alias" => call::alias(vm, &self.args),
+                "drop" => call::drop(vm, &self.args),
+                "select" => call::select(vm, &self.args),
+                "col" => call::col(vm, &self.args),
+                "row" => call::row(vm, &self.args),
+                _ => Err(FilterxError::RuntimeError(format!(
+                    "Function `{}` is not defined.",
+                    function_name
+                ))),
+            },
         }
     }
 }

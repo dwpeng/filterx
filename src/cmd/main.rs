@@ -8,6 +8,7 @@ use polars::{
 };
 
 use crate::engine::vm::Vm;
+use crate::source::DataframeSource;
 use crate::util;
 use crate::{util::open_csv_file_mmaped, FilterxResult};
 
@@ -27,7 +28,8 @@ fn init_df(
     let parser_option = CsvReadOptions::default()
         .with_parse_options(parser_options)
         .with_has_header(header)
-        .with_skip_rows(skip_row);
+        .with_skip_rows(skip_row)
+        .with_schema(None);
 
     open_csv_file_mmaped(path, parser_option)
 }
@@ -53,7 +55,8 @@ fn write_df(
 }
 
 fn init_engine(lazy: LazyFrame) -> FilterxResult<Vm> {
-    let vm = Vm::new(lazy);
+    let df_source = DataframeSource::new(lazy);
+    let vm = Vm::from_dataframe(df_source);
     Ok(vm)
 }
 
@@ -70,7 +73,6 @@ pub fn cli() -> FilterxResult<()> {
         output_separator,
         skip_row,
     } = parser;
-
     let lazy_df = init_df(
         path.as_str(),
         header.unwrap(),
@@ -84,7 +86,7 @@ pub fn cli() -> FilterxResult<()> {
     vm.eval(&expr)?;
     vm.finish()?;
     write_df(
-        &mut vm.get_df_mut().unwrap(),
+        &mut vm.source.dataframe().unwrap().df.as_mut().unwrap(),
         output.as_deref(),
         output_header.unwrap(),
         output_separator.unwrap().as_str(),

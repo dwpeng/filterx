@@ -61,24 +61,12 @@ impl<'a> Eval<'a> for ast::ExprName {
     type Output = value::Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
         let id = self.id.as_str().to_string();
-        for col in &vm.columns {
-            if col == &id {
+        for col in &vm.status.columns {
+            if col.name == id {
                 return Ok(value::Value::Column({
                     value::Column {
                         col_name: id,
-                        new: false,
-                        force: false,
-                    }
-                }));
-            }
-        }
-
-        for col in &vm.new_columns {
-            if col == &id {
-                return Ok(value::Value::Column({
-                    value::Column {
-                        col_name: id,
-                        new: true,
+                        new: col.new,
                         force: false,
                     }
                 }));

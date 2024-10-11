@@ -5,7 +5,9 @@ pub fn col(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     let col_index = match args.first().unwrap() {
         ast::Expr::Constant(n) => n.eval(vm)?,
         ast::Expr::Name(n) => n.eval(vm)?,
-        ast::Expr::Call(c) => c.eval(vm)?,
+        ast::Expr::Call(c) => {
+            c.eval(vm)?
+        }
         _ => {
             return Err(FilterxError::RuntimeError(
                 "Only support column index".to_string(),

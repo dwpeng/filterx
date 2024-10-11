@@ -4,6 +4,7 @@ use polars::prelude::*;
 use rustpython_parser::ast::located::CmpOp;
 
 use super::super::ast;
+use super::call::Source;
 use crate::engine::value::Value;
 use crate::util;
 
@@ -59,17 +60,26 @@ impl<'a> Eval<'a> for ast::ExprUnaryOp {
     }
 }
 
-fn unary(v: Value, op: ast::UnaryOp) -> FilterxResult<Value> {
+fn unary(v: Value, _op: ast::UnaryOp) -> FilterxResult<Value> {
     match v {
-        Value::Int(i) => match op {
-            ast::UnaryOp::USub => return Ok(Value::Int(-i)),
-            _ => unreachable!(),
-        },
-        Value::Float(f) => match op {
-            ast::UnaryOp::USub => return Ok(Value::Float(-f)),
-            _ => unreachable!(),
-        },
+        Value::Int(i) => Ok(Value::Int(-i)),
+        Value::Float(f) => return Ok(Value::Float(-f)),
+
         _ => unreachable!(),
+    }
+}
+
+fn unary_for_column(source: &Source, v: Value, _op: ast::UnaryOp) -> FilterxResult<Value> {
+    match source {
+        Source::Dataframe(_) => {
+            let expr = v.expr()?;
+            return Ok(Value::Expr(-expr));
+        }
+        _ => {
+            return Err(FilterxError::RuntimeError(
+                "Only support dataframe to apply unary op".to_string(),
+            ))
+        }
     }
 }
 
@@ -137,18 +147,16 @@ impl<'a> Eval<'a> for ast::ExprBinOp {
             return Ok(ret);
         }
 
-        let ret = match self.op {
-            ast::Operator::Add => l.expr()? + r.expr()?,
-            ast::Operator::Sub => l.expr()? - r.expr()?,
-            ast::Operator::Mult => l.expr()? * r.expr()?,
-            ast::Operator::Div => l.expr()? / r.expr()?,
+        match vm.source {
+            Source::Dataframe(_) => {
+                return binop_for_dataframe(l, r, self.op);
+            }
             _ => {
                 return Err(FilterxError::RuntimeError(
-                    "Only support binary op : +, -, *, /".to_string(),
+                    "Only support dataframe to apply binary op".to_string(),
                 ))
             }
-        };
-        Ok(Value::Expr(ret))
+        }
     }
 }
 
@@ -187,13 +195,24 @@ fn binop(l: Value, r: Value, op: ast::Operator) -> Value {
     }
 }
 
+fn binop_for_dataframe(left: Value, right: Value, op: ast::Operator) -> FilterxResult<Value> {
+    let ret = match op {
+        ast::Operator::Add => left.expr()? + right.expr()?,
+        ast::Operator::Sub => left.expr()? - right.expr()?,
+        ast::Operator::Mult => left.expr()? * right.expr()?,
+        ast::Operator::Div => left.expr()? / right.expr()?,
+        _ => unreachable!(),
+    };
+    Ok(Value::Expr(ret))
+}
+
 /// and, or
 impl<'a> Eval<'a> for ast::ExprBoolOp {
     type Output = Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
         let left = &self.values[0];
-        let vm_apply_lazy = vm.apply_lazy;
-        vm.apply_lazy = false;
+        let vm_apply_lazy = vm.status.apply_lazy;
+        vm.status.update_apply_lazy(false);
         let left = match left {
             ast::Expr::Compare(ref c) => c.eval(vm)?,
             ast::Expr::BoolOp(ref b) => b.eval(vm)?,
@@ -213,17 +232,28 @@ impl<'a> Eval<'a> for ast::ExprBoolOp {
                 ))
             }
         };
-        vm.apply_lazy = vm_apply_lazy;
-        let v = match self.op {
-            ast::BoolOp::And => boolop(vm, &left, &right, ast::BoolOp::And)?,
-            ast::BoolOp::Or => boolop(vm, &left, &right, ast::BoolOp::Or)?,
-        };
-        Ok(v)
+        vm.status.update_apply_lazy(vm_apply_lazy);
+
+        match vm.source {
+            Source::Dataframe(_) => {
+                return boolop_in_dataframe(vm, &left, &right, self.op.clone());
+            }
+            _ => {
+                return Err(FilterxError::RuntimeError(
+                    "Only support dataframe to apply binary op".to_string(),
+                ))
+            }
+        }
     }
 }
 
-fn boolop<'a>(vm: &'a mut Vm, l: &Value, r: &Value, op: ast::BoolOp) -> FilterxResult<Value> {
-    let vm_apply_lazy = vm.apply_lazy;
+fn boolop_in_dataframe<'a>(
+    vm: &'a mut Vm,
+    l: &Value,
+    r: &Value,
+    op: ast::BoolOp,
+) -> FilterxResult<Value> {
+    let vm_apply_lazy = vm.status.apply_lazy;
     if !vm_apply_lazy {
         let e = match op {
             ast::BoolOp::And => Ok(Value::Expr(l.expr()?.and(r.clone().expr()?))),
@@ -231,19 +261,22 @@ fn boolop<'a>(vm: &'a mut Vm, l: &Value, r: &Value, op: ast::BoolOp) -> FilterxR
         };
         return e;
     }
+
+    let df = vm.source.dataframe().unwrap();
+
     match op {
         ast::BoolOp::And => match (l, r) {
             (_, _) => {
-                let lazy = vm.lazy.clone();
+                let lazy = df.lazy.clone();
                 let lazy = lazy.filter(l.expr()?.and(r.clone().expr()?));
-                vm.lazy = lazy;
+                df.lazy = lazy;
             }
         },
         ast::BoolOp::Or => match (l, r) {
             (_, _) => {
-                let lazy = vm.lazy.clone();
+                let lazy = df.lazy.clone();
                 let lazy = lazy.filter(l.expr()?.or(r.expr()?));
-                vm.lazy = lazy;
+                df.lazy = lazy;
             }
         },
     }
@@ -309,33 +342,51 @@ impl<'a> Eval<'a> for ast::ExprCompare {
             }
         };
 
-        match op {
-            CmpOp::In | CmpOp::NotIn => {
-                if vm.apply_lazy {
-                    return compare_in_and_notin(vm, left, right, op);
-                } else {
-                    return Err(FilterxError::RuntimeError(
-                        "in/not in operator can't be used with and/or".to_string(),
-                    ));
-                }
-            }
-            CmpOp::Eq | CmpOp::NotEq | CmpOp::Lt | CmpOp::LtE | CmpOp::Gt | CmpOp::GtE => {
-                if vm.apply_lazy {
-                    return compare_cond(vm, left, right, op);
-                } else {
-                    return compare_cond_expr(vm, left, right, op);
-                }
+        match vm.source {
+            Source::Dataframe(_) => {
+                return compare_in_datarame(vm, left, right, op);
             }
             _ => {
                 return Err(FilterxError::RuntimeError(
-                    "Only support compare op : ==, !=, >, >=, <, <=, in, not in".to_string(),
+                    "Only support dataframe to apply binary op".to_string(),
                 ))
             }
-        };
+        }
     }
 }
 
-fn compare_in_and_notin<'a>(
+fn compare_in_datarame<'a>(
+    vm: &'a mut Vm,
+    left: Value,
+    right: Value,
+    op: &CmpOp,
+) -> FilterxResult<Value> {
+    match op {
+        CmpOp::In | CmpOp::NotIn => {
+            if vm.status.apply_lazy {
+                return compare_in_and_not_in_dataframe(vm, left, right, op);
+            } else {
+                return Err(FilterxError::RuntimeError(
+                    "in/not in operator can't be used with and/or".to_string(),
+                ));
+            }
+        }
+        CmpOp::Eq | CmpOp::NotEq | CmpOp::Lt | CmpOp::LtE | CmpOp::Gt | CmpOp::GtE => {
+            if vm.status.apply_lazy {
+                return compare_cond_in_dataframe(vm, left, right, op);
+            } else {
+                return compare_cond_expr_in_dataframe(vm, left, right, op);
+            }
+        }
+        _ => {
+            return Err(FilterxError::RuntimeError(
+                "Only support compare op : ==, !=, >, >=, <, <=, in, not in".to_string(),
+            ))
+        }
+    };
+}
+
+fn compare_in_and_not_in_dataframe<'a>(
     vm: &'a mut Vm,
     left: Value,
     right: Value,
@@ -360,7 +411,9 @@ fn compare_in_and_notin<'a>(
         }
     };
 
-    let left_df = vm.lazy.clone().collect()?;
+    let df_root = vm.source.dataframe().unwrap();
+
+    let left_df = df_root.lazy.clone().collect()?;
     let left_col_type = left_df.column(&left.to_string())?.dtype();
 
     let right_col = match &right {
@@ -437,11 +490,11 @@ fn compare_in_and_notin<'a>(
     match op {
         CmpOp::In => {
             let df = left_df.join(&right_df, left_on, right_on, JoinArgs::new(JoinType::Semi))?;
-            vm.lazy = df.lazy();
+            df_root.lazy = df.lazy();
         }
         CmpOp::NotIn => {
             let df = left_df.join(&right_df, left_on, right_on, JoinArgs::new(JoinType::Anti))?;
-            vm.lazy = df.lazy();
+            df_root.lazy = df.lazy();
         }
         _ => unreachable!(),
     }
@@ -449,7 +502,12 @@ fn compare_in_and_notin<'a>(
     Ok(Value::None)
 }
 
-fn compare_cond<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> FilterxResult<Value> {
+fn compare_cond_in_dataframe<'a>(
+    vm: &'a mut Vm,
+    left: Value,
+    right: Value,
+    op: &CmpOp,
+) -> FilterxResult<Value> {
     // ensure left is column
     if !left.is_column() && !right.is_column() {
         return Err(FilterxError::RuntimeError(
@@ -476,7 +534,9 @@ fn compare_cond<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Fi
         _ => unreachable!(),
     };
 
-    let mut lazy = vm.lazy.clone();
+    let df = vm.source.dataframe().unwrap();
+
+    let mut lazy = df.lazy.clone();
     match op {
         CmpOp::Eq => {
             lazy = lazy.filter(col(left_col).eq(right.expr()?));
@@ -502,11 +562,11 @@ fn compare_cond<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Fi
             ));
         }
     }
-    vm.lazy = lazy;
+    df.lazy = lazy;
     Ok(Value::None)
 }
 
-fn compare_cond_expr<'a>(
+fn compare_cond_expr_in_dataframe<'a>(
     _vm: &'a mut Vm,
     left: Value,
     right: Value,

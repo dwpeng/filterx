@@ -1,35 +1,138 @@
-use polars::frame::DataFrame;
-use polars::lazy::frame::LazyFrame;
 use polars::prelude::*;
+
+use crate::source::{DataframeSource, FastaSource, FastqSource, Source};
 
 use super::eval::Eval;
 use crate::FilterxResult;
 
+pub enum VmMode {
+    Interactive,
+    Expression,
+}
+
+#[derive(Debug, Default)]
+pub struct Col {
+    pub name: String,
+    pub new: bool,
+}
+
+#[derive(Debug, Default)]
+pub struct VmStatus {
+    pub apply_lazy: bool,
+    pub skip: bool,
+    pub stop: bool,
+    pub print: bool,
+    pub count: usize,
+    pub limit: usize,
+    pub offset: usize,
+    pub columns: Vec<Col>,
+    pub indexs: Vec<usize>,
+    pub types: Vec<DataType>,
+    pub selected_columns: Vec<Col>,
+}
+
+impl VmStatus {
+    pub fn new() -> Self {
+        Self {
+            apply_lazy: true,
+            skip: false,
+            stop: false,
+            print: false,
+            count: 0,
+            limit: 0,
+            offset: 0,
+            columns: Vec::new(),
+            indexs: Vec::new(),
+            types: Vec::new(),
+            selected_columns: Vec::new(),
+        }
+    }
+}
+
+impl VmStatus {
+    pub fn add_column(&mut self, name: &str, new: bool, t: DataType) {
+        self.columns.push(Col {
+            name: name.to_string(),
+            new,
+        });
+
+        if new {
+            self.selected_columns.push(Col {
+                name: name.to_string(),
+                new,
+            });
+            self.indexs.push(self.columns.len() - 1);
+            self.types.push(t);
+        }
+    }
+
+    pub fn is_column_exist(&self, name: &str) -> bool {
+        for col in &self.columns {
+            if col.name == name {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn add_selected_column(&mut self, name: &str) {
+        for (i, col) in self.columns.iter().enumerate() {
+            if col.name == name {
+                self.selected_columns.push(Col {
+                    name: name.to_string(),
+                    new: col.new,
+                });
+                self.indexs.push(i);
+                self.types.push(DataType::Null);
+            }
+        }
+    }
+
+    pub fn update_apply_lazy(&mut self, apply_lazy: bool) {
+        self.apply_lazy = apply_lazy;
+    }
+}
+
 pub struct Vm {
-    /// register some columns name
-    pub columns: Vec<String>,
-    /// new_columns
-    pub new_columns: Vec<String>,
-    /// lazy LazyFrame
-    pub lazy: LazyFrame,
     /// eval_expr
     pub eval_expr: String,
-    /// finished dataframe
-    pub df: Option<DataFrame>,
-    /// apply_lazy
-    pub apply_lazy: bool,
+    /// mode
+    pub mode: VmMode,
+    /// source
+    pub source: Source,
+    pub status: VmStatus,
 }
 
 impl Vm {
-    pub fn new(lazy: LazyFrame) -> Self {
+    pub fn from_dataframe(dataframe: DataframeSource) -> Self {
         Self {
-            columns: Vec::new(),
-            new_columns: Vec::new(),
-            lazy,
             eval_expr: String::new(),
-            df: None,
-            apply_lazy: true,
+            mode: VmMode::Expression,
+            source: Source::new_dataframe(dataframe),
+            status: VmStatus::default(),
         }
+    }
+
+    pub fn from_fasta(fasta: FastaSource) -> Self {
+        Self {
+            eval_expr: String::new(),
+            mode: VmMode::Expression,
+            source: Source::new_fasta(fasta),
+            status: VmStatus::default(),
+        }
+    }
+
+    pub fn from_fastq(fastq: FastqSource) -> Self {
+        Self {
+            eval_expr: String::new(),
+            mode: VmMode::Expression,
+            source: Source::new_fastq(fastq),
+            status: VmStatus::default(),
+        }
+    }
+
+    pub fn set_mode(&mut self, mode: VmMode) {
+        self.mode = mode;
     }
 
     fn ast(&self, s: &str) -> FilterxResult<rustpython_parser::ast::Mod> {
@@ -68,22 +171,7 @@ impl Vm {
     }
 
     pub fn finish(&mut self) -> FilterxResult<()> {
-        let df = self.lazy.clone().collect()?;
-        self.df = Some(df);
-        self.lazy = self.df.clone().unwrap().lazy();
-        Ok(())
-    }
-
-    pub fn get_df(&self) -> Option<&DataFrame> {
-        self.df.as_ref()
-    }
-
-    pub fn get_df_mut(&mut self) -> Option<&mut DataFrame> {
-        self.df.as_mut()
-    }
-
-    pub fn get_lazy(&self) -> &LazyFrame {
-        &self.lazy
+        self.source.finish()
     }
 }
 
@@ -94,14 +182,12 @@ mod test {
 
     #[test]
     fn test_vm() {
-        let mut vm = Vm::new(util::mock_lazy_df());
+        let frame = DataframeSource::new(util::mock_lazy_df());
+        let mut vm = Vm::from_dataframe(frame);
         let expr = "alias(c) = a + b";
         let ret = vm.eval(expr);
         println!("{:?}", ret);
         let ret = vm.finish();
         println!("{:?}", ret);
-        let df = vm.get_df();
-        println!("{:?}", df);
-        assert!(df.is_some());
     }
 }
