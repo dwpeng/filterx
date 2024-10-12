@@ -3,6 +3,8 @@ mod dataframe;
 
 pub use block::fasta::Fasta as FastaSource;
 pub use block::fastq::Fastq as FastqSource;
+pub use block::record::Filter;
+pub use block::table_like::TableLike;
 pub use dataframe::DataframeSource;
 use polars::prelude::IntoLazy;
 

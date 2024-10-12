@@ -1,6 +1,5 @@
 use core::str;
 
-use crate::engine::ast;
 use crate::engine::value;
 use polars::prelude::*;
 

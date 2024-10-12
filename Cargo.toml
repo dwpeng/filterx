@@ -15,10 +15,11 @@ polars = { version = "0.43.1", features = [
 ] }
 rustpython-parser = "0.4.0"
 thiserror = "1.0.63"
+flate2 = { version = "1.0.33", features = ["zlib-rs"] }
 
 [profile.release]
 opt-level = "z"
 strip = true
 lto = true
-codegen-units = 4
+codegen-units = 1
 panic = "abort"

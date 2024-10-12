@@ -25,7 +25,7 @@ pub struct FilterxCommand {
     #[clap(short = 'H', long, default_value = "false", action = ArgAction::SetTrue)]
     pub header: Option<bool>,
 
-    /// whether output header to file, default is true
+    /// whether output header to file, default is false
     #[clap(long = "oH", default_value = "false", action = ArgAction::SetTrue)]
     pub output_header: Option<bool>,
 

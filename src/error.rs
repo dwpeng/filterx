@@ -16,4 +16,10 @@ pub enum FilterxError {
 
     #[error("Parse error: {0}")]
     ParseError(#[from] rustpython_parser::ParseError),
+
+    #[error("Error reading Fasta file: {0}")]
+    FastaError(String),
+
+    #[error("Error reading Fastq file: {0}")]
+    FastqError(String),
 }
