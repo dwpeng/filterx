@@ -3,6 +3,9 @@ name = "filterx"
 version = "0.1.0"
 edition = "2021"
 
+[workspace.package]
+version = "0.0.1"
+
 [dependencies]
 anyhow = "1.0.89"
 clap = { version = "4.5.17" , features = ["derive"] }
@@ -12,6 +15,7 @@ polars = { version = "0.43.1", features = [
     "strings",
     "regex",
     "semi_anti_join",
+    "streaming",
 ] }
 rustpython-parser = "0.4.0"
 thiserror = "1.0.63"

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use polars::prelude::*;
 
 use crate::source::{DataframeSource, FastaSource, FastqSource, Source};
@@ -10,10 +12,12 @@ pub enum VmMode {
     Expression,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Col {
     pub name: String,
     pub new: bool,
+    pub data_type: DataType,
+    pub index: usize,
 }
 
 #[derive(Debug, Default)]
@@ -25,9 +29,7 @@ pub struct VmStatus {
     pub count: usize,
     pub limit: usize,
     pub offset: usize,
-    pub columns: Vec<Col>,
-    pub indexs: Vec<usize>,
-    pub types: Vec<DataType>,
+    columns: Vec<Col>,
     pub selected_columns: Vec<Col>,
 }
 
@@ -42,32 +44,77 @@ impl VmStatus {
             limit: 0,
             offset: 0,
             columns: Vec::new(),
-            indexs: Vec::new(),
-            types: Vec::new(),
             selected_columns: Vec::new(),
         }
     }
 }
 
 impl VmStatus {
-    pub fn add_column(&mut self, name: &str, new: bool, t: DataType) {
-        self.columns.push(Col {
-            name: name.to_string(),
-            new,
-        });
+    pub fn inject_columns_by_df(&mut self, df: LazyFrame) {
+        let df = df.lazy().fetch(1);
+        if df.is_err() {
+            eprintln!("{:?}", df.err());
+            std::process::exit(1);
+        }
+        let df = df.unwrap();
+        let dtypes = df.dtypes();
+        for (i, col) in df.get_columns().iter().enumerate() {
+            let c = Col {
+                name: col.name().to_string(),
+                new: false,
+                data_type: dtypes[i].clone(),
+                index: i,
+            };
+            self.columns.push(c);
+        }
+        self.selected_columns = self.columns.clone();
+    }
 
-        if new {
-            self.selected_columns.push(Col {
-                name: name.to_string(),
-                new,
-            });
-            self.indexs.push(self.columns.len() - 1);
-            self.types.push(t);
+    pub fn inject_columns_by_default(&mut self, cols: Vec<Col>) {
+        self.columns = cols;
+        self.selected_columns = self.columns.clone();
+    }
+
+    pub fn add_new_column(&mut self, name: &str, t: DataType) {
+        let col = Col {
+            name: name.to_string(),
+            new: true,
+            data_type: t,
+            index: self.columns.len(),
+        };
+        self.selected_columns.push(col);
+    }
+
+    pub fn drop_column(&mut self, name: &str) {
+        self.selected_columns.retain(|x| x.name != name);
+    }
+
+    pub fn reset_selected_columns(&mut self) {
+        if self.selected_columns.len() < self.columns.len() {
+            // resize
+            self.selected_columns
+                .resize(self.columns.len(), Col::default());
+        }
+        // set selected_columns to columns
+        for (i, col) in self.columns.iter().enumerate() {
+            let c = &mut self.selected_columns[i];
+            c.name.clear();
+            c.name.push_str(&col.name);
+            c.data_type = col.data_type.clone();
+            c.index = i;
         }
     }
 
+    pub fn select(&mut self, col: Vec<String>) {
+        let selected_columns = self.selected_columns.clone();
+        self.selected_columns = selected_columns
+            .into_iter()
+            .filter(|x| col.contains(&x.name))
+            .collect();
+    }
+
     pub fn is_column_exist(&self, name: &str) -> bool {
-        for col in &self.columns {
+        for col in &self.selected_columns {
             if col.name == name {
                 return true;
             }
@@ -75,21 +122,36 @@ impl VmStatus {
         false
     }
 
-    pub fn add_selected_column(&mut self, name: &str) {
-        for (i, col) in self.columns.iter().enumerate() {
-            if col.name == name {
-                self.selected_columns.push(Col {
-                    name: name.to_string(),
-                    new: col.new,
-                });
-                self.indexs.push(i);
-                self.types.push(DataType::Null);
-            }
-        }
-    }
-
     pub fn update_apply_lazy(&mut self, apply_lazy: bool) {
         self.apply_lazy = apply_lazy;
+    }
+}
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub enum VmScope {
+    Csv,
+    Fasta,
+    Fastq,
+    Vcf,
+    Sam,
+    Gff,
+    Gtf,
+}
+
+impl FromStr for VmScope {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "csv" => Ok(VmScope::Csv),
+            "fasta" => Ok(VmScope::Fasta),
+            "fastq" => Ok(VmScope::Fastq),
+            "vcf" => Ok(VmScope::Vcf),
+            "sam" => Ok(VmScope::Sam),
+            "gff" => Ok(VmScope::Gff),
+            "gtf" => Ok(VmScope::Gtf),
+            _ => Err(()),
+        }
     }
 }
 
@@ -101,6 +163,7 @@ pub struct Vm {
     /// source
     pub source: Source,
     pub status: VmStatus,
+    pub scope: VmScope,
 }
 
 impl Vm {
@@ -110,6 +173,7 @@ impl Vm {
             mode: VmMode::Expression,
             source: Source::new_dataframe(dataframe),
             status: VmStatus::default(),
+            scope: VmScope::Csv,
         }
     }
 
@@ -119,6 +183,7 @@ impl Vm {
             mode: VmMode::Expression,
             source: Source::new_fasta(fasta),
             status: VmStatus::default(),
+            scope: VmScope::Fasta,
         }
     }
 
@@ -128,11 +193,16 @@ impl Vm {
             mode: VmMode::Expression,
             source: Source::new_fastq(fastq),
             status: VmStatus::default(),
+            scope: VmScope::Fastq,
         }
     }
 
     pub fn set_mode(&mut self, mode: VmMode) {
         self.mode = mode;
+    }
+
+    pub fn set_scope(&mut self, scope: VmScope) {
+        self.scope = scope;
     }
 
     fn ast(&self, s: &str) -> FilterxResult<rustpython_parser::ast::Mod> {
@@ -150,7 +220,19 @@ impl Vm {
         }
     }
 
-    pub fn eval(&mut self, expr: &str) -> FilterxResult<()> {
+    pub fn exprs_to_ast(
+        &self,
+        exprs: Vec<&str>,
+    ) -> FilterxResult<Vec<rustpython_parser::ast::Mod>> {
+        let mut asts = Vec::new();
+        for expr in exprs {
+            let ast = self.ast(expr)?;
+            asts.push(ast);
+        }
+        Ok(asts)
+    }
+
+    pub fn eval_once(&mut self, expr: &str) -> FilterxResult<()> {
         // split the expr by ;
         if expr.is_empty() {
             return Ok(());
@@ -165,6 +247,22 @@ impl Vm {
             } else if expr.is_interactive() {
                 let expr = expr.as_interactive().unwrap();
                 expr.eval(self)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn eval_many(&mut self, exprs: Vec<&str>) -> FilterxResult<()> {
+        let asts = self.exprs_to_ast(exprs)?;
+        while self.status.stop == false {
+            for ast in &asts {
+                if ast.is_expression() {
+                    let expr = ast.as_expression().unwrap();
+                    expr.eval(self)?;
+                } else if ast.is_interactive() {
+                    let expr = ast.as_interactive().unwrap();
+                    expr.eval(self)?;
+                }
             }
         }
         Ok(())
@@ -185,7 +283,7 @@ mod test {
         let frame = DataframeSource::new(util::mock_lazy_df());
         let mut vm = Vm::from_dataframe(frame);
         let expr = "alias(c) = a + b";
-        let ret = vm.eval(expr);
+        let ret = vm.eval_once(expr);
         println!("{:?}", ret);
         let ret = vm.finish();
         println!("{:?}", ret);

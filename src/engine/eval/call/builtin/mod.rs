@@ -54,6 +54,5 @@ builtin_function! {
     col,
     drop,
     select,
-    row,
     print,
 }

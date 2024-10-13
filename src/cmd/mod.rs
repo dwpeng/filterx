@@ -1,4 +1,5 @@
 mod args;
-mod main;
+mod cli;
+mod csv;
 
-pub use main::cli;
+pub use cli::cli;

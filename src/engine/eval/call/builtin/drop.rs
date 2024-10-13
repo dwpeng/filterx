@@ -22,6 +22,7 @@ pub fn drop<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::V
             }
         };
         drop_columns.push(col.col_name.clone());
+        vm.status.drop_column(&col.col_name);
     }
 
     match &mut vm.source {

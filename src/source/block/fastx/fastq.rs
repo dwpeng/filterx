@@ -1,1 +1,1 @@
-pub struct Fastq;
+pub struct FastqSource;

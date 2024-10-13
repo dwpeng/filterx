@@ -1,12 +1,44 @@
 use polars::prelude::*;
 
+use crate::FilterxResult;
+
 pub struct DataframeSource {
     pub df: Option<DataFrame>,
     pub lazy: LazyFrame,
+    pub has_header: bool,
+    pub n_cols: usize,
+    pub n_rows: usize,
 }
 
 impl DataframeSource {
-    pub fn new(df: LazyFrame) -> Self {
-        Self { df: None, lazy: df }
+    pub fn new(lazy: LazyFrame) -> Self {
+        Self {
+            df: None,
+            lazy,
+            has_header: true,
+            n_cols: 0,
+            n_rows: 0,
+        }
+    }
+}
+
+impl DataframeSource {
+    pub fn set_has_header(&mut self, has_header: bool) {
+        self.has_header = has_header;
+    }
+
+    pub fn index2column(index: usize) -> String {
+        format!("column_{}", index)
+    }
+
+    pub fn set_index_with_name(&mut self, index: usize, name: &str) {
+        let lazy = self.lazy.clone();
+        let lazy = lazy.with_column(col(DataframeSource::index2column(index)).alias(name));
+        self.lazy = lazy;
+    }
+
+    pub fn into_df(self) -> FilterxResult<DataFrame> {
+        let df = self.lazy.collect()?;
+        Ok(df)
     }
 }

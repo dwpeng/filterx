@@ -69,20 +69,6 @@ fn unary(v: Value, _op: ast::UnaryOp) -> FilterxResult<Value> {
     }
 }
 
-fn unary_for_column(source: &Source, v: Value, _op: ast::UnaryOp) -> FilterxResult<Value> {
-    match source {
-        Source::Dataframe(_) => {
-            let expr = v.expr()?;
-            return Ok(Value::Expr(-expr));
-        }
-        _ => {
-            return Err(FilterxError::RuntimeError(
-                "Only support dataframe to apply unary op".to_string(),
-            ))
-        }
-    }
-}
-
 /// pub enum Operator {
 ///    Add,     *
 ///    Sub,     *
@@ -262,7 +248,7 @@ fn boolop_in_dataframe<'a>(
         return e;
     }
 
-    let df = vm.source.dataframe().unwrap();
+    let df = vm.source.dataframe_mut_ref().unwrap();
 
     match op {
         ast::BoolOp::And => match (l, r) {
@@ -411,7 +397,7 @@ fn compare_in_and_not_in_dataframe<'a>(
         }
     };
 
-    let df_root = vm.source.dataframe().unwrap();
+    let df_root = vm.source.dataframe_mut_ref().unwrap();
 
     let left_df = df_root.lazy.clone().collect()?;
     let left_col_type = left_df.column(&left.to_string())?.dtype();
@@ -534,7 +520,7 @@ fn compare_cond_in_dataframe<'a>(
         _ => unreachable!(),
     };
 
-    let df = vm.source.dataframe().unwrap();
+    let df = vm.source.dataframe_mut_ref().unwrap();
 
     let mut lazy = df.lazy.clone();
     match op {

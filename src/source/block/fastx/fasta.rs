@@ -27,6 +27,25 @@ pub struct FastaRecordParserOptions {
     pub do_filter: bool,
 }
 
+pub struct FastaSource {
+    pub fasta: Fasta,
+    pub filter_options: Option<FastaRcordFilterOptions>,
+}
+
+impl FastaSource {
+    pub fn new(path: &str) -> FilterxResult<Self> {
+        Ok(FastaSource {
+            fasta: Fasta::from_path(path)?,
+            filter_options: None,
+        })
+    }
+
+    pub fn set_filter_options(mut self, filter_options: FastaRcordFilterOptions) -> Self {
+        self.filter_options = Some(filter_options);
+        self
+    }
+}
+
 pub struct Fasta {
     reader: TableLikeReader,
     prev_line: String,

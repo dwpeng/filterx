@@ -1,18 +1,17 @@
-use std::io::Write;
-use std::{fs::File, num::NonZero};
-
-use clap::Parser;
 use polars::{
+    docs::lazy,
     io::{csv, SerWriter},
     prelude::{CsvParseOptions, CsvReadOptions, DataFrame, LazyFrame},
 };
+use std::io::Write;
+use std::{fs::File, num::NonZero};
 
+use super::args::{CsvCommand, ShareArgs};
 use crate::engine::vm::Vm;
 use crate::source::DataframeSource;
-use crate::util;
-use crate::{util::open_csv_file_mmaped, FilterxResult};
 
-use super::args::FilterxCommand;
+use crate::util;
+use crate::FilterxResult;
 
 fn init_df(
     path: &str,
@@ -31,7 +30,7 @@ fn init_df(
         .with_skip_rows(skip_row)
         .with_schema(None);
 
-    open_csv_file_mmaped(path, parser_option)
+    util::open_csv_file_mmaped(path, parser_option)
 }
 
 fn write_df(
@@ -54,25 +53,23 @@ fn write_df(
     Ok(())
 }
 
-fn init_engine(lazy: LazyFrame) -> FilterxResult<Vm> {
-    let df_source = DataframeSource::new(lazy);
-    let vm = Vm::from_dataframe(df_source);
-    Ok(vm)
-}
-
-pub fn cli() -> FilterxResult<()> {
-    let parser = FilterxCommand::parse();
-    let FilterxCommand {
-        csv_path: path,
-        expr,
-        output,
+pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
+    let CsvCommand {
+        share_args:
+            ShareArgs {
+                input: path,
+                expr,
+                output,
+            },
         header,
         output_header,
         comment_prefix,
         separator,
         output_separator,
         skip_row,
-    } = parser;
+        limit_row: _,
+        scope: _,
+    } = cmd;
     let lazy_df = init_df(
         path.as_str(),
         header.unwrap(),
@@ -80,13 +77,16 @@ pub fn cli() -> FilterxResult<()> {
         separator.unwrap().as_str(),
         skip_row.unwrap(),
     )?;
-
-    let mut vm = init_engine(lazy_df)?;
+    let mut vm = Vm::from_dataframe(DataframeSource::new(lazy_df.clone()));
+    if header.is_some() {
+        vm.status.inject_columns_by_df(lazy_df);
+    }
     let expr = expr.unwrap_or("".into());
-    vm.eval(&expr)?;
+    vm.eval_once(&expr)?;
     vm.finish()?;
+    let mut df = vm.source.into_dataframe().unwrap().into_df()?;
     write_df(
-        &mut vm.source.dataframe().unwrap().df.as_mut().unwrap(),
+        &mut df,
         output.as_deref(),
         output_header.unwrap(),
         output_separator.unwrap().as_str(),

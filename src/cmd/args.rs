@@ -1,25 +1,53 @@
-use clap::*;
+use clap::{ArgAction, Args, Parser, Subcommand, ValueHint};
+
+use crate::engine::vm::VmScope;
 
 static LONG_ABOUT: &'static str = include_str!("./long.txt");
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
     long_about = LONG_ABOUT,
-    author = "dwpeng",
-    version = "0.1.0"
+    author,
+    version,
+    name = "filterx",
 )]
-pub struct FilterxCommand {
-    /// The path of the csv file
-    #[clap(value_hint=ValueHint::FilePath)]
-    pub csv_path: String,
+pub struct Cli {
+    #[clap(subcommand)]
+    pub command: Command,
+}
 
-    /// The expression to filter
-    #[clap()]
+#[derive(Debug, Clone, Subcommand)]
+pub enum Command {
+    /// handle csv file
+    #[command(visible_alias = "c")]
+    Csv(CsvCommand),
+
+    /// handle fasta file
+    Fasta(FastaCommand),
+
+    /// handle fastq file
+    Fastq(FastqCommand),
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ShareArgs {
+    /// The input string
+    #[clap(value_hint=ValueHint::FilePath)]
+    pub input: String,
+
+    /// expression to filter
+    #[clap(short = 'e', long)]
     pub expr: Option<String>,
 
     /// The output file, default is stdout
-    #[clap(short = 'o', long, value_hint=ValueHint::FilePath)]
+    #[clap(value_hint=ValueHint::FilePath)]
     pub output: Option<String>,
+}
+
+#[derive(Debug, Clone, Parser)]
+pub struct CsvCommand {
+    #[clap(flatten)]
+    pub share_args: ShareArgs,
 
     /// whether the input file has header, default is false
     #[clap(short = 'H', long, default_value = "false", action = ArgAction::SetTrue)]
@@ -41,7 +69,21 @@ pub struct FilterxCommand {
     #[clap(long = "os", default_value = ",")]
     pub output_separator: Option<String>,
 
-    /// skip row number
+    /// skip row number, 0 means no skip
     #[clap(long, default_value = "0")]
     pub skip_row: Option<usize>,
+
+    /// limit row number, 0 means no limit
+    #[clap(long, default_value = "0")]
+    pub limit_row: Option<usize>,
+
+    /// scope of the filterx
+    #[clap(long, default_value = "csv")]
+    pub scope: Option<VmScope>,
 }
+
+#[derive(Debug, Clone, Parser)]
+pub struct FastaCommand {}
+
+#[derive(Debug, Clone, Parser)]
+pub struct FastqCommand {}

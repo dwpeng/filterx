@@ -51,5 +51,7 @@ pub fn select<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value:
         }
     }
 
+    vm.status.select(select_dolumns);
+
     Ok(value::Value::None)
 }

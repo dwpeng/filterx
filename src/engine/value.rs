@@ -160,6 +160,7 @@ pub struct Column {
     pub col_name: String,
     pub new: bool,
     pub force: bool,
+    pub data_type: Option<DataType>,
 }
 
 impl Column {
@@ -168,6 +169,7 @@ impl Column {
             col_name,
             new,
             force: false,
+            data_type: None,
         }
     }
 }
@@ -178,6 +180,7 @@ impl Default for Column {
             col_name: String::new(),
             new: false,
             force: false,
+            data_type: None,
         }
     }
 }

@@ -7,6 +7,8 @@ use crate::engine::vm::Vm;
 use crate::FilterxError;
 use crate::FilterxResult;
 
+use polars::prelude::*;
+
 impl<'a> Eval<'a> for ast::ExprConstant {
     type Output = value::Value;
     fn eval(&self, _vm: &'a mut Vm) -> FilterxResult<Self::Output> {
@@ -61,13 +63,14 @@ impl<'a> Eval<'a> for ast::ExprName {
     type Output = value::Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
         let id = self.id.as_str().to_string();
-        for col in &vm.status.columns {
+        for col in &vm.status.selected_columns {
             if col.name == id {
                 return Ok(value::Value::Column({
                     value::Column {
                         col_name: id,
                         new: col.new,
                         force: false,
+                        data_type: Some(col.data_type.clone()),
                     }
                 }));
             }
@@ -78,6 +81,7 @@ impl<'a> Eval<'a> for ast::ExprName {
                 col_name: id,
                 new: true,
                 force: false,
+                data_type: Some(DataType::String),
             }
         }))
     }

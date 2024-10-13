@@ -1,7 +1,6 @@
 use std::ops::Deref;
 
-use polars::prelude::col;
-use polars::prelude::lit;
+use polars::prelude::*;
 
 use super::super::ast;
 use super::super::value::Value;
@@ -65,6 +64,11 @@ impl<'a> Eval<'a> for ast::StmtAssign {
                 ))
             }
         };
+
+        // TODO
+        // pass percise type
+        vm.status
+            .add_new_column(&new_col, DataType::Unknown(UnknownKind::Any));
 
         match vm.source {
             Source::Dataframe(ref mut df_source) => {

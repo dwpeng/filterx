@@ -11,68 +11,43 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
-    # strategy:
-    #   matrix:
-    #     include:
-    #         - target: x86_64-unknown-linux-gnu
-    #           os: ubuntu-latest
-    #           cross: true
-    #         - target: aarch64-unknown-linux-gnu
-    #           os: ubuntu-latest
-    #           cross: true
-    #         # - target: x86_64-pc-windows-msvc
-    #         #   os: windows-latest
-    #         #   cross: false
-    #         # - target: x86_64-apple-darwin
-    #         #   os: macos-latest
-    #         #   cross: false
-    #         # - target: aarch64-apple-darwin
-    #         #   os: macos-latest
-    #         #   cross: false
     strategy:
-      fail-fast: false
       matrix:
         include:
-        - target: x86_64-unknown-linux-musl
-          os: ubuntu-latest
-          cross: true
-        - target: aarch64-unknown-linux-musl
-          os: ubuntu-latest
-          cross: true
-        - target: armv7-unknown-linux-musleabi
-          os: ubuntu-latest
-          cross: true
-        - target: riscv64gc-unknown-linux-gnu
-          os: ubuntu-latest
-          cross: true
-        - target: x86_64-apple-darwin
-          os: macos-latest
-          cross: false
-        - target: aarch64-apple-darwin
-          os: macos-latest
-          cross: false
-        - target: x86_64-pc-windows-msvc
-          os: windows-latest
-          cross: false
-        - target: aarch64-pc-windows-msvc
-          os: windows-latest
-          cross: false
+            - target: x86_64-unknown-linux-gnu
+              os: ubuntu-latest
+              cross: true
+            - target: aarch64-unknown-linux-gnu
+              os: ubuntu-latest
+              cross: true
+            # - target: x86_64-pc-windows-msvc
+            #   os: windows-latest
+            #   cross: false
+            # - target: x86_64-apple-darwin
+            #   os: macos-latest
+            #   cross: false
+            # - target: aarch64-apple-darwin
+            #   os: macos-latest
+            #   cross: false
 
     steps:
     - uses: actions/checkout@v4
-    - uses: dtolnay/rust-toolchain@1.78.0
-      with:
-        target: ${{ matrix.target }}
+    - uses: mlugg/setup-zig@v1
 
-    - name: Run Cross
+    - name: Build linux binaries
       if: ${{ matrix.cross }}
       run: |
-        cargo install cross --git https://github.com/cross-rs/cross.git
-        cross build -p filterx --release --target ${{ matrix.target }}
+        cargo install cargo-zigbuild
+        rustup target add ${{ matrix.target }}
+        cargo zigbuild -p filterx --release --target ${{ matrix.target }}.2.17
+        cargo zigbuild -p filterx --release --target ${{ matrix.target }}
 
-    - name: Run Cargo
+    - name: Build windows/mac binaries
       if: ${{ !matrix.cross }}
-      run: cargo build -p filterx --release --target ${{ matrix.target }}
+      run: |
+        cargo install cargo-zigbuild
+        rustup target add ${{ matrix.target }}
+        cargo zigbuild -p filterx --release --target ${{ matrix.target }}
 
     - name: create artifact directory
       shell: bash
@@ -80,11 +55,14 @@ jobs:
         directory=filterx-${{ matrix.target }}
         mkdir $directory
         cp target/${{ matrix.target }}/release/filterx $directory
+        if [ -f target/${{ matrix.target }}.2.17/release/filterx ]; then
+            cp target/${{ matrix.target }}.2.17/release/filterx $directory/filterx.2.17
+        fi
         tar cJf $directory.tar.xz $directory
 
     - uses: ncipollo/release-action@v1.14.0
       with:
-        artifacts: "filterx-${{ matrix.target }}.*"
+        artifacts: "filterx-${{ matrix.target }}"
         allowUpdates: true
         omitNameDuringUpdate: true
         omitBodyDuringUpdate: true

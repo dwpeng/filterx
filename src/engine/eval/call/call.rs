@@ -45,7 +45,6 @@ impl<'a> Eval<'a> for ast::ExprCall {
                 "drop" => call::drop(vm, &self.args),
                 "select" => call::select(vm, &self.args),
                 "col" => call::col(vm, &self.args),
-                "row" => call::row(vm, &self.args),
                 _ => Err(FilterxError::RuntimeError(format!(
                     "Function `{}` is not defined.",
                     function_name
@@ -57,7 +56,6 @@ impl<'a> Eval<'a> for ast::ExprCall {
                 "drop" => call::drop(vm, &self.args),
                 "select" => call::select(vm, &self.args),
                 "col" => call::col(vm, &self.args),
-                "row" => call::row(vm, &self.args),
                 _ => Err(FilterxError::RuntimeError(format!(
                     "Function `{}` is not defined.",
                     function_name
@@ -69,7 +67,6 @@ impl<'a> Eval<'a> for ast::ExprCall {
                 "drop" => call::drop(vm, &self.args),
                 "select" => call::select(vm, &self.args),
                 "col" => call::col(vm, &self.args),
-                "row" => call::row(vm, &self.args),
                 _ => Err(FilterxError::RuntimeError(format!(
                     "Function `{}` is not defined.",
                     function_name
