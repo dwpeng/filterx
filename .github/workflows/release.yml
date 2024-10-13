@@ -11,43 +11,68 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
+    # strategy:
+    #   matrix:
+    #     include:
+    #         - target: x86_64-unknown-linux-gnu
+    #           os: ubuntu-latest
+    #           cross: true
+    #         - target: aarch64-unknown-linux-gnu
+    #           os: ubuntu-latest
+    #           cross: true
+    #         # - target: x86_64-pc-windows-msvc
+    #         #   os: windows-latest
+    #         #   cross: false
+    #         # - target: x86_64-apple-darwin
+    #         #   os: macos-latest
+    #         #   cross: false
+    #         # - target: aarch64-apple-darwin
+    #         #   os: macos-latest
+    #         #   cross: false
     strategy:
+      fail-fast: false
       matrix:
         include:
-            - target: x86_64-unknown-linux-gnu
-              os: ubuntu-latest
-              cross: true
-            - target: aarch64-unknown-linux-gnu
-              os: ubuntu-latest
-              cross: true
-            # - target: x86_64-pc-windows-msvc
-            #   os: windows-latest
-            #   cross: false
-            # - target: x86_64-apple-darwin
-            #   os: macos-latest
-            #   cross: false
-            # - target: aarch64-apple-darwin
-            #   os: macos-latest
-            #   cross: false
+        - target: x86_64-unknown-linux-musl
+          os: ubuntu-latest
+          cross: true
+        - target: aarch64-unknown-linux-musl
+          os: ubuntu-latest
+          cross: true
+        - target: armv7-unknown-linux-musleabi
+          os: ubuntu-latest
+          cross: true
+        - target: riscv64gc-unknown-linux-gnu
+          os: ubuntu-latest
+          cross: true
+        - target: x86_64-apple-darwin
+          os: macos-latest
+          cross: false
+        - target: aarch64-apple-darwin
+          os: macos-latest
+          cross: false
+        - target: x86_64-pc-windows-msvc
+          os: windows-latest
+          cross: false
+        - target: aarch64-pc-windows-msvc
+          os: windows-latest
+          cross: false
 
     steps:
     - uses: actions/checkout@v4
-    - uses: mlugg/setup-zig@v1
+    - uses: dtolnay/rust-toolchain@1.78.0
+      with:
+        target: ${{ matrix.target }}
 
-    - name: Build linux binaries
+    - name: Run Cross
       if: ${{ matrix.cross }}
       run: |
-        cargo install cargo-zigbuild
-        rustup target add ${{ matrix.target }}
-        cargo zigbuild -p filterx --release --target ${{ matrix.target }}.2.17
-        cargo zigbuild -p filterx --release --target ${{ matrix.target }}
+        cargo install cross --git https://github.com/cross-rs/cross.git
+        cross build -p filterx --release --target ${{ matrix.target }}
 
-    - name: Build windows/mac binaries
+    - name: Run Cargo
       if: ${{ !matrix.cross }}
-      run: |
-        cargo install cargo-zigbuild
-        rustup target add ${{ matrix.target }}
-        cargo zigbuild -p filterx --release --target ${{ matrix.target }}
+      run: cargo build -p filterx --release --target ${{ matrix.target }}
 
     - name: create artifact directory
       shell: bash
