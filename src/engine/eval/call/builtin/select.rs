@@ -42,7 +42,7 @@ pub fn select<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value:
             let exprs: Vec<Expr> = select_dolumns.iter().map(|c| col(c)).collect();
             let lazy = df_source.lazy.clone();
             let lazy = lazy.select(exprs);
-            df_source.lazy = lazy;
+            df_source.update(lazy);
         }
         _ => {
             return Err(FilterxError::RuntimeError(

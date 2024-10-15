@@ -3,7 +3,6 @@ use polars::prelude::*;
 use crate::FilterxResult;
 
 pub struct DataframeSource {
-    pub df: Option<DataFrame>,
     pub lazy: LazyFrame,
     pub has_header: bool,
     pub n_cols: usize,
@@ -12,8 +11,8 @@ pub struct DataframeSource {
 
 impl DataframeSource {
     pub fn new(lazy: LazyFrame) -> Self {
+        let lazy = lazy.with_streaming(true);
         Self {
-            df: None,
             lazy,
             has_header: true,
             n_cols: 0,
@@ -34,11 +33,15 @@ impl DataframeSource {
     pub fn set_index_with_name(&mut self, index: usize, name: &str) {
         let lazy = self.lazy.clone();
         let lazy = lazy.with_column(col(DataframeSource::index2column(index)).alias(name));
-        self.lazy = lazy;
+        self.update(lazy);
     }
 
     pub fn into_df(self) -> FilterxResult<DataFrame> {
         let df = self.lazy.collect()?;
         Ok(df)
+    }
+
+    pub fn update(&mut self, lazy: LazyFrame) {
+        self.lazy = lazy.with_streaming(true);
     }
 }

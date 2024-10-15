@@ -50,13 +50,8 @@ impl VmStatus {
 }
 
 impl VmStatus {
-    pub fn inject_columns_by_df(&mut self, df: LazyFrame) {
-        let df = df.lazy().fetch(1);
-        if df.is_err() {
-            eprintln!("{:?}", df.err());
-            std::process::exit(1);
-        }
-        let df = df.unwrap();
+    pub fn inject_columns_by_df(&mut self, df: LazyFrame) -> FilterxResult<()> {
+        let df = df.lazy().with_streaming(true).fetch(1)?;
         let dtypes = df.dtypes();
         for (i, col) in df.get_columns().iter().enumerate() {
             let c = Col {
@@ -68,6 +63,7 @@ impl VmStatus {
             self.columns.push(c);
         }
         self.selected_columns = self.columns.clone();
+        Ok(())
     }
 
     pub fn inject_columns_by_default(&mut self, cols: Vec<Col>) {

@@ -16,6 +16,7 @@ polars = { version = "0.43.1", features = [
     "regex",
     "semi_anti_join",
     "streaming",
+    "cum_agg"
 ] }
 rustpython-parser = "0.4.0"
 thiserror = "1.0.63"

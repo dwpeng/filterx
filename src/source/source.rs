@@ -34,8 +34,16 @@ impl Source {
     pub fn finish(&mut self) -> FilterxResult<()> {
         match self {
             Source::Dataframe(df) => {
-                let ret_df = df.lazy.clone().with_streaming(true).collect()?;
-                df.lazy = ret_df.lazy();
+                let plan = df.lazy.describe_optimized_plan();
+                if plan.is_err() {
+                    return Ok(());
+                }
+                let plan = plan.unwrap();
+                if plan.len() == 0 {
+                    return Ok(());
+                }
+                let ret_df = df.lazy.clone().collect()?;
+                df.update(ret_df.lazy());
             }
             _ => {}
         };

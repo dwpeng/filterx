@@ -18,7 +18,7 @@ pub fn open_csv_file(path: &str, reader_options: CsvReadOptions) -> FilterxResul
     Ok(df)
 }
 
-pub fn open_csv_file_mmaped(
+pub fn open_csv_file_in_lazy(
     path: &str,
     reader_options: CsvReadOptions,
 ) -> FilterxResult<LazyFrame> {

@@ -1,5 +1,4 @@
 use polars::{
-    docs::lazy,
     io::{csv, SerWriter},
     prelude::{CsvParseOptions, CsvReadOptions, DataFrame, LazyFrame},
 };
@@ -30,7 +29,7 @@ fn init_df(
         .with_skip_rows(skip_row)
         .with_schema(None);
 
-    util::open_csv_file_mmaped(path, parser_option)
+    util::open_csv_file_in_lazy(path, parser_option)
 }
 
 fn write_df(
@@ -70,16 +69,27 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         limit_row: _,
         scope: _,
     } = cmd;
+
+    let comment_prefix = comment_prefix.unwrap();
+    let separator = separator.unwrap();
+
     let lazy_df = init_df(
         path.as_str(),
         header.unwrap(),
-        comment_prefix.unwrap().as_str(),
-        separator.unwrap().as_str(),
+        &comment_prefix,
+        &separator,
         skip_row.unwrap(),
     )?;
     let mut vm = Vm::from_dataframe(DataframeSource::new(lazy_df.clone()));
     if header.is_some() {
-        vm.status.inject_columns_by_df(lazy_df);
+        let lazy = init_df(
+            path.as_str(),
+            header.unwrap(),
+            &comment_prefix,
+            &separator,
+            skip_row.unwrap(),
+        )?;
+        vm.status.inject_columns_by_df(lazy)?;
     }
     let expr = expr.unwrap_or("".into());
     vm.eval_once(&expr)?;

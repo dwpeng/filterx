@@ -1,5 +1,6 @@
 use std::ops::Deref;
 
+use polars::docs::lazy;
 use polars::prelude::*;
 
 use super::super::ast;
@@ -93,26 +94,27 @@ fn assign_in_dataframe<'a>(
     match value {
         Value::Column(c) => {
             let lazy = df_source.lazy.clone();
-            let lazy = lazy.with_column(col(c.col_name).alias(new_col));
-            df_source.lazy = lazy;
+            let lazy = lazy
+                .with_column(col(c.col_name).alias(new_col));
+            df_source.update(lazy);
         }
 
         Value::Int(i) => {
             let lazy = df_source.lazy.clone();
-            let lazy = lazy.with_column(lit(i).alias(new_col));
-            df_source.lazy = lazy;
+            let lazy = lazy.with_column(lit(i).alias(&new_col));
+            df_source.update(lazy);
         }
 
         Value::Float(f) => {
             let lazy = df_source.lazy.clone();
             let lazy = lazy.with_column(lit(f).alias(new_col));
-            df_source.lazy = lazy;
+            df_source.update(lazy);
         }
 
         Value::Str(s) => {
             let lazy = df_source.lazy.clone();
             let lazy = lazy.with_column(lit(s).alias(new_col));
-            df_source.lazy = lazy;
+            df_source.update(lazy);
         }
 
         Value::MultiColumn(m) => {
@@ -135,12 +137,12 @@ fn assign_in_dataframe<'a>(
                 };
             }
             let lazy = lazy.with_column(expr);
-            df_source.lazy = lazy;
+            df_source.update(lazy);
         }
         Value::Expr(e) => {
             let lazy = df_source.lazy.clone();
             let lazy = lazy.with_column(e.alias(new_col));
-            df_source.lazy = lazy;
+            df_source.update(lazy);
         }
         _ => {
             return Err(FilterxError::RuntimeError(
