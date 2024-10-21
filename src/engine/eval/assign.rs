@@ -1,6 +1,5 @@
 use std::ops::Deref;
 
-use polars::docs::lazy;
 use polars::prelude::*;
 
 use super::super::ast;

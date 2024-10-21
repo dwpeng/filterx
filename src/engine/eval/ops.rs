@@ -553,7 +553,7 @@ fn compare_cond_in_dataframe<'a>(
 }
 
 fn compare_cond_expr_in_dataframe<'a>(
-    _vm: &'a mut Vm,
+    vm: &'a mut Vm,
     left: Value,
     right: Value,
     op: &CmpOp,
@@ -588,6 +588,9 @@ fn compare_cond_expr_in_dataframe<'a>(
         }
     };
 
+    let df = vm.source.dataframe_mut_ref().unwrap();
+    let mut lazy = df.lazy.clone();
+
     let e = match op {
         CmpOp::Eq => col(left_col).eq(right.expr()?),
         CmpOp::NotEq => col(left_col).neq(right.expr()?),
@@ -601,5 +604,8 @@ fn compare_cond_expr_in_dataframe<'a>(
             ));
         }
     };
-    Ok(Value::Expr(e))
+
+    lazy = lazy.filter(e);
+    df.lazy = lazy;
+    Ok(Value::None)
 }
