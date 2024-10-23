@@ -39,8 +39,8 @@ impl<'a> Eval<'a> for ast::ExprCall {
                 "rename" => call::rename(vm, &self.args),
                 "head" => call::head(vm, &self.args),
                 "tail" => call::tail(vm, &self.args),
-                "Sort" => call::sort(vm, &self.args, true),
-                "sorT" => call::sort(vm, &self.args, false),
+                "Sort" => call::sort(vm, &self.args, false),
+                "sorT" => call::sort(vm, &self.args, true),
                 "sort" => call::sort(vm, &self.args, true),
                 _ => Err(FilterxError::RuntimeError(format!(
                     "Function `{}` is not defined.",
