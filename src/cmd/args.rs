@@ -1,6 +1,6 @@
 use clap::{ArgAction, Args, Parser, Subcommand, ValueHint};
 
-use crate::engine::vm::VmScope;
+use crate::engine::vm::VmSourceType;
 
 static LONG_ABOUT: &'static str = include_str!("./long.txt");
 
@@ -79,7 +79,7 @@ pub struct CsvCommand {
 
     /// scope of the filterx
     #[clap(long, default_value = "csv")]
-    pub scope: Option<VmScope>,
+    pub scope: Option<VmSourceType>,
 }
 
 #[derive(Debug, Clone, Parser)]

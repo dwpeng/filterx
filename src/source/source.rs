@@ -1,5 +1,3 @@
-
-
 use polars::prelude::*;
 
 use super::{DataframeSource, FastaSource, FastqSource};

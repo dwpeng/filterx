@@ -93,8 +93,7 @@ fn assign_in_dataframe<'a>(
     match value {
         Value::Column(c) => {
             let lazy = df_source.lazy.clone();
-            let lazy = lazy
-                .with_column(col(c.col_name).alias(new_col));
+            let lazy = lazy.with_column(col(c.col_name).alias(new_col));
             df_source.update(lazy);
         }
 

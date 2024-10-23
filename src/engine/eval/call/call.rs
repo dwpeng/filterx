@@ -10,8 +10,6 @@ use crate::{FilterxError, FilterxResult};
 
 use crate::engine::eval::call;
 
-use super::BUILTIN_FUNCTIONS;
-
 impl<'a> Eval<'a> for ast::ExprCall {
     type Output = value::Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
@@ -30,13 +28,6 @@ impl<'a> Eval<'a> for ast::ExprCall {
             }
             _ => unreachable!(),
         };
-        // a buildin function
-        if !BUILTIN_FUNCTIONS.contains(&function_name.as_str()) {
-            return Err(FilterxError::RuntimeError(format!(
-                "Function `{}` is not defined.",
-                function_name
-            )));
-        }
 
         match vm.source {
             Source::Dataframe(_) => match function_name.as_str() {
@@ -45,33 +36,21 @@ impl<'a> Eval<'a> for ast::ExprCall {
                 "drop" => call::drop(vm, &self.args),
                 "select" => call::select(vm, &self.args),
                 "col" => call::col(vm, &self.args),
+                "rename" => call::rename(vm, &self.args),
+                "head" => call::head(vm, &self.args),
+                "tail" => call::tail(vm, &self.args),
+                "Sort" => call::sort(vm, &self.args, true),
+                "sorT" => call::sort(vm, &self.args, false),
+                "sort" => call::sort(vm, &self.args, true),
                 _ => Err(FilterxError::RuntimeError(format!(
                     "Function `{}` is not defined.",
                     function_name
                 ))),
             },
-            Source::Fasta(_) => match function_name.as_str() {
-                "Alias" => call::Alias(vm, &self.args),
-                "alias" => call::alias(vm, &self.args),
-                "drop" => call::drop(vm, &self.args),
-                "select" => call::select(vm, &self.args),
-                "col" => call::col(vm, &self.args),
-                _ => Err(FilterxError::RuntimeError(format!(
-                    "Function `{}` is not defined.",
-                    function_name
-                ))),
-            },
-            Source::Fastq(_) => match function_name.as_str() {
-                "Alias" => call::Alias(vm, &self.args),
-                "alias" => call::alias(vm, &self.args),
-                "drop" => call::drop(vm, &self.args),
-                "select" => call::select(vm, &self.args),
-                "col" => call::col(vm, &self.args),
-                _ => Err(FilterxError::RuntimeError(format!(
-                    "Function `{}` is not defined.",
-                    function_name
-                ))),
-            },
+            _ => Err(FilterxError::RuntimeError(format!(
+                "Source `{:?}` is not supported.",
+                vm.source_type
+            ))),
         }
     }
 }

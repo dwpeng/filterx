@@ -124,7 +124,7 @@ impl VmStatus {
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
-pub enum VmScope {
+pub enum VmSourceType {
     Csv,
     Fasta,
     Fastq,
@@ -134,18 +134,18 @@ pub enum VmScope {
     Gtf,
 }
 
-impl FromStr for VmScope {
+impl FromStr for VmSourceType {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "csv" => Ok(VmScope::Csv),
-            "fasta" => Ok(VmScope::Fasta),
-            "fastq" => Ok(VmScope::Fastq),
-            "vcf" => Ok(VmScope::Vcf),
-            "sam" => Ok(VmScope::Sam),
-            "gff" => Ok(VmScope::Gff),
-            "gtf" => Ok(VmScope::Gtf),
+            "csv" => Ok(VmSourceType::Csv),
+            "fasta" => Ok(VmSourceType::Fasta),
+            "fastq" => Ok(VmSourceType::Fastq),
+            "vcf" => Ok(VmSourceType::Vcf),
+            "sam" => Ok(VmSourceType::Sam),
+            "gff" => Ok(VmSourceType::Gff),
+            "gtf" => Ok(VmSourceType::Gtf),
             _ => Err(()),
         }
     }
@@ -159,7 +159,7 @@ pub struct Vm {
     /// source
     pub source: Source,
     pub status: VmStatus,
-    pub scope: VmScope,
+    pub source_type: VmSourceType,
 }
 
 impl Vm {
@@ -169,7 +169,7 @@ impl Vm {
             mode: VmMode::Expression,
             source: Source::new_dataframe(dataframe),
             status: VmStatus::default(),
-            scope: VmScope::Csv,
+            source_type: VmSourceType::Csv,
         }
     }
 
@@ -179,7 +179,7 @@ impl Vm {
             mode: VmMode::Expression,
             source: Source::new_fasta(fasta),
             status: VmStatus::default(),
-            scope: VmScope::Fasta,
+            source_type: VmSourceType::Fasta,
         }
     }
 
@@ -189,7 +189,7 @@ impl Vm {
             mode: VmMode::Expression,
             source: Source::new_fastq(fastq),
             status: VmStatus::default(),
-            scope: VmScope::Fastq,
+            source_type: VmSourceType::Fastq,
         }
     }
 
@@ -197,8 +197,8 @@ impl Vm {
         self.mode = mode;
     }
 
-    pub fn set_scope(&mut self, scope: VmScope) {
-        self.scope = scope;
+    pub fn set_scope(&mut self, scope: VmSourceType) {
+        self.source_type = scope;
     }
 
     fn ast(&self, s: &str) -> FilterxResult<rustpython_parser::ast::Mod> {
@@ -235,6 +235,9 @@ impl Vm {
         }
         let exprs: Vec<&str> = expr.split(";").collect();
         for expr in exprs {
+            if expr.is_empty() {
+                continue;
+            }
             self.eval_expr = expr.to_string();
             let expr = self.ast(expr)?;
             if expr.is_expression() {

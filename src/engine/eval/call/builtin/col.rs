@@ -1,10 +1,8 @@
-use crate::source::{DataframeSource, SourceType};
-
 use super::*;
 
 pub fn col(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     expect_args_len(args, 1)?;
-    let col_index = match args.first().unwrap() {
+    let col_value = match args.first().unwrap() {
         ast::Expr::Constant(n) => n.eval(vm)?,
         ast::Expr::Name(n) => n.eval(vm)?,
         ast::Expr::Call(c) => c.eval(vm)?,
@@ -15,7 +13,7 @@ pub fn col(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
         }
     };
 
-    let c = match col_index {
+    let c = match col_value {
         value::Value::Int(i) => {
             if i >= 0 {
                 DataframeSource::index2column(i as usize)
