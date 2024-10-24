@@ -4,15 +4,7 @@ use polars::chunked_array::ops::SortMultipleOptions;
 pub fn sort(vm: &mut Vm, args: &Vec<ast::Expr>, incr: bool) -> FilterxResult<value::Value> {
     let mut cols = Vec::new();
     for arg in args {
-        let v = match arg {
-            ast::Expr::Name(n) => n.eval(vm)?,
-            ast::Expr::Call(c) => c.eval(vm)?,
-            _ => {
-                return Err(FilterxError::RuntimeError(
-                    "Only support column index".to_string(),
-                ));
-            }
-        };
+        let v = eval!(vm, arg, "Only support column index", Name, Call);
 
         let col = match v {
             value::Value::Int(i) => {

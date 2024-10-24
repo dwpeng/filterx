@@ -5,16 +5,7 @@ use polars::prelude::Expr;
 pub fn select<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     let mut select_dolumns = vec![];
     for arg in args {
-        let col = match arg {
-            ast::Expr::Name(n) => n.eval(vm)?,
-            ast::Expr::Call(c) => c.eval(vm)?,
-            _ => {
-                return Err(FilterxError::RuntimeError(
-                    "Only support column name".to_string(),
-                ));
-            }
-        };
-
+        let col = eval!(vm, arg, "Only support column name", Name, Call);
         let col = match col {
             value::Value::Column(c) => c,
             _ => {

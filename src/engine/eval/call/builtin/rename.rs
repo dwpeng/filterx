@@ -9,16 +9,15 @@ pub use crate::{FilterxError, FilterxResult};
 
 pub fn rename(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     expect_args_len(args, 2)?;
-    let col_value = match args.first().unwrap() {
-        ast::Expr::Constant(n) => n.eval(vm)?,
-        ast::Expr::Name(n) => n.eval(vm)?,
-        ast::Expr::Call(c) => c.eval(vm)?,
-        _ => {
-            return Err(FilterxError::RuntimeError(
-                "Only support column index".to_string(),
-            ));
-        }
-    };
+
+    let col_value = eval!(
+        vm,
+        &args[0],
+        "Only support column index",
+        Constant,
+        Name,
+        Call
+    );
 
     let old_col = match col_value {
         value::Value::Int(i) => {
@@ -39,15 +38,14 @@ pub fn rename(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value>
         }
     };
 
-    let new_col_value = match args.get(1).unwrap() {
-        ast::Expr::Constant(n) => n.eval(vm)?,
-        ast::Expr::Name(n) => n.eval(vm)?,
-        _ => {
-            return Err(FilterxError::RuntimeError(
-                "Only support column index".to_string(),
-            ));
-        }
-    };
+    let new_col_value = eval!(
+        vm,
+        &args[1],
+        "Only support column index",
+        Constant,
+        Name,
+        Call
+    );
 
     let new_col = match new_col_value {
         value::Value::Str(s) => s,

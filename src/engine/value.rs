@@ -124,6 +124,13 @@ impl Value {
         }
     }
 
+    pub fn is_str(&self) -> bool {
+        match self {
+            Value::Str(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn is_expr(&self) -> bool {
         match self {
             Value::Expr(_) => true,

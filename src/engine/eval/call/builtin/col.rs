@@ -2,16 +2,15 @@ use super::*;
 
 pub fn col(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     expect_args_len(args, 1)?;
-    let col_value = match args.first().unwrap() {
-        ast::Expr::Constant(n) => n.eval(vm)?,
-        ast::Expr::Name(n) => n.eval(vm)?,
-        ast::Expr::Call(c) => c.eval(vm)?,
-        _ => {
-            return Err(FilterxError::RuntimeError(
-                "Only support column index".to_string(),
-            ));
-        }
-    };
+
+    let col_value = eval!(
+        vm,
+        &args[0],
+        "Only support column index",
+        Constant,
+        Name,
+        Call
+    );
 
     let c = match col_value {
         value::Value::Int(i) => {

@@ -21,6 +21,22 @@ pub fn expect_args_len(
     Ok(())
 }
 
+
+#[macro_export]
+macro_rules! eval {
+    ($vm:expr, $target:expr, $msg:literal, $($expr:ident),*) => {
+        match $target {
+            $(
+                ast::Expr::$expr(x) => x.eval($vm)?,
+            )*
+            _ => {
+                return Err(FilterxError::RuntimeError($msg.to_string()));
+            }
+        }
+    };
+}
+
+
 macro_rules! builtin_function {
     ($($name:ident),*) => {
         pub static BUILTIN_FUNCTIONS: &'static [&'static str] = &[

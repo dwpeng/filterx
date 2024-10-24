@@ -7,6 +7,7 @@ use super::super::value::Value;
 
 use crate::engine::eval::Eval;
 use crate::engine::vm::Vm;
+use crate::eval;
 use crate::source::DataframeSource;
 use crate::source::Source;
 use crate::{FilterxError, FilterxResult};
@@ -51,19 +52,16 @@ impl<'a> Eval<'a> for ast::StmtAssign {
 
         let right = self.value.deref();
 
-        let value = match right {
-            ast::Expr::BinOp(o) => o.eval(vm)?,
-            ast::Expr::Constant(c) => c.eval(vm)?,
-            ast::Expr::Name(n) => n.eval(vm)?,
-            ast::Expr::Call(c) => c.eval(vm)?,
-            ast::Expr::UnaryOp(u) => u.eval(vm)?,
-            _ => {
-                return Err(FilterxError::RuntimeError(
-                    "use `alias` to create a new column, like alias(new_col) = col1 + col2"
-                        .to_string(),
-                ))
-            }
-        };
+        let value = eval!(
+            vm,
+            right,
+            "use `alias` to create a new column, like alias(new_col) = col1 + col2",
+            Constant,
+            Name,
+            Call,
+            UnaryOp,
+            BinOp
+        );
 
         // TODO
         // pass percise type

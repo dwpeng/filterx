@@ -80,7 +80,9 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         &separator,
         skip_row.unwrap(),
     )?;
-    let mut vm = Vm::from_dataframe(DataframeSource::new(lazy_df.clone()));
+    let mut s = DataframeSource::new(lazy_df.clone());
+    s.set_has_header(header.unwrap());
+    let mut vm = Vm::from_dataframe(s);
     if header.is_some() {
         let lazy = init_df(
             path.as_str(),
