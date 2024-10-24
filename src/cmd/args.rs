@@ -42,6 +42,10 @@ pub struct ShareArgs {
     /// The output file, default is stdout
     #[clap(value_hint=ValueHint::FilePath)]
     pub output: Option<String>,
+
+    /// output as table format
+    #[clap(short = 't', long, default_value = "false", action = ArgAction::SetTrue)]
+    pub table: Option<bool>,
 }
 
 #[derive(Debug, Clone, Parser)]

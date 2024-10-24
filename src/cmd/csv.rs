@@ -59,6 +59,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
                 input: path,
                 expr,
                 output,
+                table,
             },
         header,
         output_header,
@@ -97,6 +98,10 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
     vm.eval_once(&expr)?;
     vm.finish()?;
     let mut df = vm.source.into_dataframe().unwrap().into_df()?;
+    if output.is_none() && table.unwrap_or(false) {
+        println!("{}", df);
+        return Ok(());
+    }
     write_df(
         &mut df,
         output.as_deref(),
