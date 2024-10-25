@@ -77,4 +77,8 @@ builtin_function! {
     len,
     limit,
     gc,
+    rev,
+    revcomp,
+    upper,
+    lower,
 }

@@ -58,6 +58,14 @@ impl<'a> Eval<'a> for ast::ExprCall {
                 "print" => call::print(vm, &self.args),
                 "limit" => call::limit(vm, &self.args),
                 "gc" => call::gc(vm, &self.args),
+                "rev" => call::rev(vm, &self.args, false),
+                "rev_" => call::rev(vm, &self.args, true),
+                "revcomp" => call::revcomp(vm, &self.args, false),
+                "revcomp_" => call::revcomp(vm, &self.args, true),
+                "upper" => call::upper(vm, &self.args, false),
+                "upper_" => call::upper(vm, &self.args, true),
+                "lower" => call::lower(vm, &self.args, false),
+                "lower_" => call::lower(vm, &self.args, true),
                 _ => Err(FilterxError::RuntimeError(format!(
                     "Function `{}` is not defined.",
                     function_name

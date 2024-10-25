@@ -44,4 +44,10 @@ impl DataframeSource {
     pub fn update(&mut self, lazy: LazyFrame) {
         self.lazy = lazy.with_streaming(true);
     }
+
+    pub fn with_column(&mut self, e: Expr) {
+        let lazy = self.lazy.clone();
+        let lazy = lazy.with_column(e);
+        self.update(lazy);
+    }
 }

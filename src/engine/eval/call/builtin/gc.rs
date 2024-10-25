@@ -5,7 +5,7 @@ use polars::prelude::*;
 
 use polars::prelude::col;
 
-fn gc_wrapper(s: Series) -> PolarsResult<Option<Series>> {
+fn compute_gc(s: Series) -> PolarsResult<Option<Series>> {
     if !s.dtype().is_string() {
         return Err(PolarsError::InvalidOperation(
             format!(
@@ -53,6 +53,6 @@ pub fn gc<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Val
             ))
         }
     };
-    let e = col(col_name).map(gc_wrapper, GetOutput::float_type());
+    let e = col(col_name).map(compute_gc, GetOutput::float_type());
     return Ok(value::Value::Expr(e));
 }

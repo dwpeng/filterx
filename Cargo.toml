@@ -13,6 +13,7 @@ polars = { version = "0.43.1", features = [
     "lazy",
     "csv",
     "strings",
+    "string_reverse",
     "concat_str",
     "regex",
     "semi_anti_join",
