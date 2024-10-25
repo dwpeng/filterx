@@ -21,7 +21,6 @@ pub fn expect_args_len(
     Ok(())
 }
 
-
 #[macro_export]
 macro_rules! eval {
     ($vm:expr, $target:expr, $msg:literal, $($expr:ident),*) => {
@@ -35,7 +34,6 @@ macro_rules! eval {
         }
     };
 }
-
 
 macro_rules! builtin_function {
     ($($name:ident),*) => {
@@ -76,4 +74,5 @@ builtin_function! {
     head,
     tail,
     sort,
+    len,
 }

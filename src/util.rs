@@ -4,6 +4,9 @@ use crate::engine::value;
 use polars::prelude::*;
 
 use crate::{FilterxError, FilterxResult};
+use std::fs::File;
+use std::io::BufWriter;
+use std::io::Write;
 
 pub fn open_csv_file(path: &str, reader_options: CsvReadOptions) -> FilterxResult<DataFrame> {
     let path = std::path::Path::new(path);
@@ -112,4 +115,14 @@ pub fn mock_lazy_df() -> LazyFrame {
     ])
     .unwrap();
     df.lazy()
+}
+
+pub fn create_buffer_writer(path: Option<String>) -> FilterxResult<BufWriter<Box<dyn Write>>> {
+    let writer: Box<dyn Write>;
+    if let Some(path) = path {
+        writer = Box::new(File::create(path)?);
+    } else {
+        writer = Box::new(std::io::stdout());
+    }
+    Ok(BufWriter::new(writer))
 }

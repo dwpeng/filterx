@@ -20,7 +20,7 @@ pub struct Col {
     pub index: usize,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct VmStatus {
     pub apply_lazy: bool,
     pub skip: bool,
@@ -31,6 +31,7 @@ pub struct VmStatus {
     pub offset: usize,
     columns: Vec<Col>,
     pub selected_columns: Vec<Col>,
+    pub printed: bool,
 }
 
 impl VmStatus {
@@ -45,7 +46,14 @@ impl VmStatus {
             offset: 0,
             columns: Vec::new(),
             selected_columns: Vec::new(),
+            printed: false,
         }
+    }
+}
+
+impl Default for VmStatus {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

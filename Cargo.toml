@@ -16,11 +16,22 @@ polars = { version = "0.43.1", features = [
     "regex",
     "semi_anti_join",
     "streaming",
-    "cum_agg"
+    "cum_agg",
+    "avx512",
+    "serde",
 ] }
+polars-plan = { version = "0.43.1" }
 rustpython-parser = "0.4.0"
 thiserror = "1.0.63"
 flate2 = { version = "1.0.33", features = ["zlib-rs"] }
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+
+
+[profile.dev]
+opt-level = 0
+
 
 [profile.release]
 opt-level = "z"

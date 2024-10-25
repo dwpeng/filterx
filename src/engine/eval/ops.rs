@@ -4,8 +4,8 @@ use polars::prelude::*;
 use rustpython_parser::ast::located::CmpOp;
 
 use super::super::ast;
-use super::call::Source;
 use crate::engine::value::Value;
+use crate::source::Source;
 use crate::util;
 
 use crate::engine::eval::Eval;
@@ -86,24 +86,6 @@ fn unary(v: Value, _op: ast::UnaryOp) -> FilterxResult<Value> {
 impl<'a> Eval<'a> for ast::ExprBinOp {
     type Output = Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
-        // let l = match *self.left {
-        //     // Value::Int(i) => Value::Int(i),
-        //     // Value::Float(f) => Value::Float(f),
-        //     // Value::Str(s) => Value::Str(s),
-        //     ast::Expr::Constant(ref c) => c.eval(vm)?,
-        //     // ast::Expr::Call(ref c) => c.eval(vm)?,
-        //     ast::Expr::UnaryOp(ref u) => u.eval(vm)?,
-        //     // Value::Column(c) => Value::Column(c),
-        //     ast::Expr::Name(ref n) => n.eval(vm)?,
-        //     // a+b
-        //     ast::Expr::BinOp(ref b) => b.eval(vm)?,
-        //     _ => {
-        //         return Err(FilterxError::RuntimeError(
-        //             "Only support constant and Column".to_string(),
-        //         ))
-        //     }
-        // };
-
         let l = eval!(
             vm,
             self.left.deref(),
@@ -113,19 +95,6 @@ impl<'a> Eval<'a> for ast::ExprBinOp {
             UnaryOp,
             Name
         );
-
-        // let r = match *self.right {
-        //     ast::Expr::Constant(ref c) => c.eval(vm)?,
-        //     // ast::Expr::Call(ref c) => c.eval(vm)?,
-        //     ast::Expr::UnaryOp(ref u) => u.eval(vm)?,
-        //     ast::Expr::Name(ref n) => n.eval(vm)?,
-        //     ast::Expr::BinOp(ref b) => b.eval(vm)?,
-        //     _ => {
-        //         return Err(FilterxError::RuntimeError(
-        //             "Only support constant and Column".to_string(),
-        //         ))
-        //     }
-        // };
 
         let r = eval!(
             vm,
@@ -301,11 +270,10 @@ fn boolop_in_dataframe<'a>(
 impl<'a> Eval<'a> for ast::ExprCompare {
     type Output = Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
-        let left = &self.left;
         let left = eval!(
             vm,
-            left.deref(),
-            "Only support constant",
+            self.left.deref(),
+            "Only support constant/Column",
             Constant,
             Call,
             UnaryOp,
@@ -326,13 +294,14 @@ impl<'a> Eval<'a> for ast::ExprCompare {
         let right = eval!(
             vm,
             right,
-            "Only support constant",
+            "Only support List/File/Column/Constant",
             Constant,
             Call,
             UnaryOp,
             BinOp,
             BoolOp,
-            Name
+            Name,
+            Tuple
         );
         match vm.source {
             Source::Dataframe(_) => {
@@ -367,11 +336,7 @@ fn compare_in_datarame<'a>(
             }
         }
         CmpOp::Eq | CmpOp::NotEq | CmpOp::Lt | CmpOp::LtE | CmpOp::Gt | CmpOp::GtE => {
-            if vm.status.apply_lazy {
-                return compare_cond_in_dataframe(vm, left, right, op);
-            } else {
-                return compare_cond_expr_in_dataframe(vm, left, right, op);
-            }
+            return compare_cond_expr_in_dataframe(vm, left, right, op)
         }
         _ => {
             return Err(FilterxError::RuntimeError(
@@ -525,124 +490,35 @@ fn compare_in_and_not_in_dataframe<'a>(
     Ok(Value::None)
 }
 
-fn compare_cond_in_dataframe<'a>(
-    vm: &'a mut Vm,
-    left: Value,
-    right: Value,
-    op: &CmpOp,
-) -> FilterxResult<Value> {
-    // ensure left is column
-    if !left.is_column() && !right.is_column() {
-        return Err(FilterxError::RuntimeError(
-            "Only support compare for column".to_string(),
-        ));
-    }
-
-    let mut left = left;
-    let mut right = right;
-    let mut op = op.clone();
-    if !left.is_column() {
-        (left, right) = (right, left);
-        match op {
-            CmpOp::Lt => op = CmpOp::Gt,
-            CmpOp::LtE => op = CmpOp::GtE,
-            CmpOp::Gt => op = CmpOp::Lt,
-            CmpOp::GtE => op = CmpOp::LtE,
-            _ => {}
-        };
-    }
-
-    let left_col = match &left {
-        Value::Column(l) => l.col_name.clone(),
-        _ => unreachable!(),
-    };
-
-    let df = vm.source.dataframe_mut_ref().unwrap();
-
-    let mut lazy = df.lazy.clone();
-    match op {
-        CmpOp::Eq => {
-            lazy = lazy.filter(col(left_col).eq(right.expr()?));
-        }
-        CmpOp::NotEq => {
-            lazy = lazy.filter(col(left_col).neq(right.expr()?));
-        }
-        CmpOp::Lt => {
-            lazy = lazy.filter(col(left_col).lt(right.expr()?));
-        }
-        CmpOp::LtE => {
-            lazy = lazy.filter(col(left_col).lt_eq(right.expr()?));
-        }
-        CmpOp::Gt => {
-            lazy = lazy.filter(col(left_col).gt(right.expr()?));
-        }
-        CmpOp::GtE => {
-            lazy = lazy.filter(col(left_col).gt_eq(right.expr()?));
-        }
-        _ => {
-            return Err(FilterxError::RuntimeError(
-                "Only support compare op : ==, !=, >, >=, <, <=".to_string(),
-            ));
-        }
-    }
-    df.lazy = lazy;
-    Ok(Value::None)
-}
-
 fn compare_cond_expr_in_dataframe<'a>(
     vm: &'a mut Vm,
     left: Value,
     right: Value,
     op: &CmpOp,
 ) -> FilterxResult<Value> {
-    // ensure left is column
-    if !left.is_column() && !right.is_column() {
-        return Err(FilterxError::RuntimeError(
-            "Only support compare for column".to_string(),
-        ));
-    }
-
-    let mut left = left;
-    let mut right = right;
-    let mut op = op.clone();
-    if !left.is_column() {
-        (left, right) = (right, left);
-        match op {
-            CmpOp::Lt => op = CmpOp::Gt,
-            CmpOp::LtE => op = CmpOp::GtE,
-            CmpOp::Gt => op = CmpOp::Lt,
-            CmpOp::GtE => op = CmpOp::LtE,
-            _ => {}
-        };
-    }
-
-    let left_col = match &left {
-        Value::Column(l) => l.col_name.clone(),
-        _ => {
-            return Err(FilterxError::RuntimeError(
-                "Only support compare for column".to_string(),
-            ));
-        }
-    };
-
+    let left_expr = left.expr()?;
+    let right_expr = right.expr()?;
+    let e = cond_expr_build(left_expr, right_expr, op.clone())?;
     let df = vm.source.dataframe_mut_ref().unwrap();
     let mut lazy = df.lazy.clone();
+    lazy = lazy.filter(e);
+    df.lazy = lazy;
+    Ok(Value::None)
+}
 
+fn cond_expr_build(left: Expr, right: Expr, op: CmpOp) -> FilterxResult<Expr> {
     let e = match op {
-        CmpOp::Eq => col(left_col).eq(right.expr()?),
-        CmpOp::NotEq => col(left_col).neq(right.expr()?),
-        CmpOp::Lt => col(left_col).lt(right.expr()?),
-        CmpOp::LtE => col(left_col).lt_eq(right.expr()?),
-        CmpOp::Gt => col(left_col).gt(right.expr()?),
-        CmpOp::GtE => col(left_col).gt_eq(right.expr()?),
+        CmpOp::Eq => left.eq(right),
+        CmpOp::NotEq => left.neq(right),
+        CmpOp::Lt => left.lt(right),
+        CmpOp::LtE => left.lt_eq(right),
+        CmpOp::Gt => left.gt(right),
+        CmpOp::GtE => left.gt_eq(right),
         _ => {
             return Err(FilterxError::RuntimeError(
                 "Only support compare op : ==, !=, >, >=, <, <=".to_string(),
             ));
         }
     };
-
-    lazy = lazy.filter(e);
-    df.lazy = lazy;
-    Ok(Value::None)
+    Ok(e)
 }

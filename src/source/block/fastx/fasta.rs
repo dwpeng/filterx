@@ -44,6 +44,28 @@ impl FastaSource {
         self.filter_options = Some(filter_options);
         self
     }
+
+    pub fn into_dataframe(&mut self, n: usize) -> FilterxResult<Option<DataFrame>> {
+        let mut records = Vec::with_capacity(n);
+        let mut count = 0;
+        while let Some(record) = self.fasta.parse_next()? {
+            records.push(record.clone());
+            count += 1;
+            if count >= n {
+                break;
+            }
+        }
+        if records.is_empty() {
+            return Ok(None);
+        }
+
+        let df = Fasta::as_dataframe(records)?;
+        Ok(Some(df))
+    }
+
+    pub fn reset(&mut self) {
+        self.fasta.reset();
+    }
 }
 
 pub struct Fasta {

@@ -1,5 +1,4 @@
 use filterx::cmd;
-
 fn main() {
     match cmd::cli() {
         Ok(_) => {}

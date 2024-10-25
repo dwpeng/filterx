@@ -87,7 +87,14 @@ pub struct CsvCommand {
 }
 
 #[derive(Debug, Clone, Parser)]
-pub struct FastaCommand {}
+pub struct FastaCommand {
+    #[clap(flatten)]
+    pub share_args: ShareArgs,
+
+    /// is long sequence
+    #[clap(short = 'l', long)]
+    pub long: Option<usize>,
+}
 
 #[derive(Debug, Clone, Parser)]
 pub struct FastqCommand {}

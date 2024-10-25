@@ -8,7 +8,7 @@ use crate::engine::vm::Vm;
 use crate::source::Source;
 use crate::{FilterxError, FilterxResult};
 
-use crate::engine::eval::call;
+use crate::engine::eval::call::builtin as call;
 
 impl<'a> Eval<'a> for ast::ExprCall {
     type Output = value::Value;
@@ -42,6 +42,7 @@ impl<'a> Eval<'a> for ast::ExprCall {
                 "Sort" => call::sort(vm, &self.args, false),
                 "sorT" => call::sort(vm, &self.args, true),
                 "sort" => call::sort(vm, &self.args, true),
+                "len" => call::len(vm, &self.args),
                 _ => Err(FilterxError::RuntimeError(format!(
                     "Function `{}` is not defined.",
                     function_name
