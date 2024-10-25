@@ -75,4 +75,6 @@ builtin_function! {
     tail,
     sort,
     len,
+    limit,
+    gc,
 }

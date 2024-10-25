@@ -1,3 +1,4 @@
+use polars::frame::DataFrame;
 use polars::prelude::IntoLazy;
 
 use crate::cmd::args::*;
@@ -5,7 +6,7 @@ use crate::FilterxResult;
 use std::io::Write;
 
 use crate::engine::vm::{Vm, VmSourceType};
-use crate::source::{DataframeSource, FastaSource, TableLike};
+use crate::source::{DataframeSource, FastaSource, Source, TableLike};
 
 use crate::util;
 
@@ -18,11 +19,12 @@ pub fn filter_fasta(cmd: FastaCommand) -> FilterxResult<()> {
                 output,
                 table: _,
             },
-        long,
+        chunk: long,
     } = cmd;
+    let expr = util::merge_expr(expr);
     let mut source = FastaSource::new(path.as_str())?;
-    let expr = expr.unwrap_or("".into());
-    let mut output = util::create_buffer_writer(output)?;
+    let output = util::create_buffer_writer(output)?;
+    let mut output = Box::new(output);
     if expr.is_empty() {
         while let Some(record) = &mut source.fasta.parse_next()? {
             writeln!(output, "{}", record)?;
@@ -30,38 +32,50 @@ pub fn filter_fasta(cmd: FastaCommand) -> FilterxResult<()> {
         return Ok(());
     }
     let mut chunk_size = 1000;
-    if long.is_some() {
+    if long.is_some() && long.unwrap() > 0 {
         chunk_size = long.unwrap();
     }
-    loop {
+    let mut vm = Vm::from_dataframe(DataframeSource::new(DataFrame::empty().lazy()));
+    vm.set_scope(VmSourceType::Fasta);
+    vm.set_writer(output);
+    'stop_parse: loop {
+        chunk_size = usize::min(chunk_size, vm.status.limit - vm.status.cosumer_rows);
         let df = source.into_dataframe(chunk_size)?;
         if df.is_none() {
             break;
         }
-        let df = df.unwrap();
-        let mut vm = Vm::from_dataframe(DataframeSource::new(df.lazy()));
-        vm.source_type = VmSourceType::Fasta;
+        let dataframe_source = DataframeSource::new(df.unwrap().lazy());
+        vm.source = Source::Dataframe(dataframe_source);
         vm.eval_once(&expr)?;
         vm.finish()?;
+        let writer = vm.writer.as_mut().unwrap();
         if !vm.status.printed {
             let df = vm.source.into_dataframe().unwrap().into_df()?;
             let cols = df.get_columns();
             let rows = df.height();
             for i in 0..rows {
-                for col in cols {
+                // TODO: handle the case where the column is not found
+                // TODO: handle the case where the column's rank is not right
+                for col in cols.iter() {
                     match col.name().as_str() {
                         "seq" => {
                             let seq = col.get(i).unwrap();
                             let seq = seq.get_str().unwrap_or("");
-                            write!(output, "{}\n", seq)?;
+                            write!(writer, "{}\n", seq)?;
                         }
                         "name" => {
                             let name = col.get(i).unwrap();
                             let name = name.get_str().unwrap_or("");
-                            write!(output, ">{}\n", name)?;
+                            write!(writer, ">{}\n", name)?;
                         }
-                        _ => {}
+                        _ => {
+                            break;
+                        }
                     }
+                }
+                vm.status.cosumer_rows += 1;
+                if vm.status.cosumer_rows >= vm.status.limit {
+                    break 'stop_parse;
                 }
             }
         }

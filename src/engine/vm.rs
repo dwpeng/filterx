@@ -7,6 +7,9 @@ use crate::source::{DataframeSource, FastaSource, FastqSource, Source};
 use super::eval::Eval;
 use crate::FilterxResult;
 
+use std::io::BufWriter;
+use std::io::Write;
+
 pub enum VmMode {
     Interactive,
     Expression,
@@ -25,13 +28,14 @@ pub struct VmStatus {
     pub apply_lazy: bool,
     pub skip: bool,
     pub stop: bool,
-    pub print: bool,
     pub count: usize,
     pub limit: usize,
     pub offset: usize,
     columns: Vec<Col>,
     pub selected_columns: Vec<Col>,
     pub printed: bool,
+    pub cosumer_rows: usize,
+    pub nrows: usize,
 }
 
 impl VmStatus {
@@ -40,13 +44,14 @@ impl VmStatus {
             apply_lazy: true,
             skip: false,
             stop: false,
-            print: false,
             count: 0,
-            limit: 0,
+            limit: usize::MAX,
             offset: 0,
             columns: Vec::new(),
             selected_columns: Vec::new(),
             printed: false,
+            cosumer_rows: 0,
+            nrows: 0,
         }
     }
 }
@@ -131,7 +136,7 @@ impl VmStatus {
     }
 }
 
-#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, clap::ValueEnum, PartialEq)]
 pub enum VmSourceType {
     Csv,
     Fasta,
@@ -168,6 +173,7 @@ pub struct Vm {
     pub source: Source,
     pub status: VmStatus,
     pub source_type: VmSourceType,
+    pub writer: Option<Box<BufWriter<Box<dyn Write>>>>,
 }
 
 impl Vm {
@@ -178,6 +184,7 @@ impl Vm {
             source: Source::new_dataframe(dataframe),
             status: VmStatus::default(),
             source_type: VmSourceType::Csv,
+            writer: None,
         }
     }
 
@@ -188,6 +195,7 @@ impl Vm {
             source: Source::new_fasta(fasta),
             status: VmStatus::default(),
             source_type: VmSourceType::Fasta,
+            writer: None,
         }
     }
 
@@ -198,6 +206,7 @@ impl Vm {
             source: Source::new_fastq(fastq),
             status: VmStatus::default(),
             source_type: VmSourceType::Fastq,
+            writer: None,
         }
     }
 
@@ -207,6 +216,10 @@ impl Vm {
 
     pub fn set_scope(&mut self, scope: VmSourceType) {
         self.source_type = scope;
+    }
+
+    pub fn set_writer(&mut self, writer: Box<BufWriter<Box<dyn Write>>>) {
+        self.writer = Some(writer);
     }
 
     fn ast(&self, s: &str) -> FilterxResult<rustpython_parser::ast::Mod> {

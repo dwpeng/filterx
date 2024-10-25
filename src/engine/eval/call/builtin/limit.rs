@@ -1,8 +1,11 @@
+use crate::engine::vm::VmSourceType;
+
 use super::*;
 
-pub fn head(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
+pub fn limit<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     expect_args_len(args, 1)?;
-    let n = eval!(vm, &args[0], "Only support integer", Constant, UnaryOp);
+
+    let n = eval!(vm, &args[0], "Only support integer", Constant, UnaryOp, BinOp);
     let nrow = match n {
         value::Value::Int(i) => {
             if i >= 0 {
@@ -20,6 +23,14 @@ pub fn head(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
         }
     };
 
+    match vm.source_type{
+        VmSourceType::Fasta | VmSourceType::Fastq => {
+            vm.status.limit = nrow;
+            return Ok(value::Value::None);
+        }
+        _ => {}
+    }
+
     match &mut vm.source {
         Source::Dataframe(ref mut df_source) => {
             let lazy = df_source.lazy.clone();
@@ -33,6 +44,5 @@ pub fn head(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
         }
     };
 
-    vm.status.limit = nrow;
     Ok(value::Value::None)
 }

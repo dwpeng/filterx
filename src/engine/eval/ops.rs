@@ -388,7 +388,6 @@ fn compare_in_and_not_in_dataframe<'a>(
             ));
         }
     };
-
     let right = match &right {
         Value::Str(path_repr) => util::handle_file(&path_repr)?,
         Value::List(_l) => right.clone(),
@@ -398,7 +397,6 @@ fn compare_in_and_not_in_dataframe<'a>(
             ));
         }
     };
-
     let df_root = vm.source.dataframe_mut_ref().unwrap();
 
     let left_df = df_root.lazy.clone().collect()?;

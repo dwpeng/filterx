@@ -3,20 +3,9 @@ use std::io::BufRead;
 
 use crate::source::block::reader::TableLikeReader;
 
-use crate::source::block::record::Filter;
 use crate::source::block::table_like::TableLike;
 
-use super::FastxRecord;
-
 use crate::error::FilterxResult;
-
-#[derive(Debug, Copy, Clone, Default)]
-pub struct FastaRcordFilterOptions {
-    pub max_length: Option<usize>,
-    pub min_length: Option<usize>,
-    pub max_gc: Option<f64>,
-    pub min_gc: Option<f64>,
-}
 
 #[derive(Debug, Clone, Default)]
 pub struct FastaRecordParserOptions {
@@ -29,20 +18,13 @@ pub struct FastaRecordParserOptions {
 
 pub struct FastaSource {
     pub fasta: Fasta,
-    pub filter_options: Option<FastaRcordFilterOptions>,
 }
 
 impl FastaSource {
     pub fn new(path: &str) -> FilterxResult<Self> {
         Ok(FastaSource {
             fasta: Fasta::from_path(path)?,
-            filter_options: None,
         })
-    }
-
-    pub fn set_filter_options(mut self, filter_options: FastaRcordFilterOptions) -> Self {
-        self.filter_options = Some(filter_options);
-        self
     }
 
     pub fn into_dataframe(&mut self, n: usize) -> FilterxResult<Option<DataFrame>> {
@@ -63,8 +45,8 @@ impl FastaSource {
         Ok(Some(df))
     }
 
-    pub fn reset(&mut self) {
-        self.fasta.reset();
+    pub fn reset(&mut self) -> FilterxResult<()> {
+        self.fasta.reset()
     }
 }
 
@@ -73,7 +55,6 @@ pub struct Fasta {
     prev_line: String,
     read_end: bool,
     pub path: String,
-    pub filter_options: Option<FastaRcordFilterOptions>,
     pub parser_options: Option<FastaRecordParserOptions>,
     columns: Vec<String>,
     record: FastaRecord,
@@ -113,7 +94,7 @@ impl FastaRecord {
     }
 }
 
-impl FastxRecord for FastaRecord {
+impl FastaRecord {
     fn name(&self) -> &str {
         &self.buffer[self._name.0..self._name.1]
     }
@@ -126,16 +107,12 @@ impl FastxRecord for FastaRecord {
         }
     }
 
-    fn qual(&self) -> Option<&str> {
-        None
-    }
-
     fn seq(&self) -> &str {
         &self.buffer[self._sequence.0..self._sequence.1]
     }
 
-    unsafe fn mut_seq(&mut self) -> &mut str {
-        &mut self.buffer[self._sequence.0..self._sequence.1]
+    fn len(&self) -> usize {
+        self._sequence.1 - self._sequence.0 + 1
     }
 }
 
@@ -148,49 +125,6 @@ impl std::fmt::Display for FastaRecord {
             self.comment().unwrap_or(""),
             self.seq()
         )
-    }
-}
-
-impl Filter for FastaRecord {
-    type FilterOptions = FastaRcordFilterOptions;
-
-    fn filter(&self, filter_option: &Self::FilterOptions) -> bool {
-        if let Some(max_length) = filter_option.max_length {
-            if self.len() > max_length {
-                return false;
-            }
-        }
-        if let Some(min_length) = filter_option.min_length {
-            if self.len() < min_length {
-                return false;
-            }
-        }
-
-        let mut gc: f64 = 0.0;
-        let mut computed = false;
-
-        if let Some(max) = filter_option.max_gc {
-            let gc_count = self.gc();
-            gc = gc_count as f64 / self.len() as f64;
-
-            if gc > max {
-                return false;
-            }
-
-            computed = true;
-        }
-
-        if let Some(min) = filter_option.min_gc {
-            if !computed {
-                let gc_count = self.gc();
-                gc = gc_count as f64 / self.len() as f64;
-            }
-
-            if gc < min {
-                return false;
-            }
-        }
-        true
     }
 }
 
@@ -234,7 +168,6 @@ impl Clone for Fasta {
         Fasta {
             reader: self.reader.clone(),
             path: self.path.clone(),
-            filter_options: self.filter_options.clone(),
             parser_options: self.parser_options.clone(),
             prev_line: String::new(),
             read_end: false,
@@ -248,7 +181,6 @@ impl Clone for Fasta {
 impl<'a> TableLike<'a> for Fasta {
     type Table = Fasta;
     type Record = FastaRecord;
-    type FilterOptions = FastaRcordFilterOptions;
     type ParserOptions = FastaRecordParserOptions;
 
     fn from_path(path: &str) -> crate::error::FilterxResult<Self::Table> {
@@ -257,7 +189,6 @@ impl<'a> TableLike<'a> for Fasta {
             prev_line: String::new(),
             read_end: false,
             path: path.to_string(),
-            filter_options: None,
             parser_options: None,
             columns: vec!["name".to_string(), "seq".to_string()],
             record: FastaRecord::default(),
@@ -265,38 +196,21 @@ impl<'a> TableLike<'a> for Fasta {
         })
     }
 
-    fn set_filter_options(mut self, filter_options: Self::FilterOptions) -> Self {
-        self.filter_options = Some(filter_options);
-        self
-    }
-
     fn set_parser_options(mut self, parser_options: Self::ParserOptions) -> Self {
         self.parser_options = Some(parser_options);
         self
     }
 
-    fn reset(&mut self) {
-        self.reader = TableLikeReader::new(&self.path).unwrap();
+    fn reset(&mut self) -> FilterxResult<()> {
+        self.reader.reset()?;
         self.prev_line.clear();
         self.read_end = false;
-    }
-
-    fn filter_next(&'a mut self) -> FilterxResult<Option<&'a Self::Record>> {
-        let filter_options = self.filter_options;
-        let record = self.parse_next()?;
-        if let Some(r) = record {
-            if let Some(o) = filter_options {
-                if r.filter(&o) {
-                    return Ok(record);
-                }
-            }
-        }
-        Ok(None)
+        Ok(())
     }
 
     fn parse_next(&'a mut self) -> FilterxResult<Option<&'a FastaRecord>> {
         let record: &mut FastaRecord = &mut self.record;
-        'next_record: loop {
+        loop {
             if self.read_end {
                 return Ok(None);
             }
@@ -362,16 +276,6 @@ impl<'a> TableLike<'a> for Fasta {
                 return Err(crate::error::FilterxError::FastaError(
                     "Fasta record must have sequence".to_string(),
                 ));
-            }
-
-            if let Some(p) = &self.parser_options {
-                if p.do_filter {
-                    if let Some(filter_options) = &self.filter_options {
-                        if !record.filter(filter_options) {
-                            continue 'next_record;
-                        }
-                    }
-                }
             }
             return Ok(Some(record));
         }

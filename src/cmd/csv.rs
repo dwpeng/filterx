@@ -94,7 +94,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         )?;
         vm.status.inject_columns_by_df(lazy)?;
     }
-    let expr = expr.unwrap_or("".into());
+    let expr = util::merge_expr(expr);
     vm.eval_once(&expr)?;
     vm.finish()?;
     let mut df = vm.source.into_dataframe().unwrap().into_df()?;

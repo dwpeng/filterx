@@ -53,7 +53,7 @@ pub fn open_csv_file_in_lazy(
 }
 
 static SEPARATORS: [(&str, char); 4] = [("\\t", '\t'), ("\\n", '\n'), ("\\r", '\r'), ("\\s", ' ')];
-static FILE_SPE: char = '$';
+static FILE_SPE: char = '@';
 
 pub fn handle_sep(sep: &str) -> char {
     match sep {
@@ -85,25 +85,25 @@ pub fn handle_file(path_repr: &str) -> FilterxResult<value::Value> {
             file.seprarator = handle_sep(path_repr_list[2]);
         }
         _ => {
-            panic!("unsupported type");
+            file.select = "1".to_string();
         }
     }
     let parser_options =
         polars::io::csv::read::CsvParseOptions::default().with_separator(file.seprarator as u8);
-    let reader_options =
-        polars::io::csv::read::CsvReadOptions::default().with_parse_options(parser_options);
+    let reader_options = polars::io::csv::read::CsvReadOptions::default()
+        .with_parse_options(parser_options)
+        .with_has_header(false);
     let df = reader_options.try_into_reader_with_file_path(Some(path.into()))?;
     let df = df.finish()?;
-    let columns = df.take_columns();
+    let columns = df.get_column_names();
     match file.select.parse::<usize>() {
         Ok(mut i) => {
-            assert!(i < columns.len());
-            assert!(i >= 1);
             i -= 1;
-            file.select = columns[i].name().as_str().to_string();
+            file.select = columns[i].clone().into_string();
         }
         Err(_) => {}
     }
+    file.df = df;
     Ok(value::Value::File(file))
 }
 
@@ -125,4 +125,11 @@ pub fn create_buffer_writer(path: Option<String>) -> FilterxResult<BufWriter<Box
         writer = Box::new(std::io::stdout());
     }
     Ok(BufWriter::new(writer))
+}
+
+pub fn merge_expr(expr: Option<Vec<String>>) -> String {
+    match expr {
+        Some(expr) => expr.join(";"),
+        None => "".to_string(),
+    }
 }

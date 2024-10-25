@@ -5,6 +5,7 @@ use super::super::value;
 
 use crate::engine::eval::Eval;
 use crate::engine::vm::Vm;
+use crate::engine::vm::VmSourceType;
 use crate::source::Source;
 use crate::{FilterxError, FilterxResult};
 
@@ -36,13 +37,27 @@ impl<'a> Eval<'a> for ast::ExprCall {
                 "drop" => call::drop(vm, &self.args),
                 "select" => call::select(vm, &self.args),
                 "col" => call::col(vm, &self.args),
-                "rename" => call::rename(vm, &self.args),
+                "rename" => {
+                    if vm.source_type == VmSourceType::Fasta
+                        || vm.source_type == VmSourceType::Fastq
+                    {
+                        Err(FilterxError::RuntimeError(format!(
+                            "Function `{}` does not be supported in source `{:?}`.",
+                            function_name, vm.source_type
+                        )))
+                    } else {
+                        call::rename(vm, &self.args)
+                    }
+                }
                 "head" => call::head(vm, &self.args),
                 "tail" => call::tail(vm, &self.args),
                 "Sort" => call::sort(vm, &self.args, false),
                 "sorT" => call::sort(vm, &self.args, true),
                 "sort" => call::sort(vm, &self.args, true),
                 "len" => call::len(vm, &self.args),
+                "print" => call::print(vm, &self.args),
+                "limit" => call::limit(vm, &self.args),
+                "gc" => call::gc(vm, &self.args),
                 _ => Err(FilterxError::RuntimeError(format!(
                     "Function `{}` is not defined.",
                     function_name

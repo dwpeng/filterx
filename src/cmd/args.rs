@@ -36,11 +36,11 @@ pub struct ShareArgs {
     pub input: String,
 
     /// expression to filter
-    #[clap(short = 'e', long)]
-    pub expr: Option<String>,
+    #[clap(short = 'e', long, action = ArgAction::Append)]
+    pub expr: Option<Vec<String>>,
 
     /// The output file, default is stdout
-    #[clap(value_hint=ValueHint::FilePath)]
+    #[clap(short='o', long, value_hint=ValueHint::FilePath)]
     pub output: Option<String>,
 
     /// output as table format
@@ -91,9 +91,9 @@ pub struct FastaCommand {
     #[clap(flatten)]
     pub share_args: ShareArgs,
 
-    /// is long sequence
-    #[clap(short = 'l', long)]
-    pub long: Option<usize>,
+    /// process fasta file by chunk
+    #[clap(short = 'c', long)]
+    pub chunk: Option<usize>,
 }
 
 #[derive(Debug, Clone, Parser)]
