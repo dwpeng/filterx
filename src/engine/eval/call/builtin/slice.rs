@@ -7,8 +7,6 @@ pub fn slice<'a>(
     args: &Vec<ast::Expr>,
     inplace: bool,
 ) -> FilterxResult<value::Value> {
-    expect_args_len(args, 2)?;
-
     let col_name = eval!(
         vm,
         &args[0],
@@ -19,15 +17,19 @@ pub fn slice<'a>(
     );
 
     let col_name = col_name.column()?.col_name;
-    let mut length = u32::MAX;
-
-    let start = eval!(vm, &args[1], "Only support start", Constant).u32()?;
-    if args.len() == 3 {
+    let length;
+    let mut start = 0;
+    if args.len() == 2 {
+        let _length = eval!(vm, &args[1], "Only support start", Constant);
+        length = _length.u32()?;
+    } else {
+        let _start = eval!(vm, &args[1], "Only support start", Constant);
+        start = _start.u32()?;
         let _length = eval!(vm, &args[2], "Only support length", Constant);
         length = _length.u32()?;
     }
 
-    let e = col(&col_name).slice(lit(start), lit(length));
+    let e = col(&col_name).str().slice(lit(start), lit(length));
 
     if inplace {
         vm.source
