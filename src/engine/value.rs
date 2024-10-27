@@ -110,6 +110,33 @@ impl Value {
         }
     }
 
+    pub fn string(&self) -> FilterxResult<String> {
+        let s = match self {
+            Value::Str(s) => s.clone(),
+            Value::Expr(Expr::Literal(LiteralValue::String(s))) => s.to_string(),
+            _ => panic!("not a string"),
+        };
+        Ok(s)
+    }
+
+    pub fn column(&self) -> FilterxResult<Column> {
+        match self {
+            Value::Column(c) => Ok(c.clone()),
+            _ => Err(FilterxError::RuntimeError(
+                "Only Column can convert to column".into(),
+            )),
+        }
+    }
+
+    pub fn u32(&self) -> FilterxResult<u32> {
+        match self {
+            Value::Int(i) => Ok(*i as u32),
+            _ => Err(FilterxError::RuntimeError(
+                "Only Int can convert to u32".into(),
+            )),
+        }
+    }
+
     pub fn is_column(&self) -> bool {
         match self {
             Value::Column(_) => true,
@@ -178,6 +205,10 @@ impl Column {
             force: false,
             data_type: None,
         }
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.col_name
     }
 }
 

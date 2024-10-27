@@ -32,7 +32,6 @@ impl<'a> Eval<'a> for ast::ExprCall {
 
         match vm.source {
             Source::Dataframe(_) => match function_name.as_str() {
-                "Alias" => call::Alias(vm, &self.args),
                 "alias" => call::alias(vm, &self.args),
                 "drop" => call::drop(vm, &self.args),
                 "select" => call::select(vm, &self.args),
@@ -66,6 +65,18 @@ impl<'a> Eval<'a> for ast::ExprCall {
                 "upper_" => call::upper(vm, &self.args, true),
                 "lower" => call::lower(vm, &self.args, false),
                 "lower_" => call::lower(vm, &self.args, true),
+                "replace" => call::replace(vm, &self.args, false, true),
+                "replace_" => call::replace(vm, &self.args, true, true),
+                "replace_one" => call::replace(vm, &self.args, false, false),
+                "replace_one_" => call::replace(vm, &self.args, true, false),
+                "strip" => call::strip(vm, &self.args, false, true, true),
+                "strip_" => call::strip(vm, &self.args, true, true, true),
+                "lstrip" => call::strip(vm, &self.args, false, false, true),
+                "lstrip_" => call::strip(vm, &self.args, true, false, true),
+                "rstrip" => call::strip(vm, &self.args, false, true, false),
+                "rstrip_" => call::strip(vm, &self.args, true, true, false),
+                "slice" => call::slice(vm, &self.args, false),
+                "slice_" => call::slice(vm, &self.args, true),
                 _ => Err(FilterxError::RuntimeError(format!(
                     "Function `{}` is not defined.",
                     function_name

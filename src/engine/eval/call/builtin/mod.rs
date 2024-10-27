@@ -64,7 +64,6 @@ macro_rules! builtin_function {
 }
 
 builtin_function! {
-    Alias,
     alias,
     col,
     drop,
@@ -81,4 +80,7 @@ builtin_function! {
     revcomp,
     upper,
     lower,
+    replace,
+    strip,
+    slice,
 }
