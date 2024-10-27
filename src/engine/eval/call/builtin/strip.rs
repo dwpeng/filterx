@@ -35,8 +35,8 @@ pub fn strip<'a>(
 
     let e = match (right, left) {
         (true, true) => col(&col_name).str().strip_chars(patt),
-        (true, false) => col(&col_name).str().strip_prefix(patt),
-        (false, true) => col(&col_name).str().strip_suffix(patt),
+        (true, false) => col(&col_name).str().strip_suffix(patt),
+        (false, true) => col(&col_name).str().strip_prefix(patt),
         (false, false) => unreachable!(),
     };
 

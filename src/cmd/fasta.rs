@@ -46,6 +46,7 @@ pub fn filter_fasta(cmd: FastaCommand) -> FilterxResult<()> {
         }
         let dataframe_source = DataframeSource::new(df.unwrap().lazy());
         vm.source = Source::Dataframe(dataframe_source);
+        vm.next_batch()?;
         vm.eval_once(&expr)?;
         vm.finish()?;
         let writer = vm.writer.as_mut().unwrap();

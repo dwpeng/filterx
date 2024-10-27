@@ -288,6 +288,12 @@ impl Vm {
         Ok(())
     }
 
+    pub fn next_batch(&mut self) -> FilterxResult<()> {
+        self.status.printed = false;
+
+        Ok(())
+    }
+
     pub fn finish(&mut self) -> FilterxResult<()> {
         self.source.finish()
     }
