@@ -22,11 +22,6 @@ pub fn drop<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::V
             let lazy = lazy.drop(drop_columns);
             df_source.lazy = lazy;
         }
-        _ => {
-            return Err(FilterxError::RuntimeError(
-                "Only support dataframe.".to_string(),
-            ));
-        }
     }
 
     Ok(value::Value::None)

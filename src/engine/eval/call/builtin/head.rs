@@ -26,11 +26,6 @@ pub fn head(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
             let lazy = lazy.slice(0, nrow as u32);
             df_source.lazy = lazy;
         }
-        _ => {
-            return Err(FilterxError::RuntimeError(
-                "Source `{:?}` is not supported.".to_string(),
-            ));
-        }
     };
 
     vm.status.limit = nrow;

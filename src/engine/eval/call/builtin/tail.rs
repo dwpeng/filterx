@@ -28,11 +28,6 @@ pub fn tail(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
             let lazy = lazy.tail(nrow as u32);
             df_source.lazy = lazy;
         }
-        _ => {
-            return Err(FilterxError::RuntimeError(
-                "Source `{:?}` is not supported.".to_string(),
-            ));
-        }
     };
 
     Ok(value::Value::None)

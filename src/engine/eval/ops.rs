@@ -125,11 +125,6 @@ impl<'a> Eval<'a> for ast::ExprBinOp {
             Source::Dataframe(_) => {
                 return binop_for_dataframe(l, r, self.op);
             }
-            _ => {
-                return Err(FilterxError::RuntimeError(
-                    "Only support dataframe to apply binary op".to_string(),
-                ))
-            }
         }
     }
 }
@@ -207,11 +202,6 @@ impl<'a> Eval<'a> for ast::ExprBoolOp {
         match vm.source {
             Source::Dataframe(_) => {
                 return boolop_in_dataframe(vm, &left, &right, self.op.clone());
-            }
-            _ => {
-                return Err(FilterxError::RuntimeError(
-                    "Only support dataframe to apply binary op".to_string(),
-                ))
             }
         }
     }
@@ -306,11 +296,6 @@ impl<'a> Eval<'a> for ast::ExprCompare {
         match vm.source {
             Source::Dataframe(_) => {
                 return compare_in_datarame(vm, left, right, op);
-            }
-            _ => {
-                return Err(FilterxError::RuntimeError(
-                    "Only support dataframe to apply binary op".to_string(),
-                ))
             }
         }
     }

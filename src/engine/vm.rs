@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use polars::prelude::*;
 
-use crate::source::{DataframeSource, FastaSource, FastqSource, Source};
+use crate::source::{DataframeSource, Source};
 
 use super::eval::Eval;
 use crate::FilterxResult;
@@ -184,28 +184,6 @@ impl Vm {
             source: Source::new_dataframe(dataframe),
             status: VmStatus::default(),
             source_type: VmSourceType::Csv,
-            writer: None,
-        }
-    }
-
-    pub fn from_fasta(fasta: FastaSource) -> Self {
-        Self {
-            eval_expr: String::new(),
-            mode: VmMode::Expression,
-            source: Source::new_fasta(fasta),
-            status: VmStatus::default(),
-            source_type: VmSourceType::Fasta,
-            writer: None,
-        }
-    }
-
-    pub fn from_fastq(fastq: FastqSource) -> Self {
-        Self {
-            eval_expr: String::new(),
-            mode: VmMode::Expression,
-            source: Source::new_fastq(fastq),
-            status: VmStatus::default(),
-            source_type: VmSourceType::Fastq,
             writer: None,
         }
     }

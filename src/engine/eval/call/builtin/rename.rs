@@ -1,11 +1,4 @@
-use super::expect_args_len;
-pub use crate::engine::ast;
-pub use crate::engine::eval::Eval;
-pub use crate::engine::value;
-pub use crate::engine::vm::Vm;
-pub use crate::source::Source;
-pub use crate::source::{DataframeSource, SourceType};
-pub use crate::{FilterxError, FilterxResult};
+use super::*;
 
 pub fn rename(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     expect_args_len(args, 2)?;
@@ -62,11 +55,6 @@ pub fn rename(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value>
             let lazy = df_source.lazy.clone();
             let lazy = lazy.rename([old_col], [new_col]);
             df_source.lazy = lazy;
-        }
-        _ => {
-            return Err(FilterxError::RuntimeError(
-                "Only support dataframe.".to_string(),
-            ));
         }
     }
 

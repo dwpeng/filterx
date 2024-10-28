@@ -3,8 +3,8 @@ pub use crate::engine::ast;
 pub use crate::engine::eval::Eval;
 pub use crate::engine::value;
 pub use crate::engine::vm::Vm;
+pub use crate::source::DataframeSource;
 pub use crate::source::Source;
-pub use crate::source::{DataframeSource, SourceType};
 pub use crate::{FilterxError, FilterxResult};
 
 pub fn expect_args_len(

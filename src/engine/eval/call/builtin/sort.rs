@@ -39,11 +39,6 @@ pub fn sort(vm: &mut Vm, args: &Vec<ast::Expr>, incr: bool) -> FilterxResult<val
             let lazy = lazy.sort(cols, sort_options);
             df_source.lazy = lazy;
         }
-        _ => {
-            return Err(FilterxError::RuntimeError(
-                "Source `{:?}` is not supported.".to_string(),
-            ));
-        }
     };
 
     Ok(value::Value::None)

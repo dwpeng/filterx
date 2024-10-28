@@ -82,10 +82,6 @@ impl<'a> Eval<'a> for ast::ExprCall {
                     function_name
                 ))),
             },
-            _ => Err(FilterxError::RuntimeError(format!(
-                "Source `{:?}` is not supported.",
-                vm.source_type
-            ))),
         }
     }
 }

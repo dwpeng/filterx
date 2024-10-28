@@ -31,17 +31,7 @@ pub fn col(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
         }
     };
 
-    let mut data_type = None;
-    if vm.source.source_type() != SourceType::Dataframe {
-        data_type = {
-            vm.status
-                .selected_columns
-                .iter()
-                .find(|x| x.name == c)
-                .map(|x| x.data_type.clone())
-        };
-    }
-
+    let data_type = None;
     Ok(value::Value::Column(value::Column {
         col_name: c,
         force: false,

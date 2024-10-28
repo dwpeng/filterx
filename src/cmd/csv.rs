@@ -18,6 +18,7 @@ fn init_df(
     comment_prefix: &str,
     separator: &str,
     skip_row: usize,
+    limit_row: Option<usize>,
 ) -> FilterxResult<LazyFrame> {
     let parser_options = CsvParseOptions::default()
         .with_comment_prefix(Some(comment_prefix))
@@ -27,6 +28,7 @@ fn init_df(
         .with_parse_options(parser_options)
         .with_has_header(header)
         .with_skip_rows(skip_row)
+        .with_n_rows(limit_row)
         .with_schema(None);
 
     util::open_csv_file_in_lazy(path, parser_option)
@@ -67,8 +69,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         separator,
         output_separator,
         skip_row,
-        limit_row: _,
-        scope: _,
+        limit_row,
     } = cmd;
 
     let comment_prefix = comment_prefix.unwrap();
@@ -80,6 +81,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         &comment_prefix,
         &separator,
         skip_row.unwrap(),
+        limit_row,
     )?;
     let mut s = DataframeSource::new(lazy_df.clone());
     s.set_has_header(header.unwrap());
@@ -91,6 +93,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
             &comment_prefix,
             &separator,
             skip_row.unwrap(),
+            limit_row,
         )?;
         vm.status.inject_columns_by_df(lazy)?;
     }

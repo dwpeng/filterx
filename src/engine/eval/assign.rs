@@ -72,11 +72,6 @@ impl<'a> Eval<'a> for ast::StmtAssign {
             Source::Dataframe(ref mut df_source) => {
                 assign_in_dataframe(value, new_col, df_source)?;
             }
-            _ => {
-                return Err(FilterxError::RuntimeError(
-                    "Only support dataframe.".to_string(),
-                ));
-            }
         }
 
         Ok(Value::None)

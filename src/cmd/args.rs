@@ -1,7 +1,5 @@
 use clap::{ArgAction, Args, Parser, Subcommand, ValueHint};
 
-use crate::engine::vm::VmSourceType;
-
 static LONG_ABOUT: &'static str = include_str!("./long.txt");
 
 #[derive(Debug, Clone, Parser)]
@@ -23,10 +21,18 @@ pub enum Command {
     Csv(CsvCommand),
 
     /// handle fasta file
+    #[command(visible_alias = "fa")]
     Fasta(FastaCommand),
 
     /// handle fastq file
+    #[command(visible_alias = "fq")]
     Fastq(FastqCommand),
+
+    /// handle sam file
+    Sam(SamCommand),
+
+    /// handle vcf file
+    Vcf(VcfCommand),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -80,10 +86,6 @@ pub struct CsvCommand {
     /// limit row number, 0 means no limit
     #[clap(long, default_value = "0")]
     pub limit_row: Option<usize>,
-
-    /// scope of the filterx
-    #[clap(long, default_value = "csv")]
-    pub scope: Option<VmSourceType>,
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -91,10 +93,49 @@ pub struct FastaCommand {
     #[clap(flatten)]
     pub share_args: ShareArgs,
 
-    /// process fasta file by chunk
-    #[clap(short = 'c', long)]
+    /// number of sequence per chunk
+    #[clap(short = 'c', long, default_value = "4096")]
+    pub chunk: Option<usize>,
+
+    /// don't parse comment
+    #[clap(long, default_value = "false", action = ArgAction::SetTrue)]
+    pub no_comment: Option<bool>,
+}
+
+#[derive(Debug, Clone, Parser)]
+pub struct FastqCommand {
+    #[clap(flatten)]
+    pub share_args: ShareArgs,
+
+    /// number of sequence per chunk
+    #[clap(short = 'c', long, default_value = "4096")]
+    pub chunk: Option<usize>,
+
+    /// don't parse quality
+    #[clap(long, default_value = "false", action = ArgAction::SetTrue, visible_alias="no-qual")]
+    pub no_quality: Option<bool>,
+
+    /// don't parse comment
+    #[clap(long, default_value = "false", action = ArgAction::SetTrue)]
+    pub no_comment: Option<bool>,
+}
+
+#[derive(Debug, Clone, Parser)]
+pub struct SamCommand {
+    #[clap(flatten)]
+    pub share_args: ShareArgs,
+
+    /// number of sequence per chunk
+    #[clap(short = 'c', long, default_value = "4096")]
     pub chunk: Option<usize>,
 }
 
 #[derive(Debug, Clone, Parser)]
-pub struct FastqCommand {}
+pub struct VcfCommand {
+    #[clap(flatten)]
+    pub share_args: ShareArgs,
+
+    /// number of sequence per chunk
+    #[clap(short = 'c', long, default_value = "4096")]
+    pub chunk: Option<usize>,
+}

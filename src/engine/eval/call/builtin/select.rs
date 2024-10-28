@@ -35,11 +35,6 @@ pub fn select<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value:
             let lazy = lazy.select(exprs);
             df_source.update(lazy);
         }
-        _ => {
-            return Err(FilterxError::RuntimeError(
-                "Only support dataframe.".to_string(),
-            ));
-        }
     }
 
     vm.status.select(select_dolumns);

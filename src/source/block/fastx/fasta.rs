@@ -9,11 +9,7 @@ use crate::error::FilterxResult;
 
 #[derive(Debug, Clone, Default)]
 pub struct FastaRecordParserOptions {
-    pub comment_prefix: Option<Vec<String>>,
-    pub uppercase: Option<bool>,
-    pub lowercase: Option<bool>,
-    pub rev_complement: Option<bool>,
-    pub do_filter: bool,
+    pub include_comment: bool,
 }
 
 pub struct FastaSource {
@@ -21,10 +17,11 @@ pub struct FastaSource {
 }
 
 impl FastaSource {
-    pub fn new(path: &str) -> FilterxResult<Self> {
-        Ok(FastaSource {
-            fasta: Fasta::from_path(path)?,
-        })
+    pub fn new(path: &str, include_comment: bool) -> FilterxResult<Self> {
+        let fasta = Fasta::from_path(path)?;
+        let opt = FastaRecordParserOptions { include_comment };
+        let fasta = fasta.set_parser_options(opt);
+        Ok(FastaSource { fasta })
     }
 
     pub fn into_dataframe(&mut self, n: usize) -> FilterxResult<Option<DataFrame>> {
@@ -41,7 +38,7 @@ impl FastaSource {
             return Ok(None);
         }
 
-        let df = Fasta::as_dataframe(records)?;
+        let df = Fasta::as_dataframe(records, &(self.fasta.parser_options))?;
         Ok(Some(df))
     }
 
@@ -91,6 +88,10 @@ impl FastaRecord {
         self._name = (0, 0);
         self._comment = (0, 0);
         self._sequence = (0, 0);
+    }
+
+    pub fn no_comment(&mut self) {
+        self._comment = (0, 0);
     }
 }
 
@@ -165,13 +166,14 @@ enum FastaRecordEnum {
 
 impl Clone for Fasta {
     fn clone(&self) -> Self {
+        let cols = self.columns.clone();
         Fasta {
             reader: self.reader.clone(),
             path: self.path.clone(),
             parser_options: self.parser_options.clone(),
             prev_line: String::new(),
             read_end: false,
-            columns: vec!["name".to_string(), "seq".to_string()],
+            columns: cols,
             record: self.record.clone(),
             record_type: self.record_type.clone(),
         }
@@ -208,7 +210,7 @@ impl<'a> TableLike<'a> for Fasta {
         Ok(())
     }
 
-    fn parse_next(&'a mut self) -> FilterxResult<Option<&'a FastaRecord>> {
+    fn parse_next(&'a mut self) -> FilterxResult<Option<&'a mut FastaRecord>> {
         let record: &mut FastaRecord = &mut self.record;
         loop {
             if self.read_end {
@@ -306,18 +308,40 @@ impl<'a> TableLike<'a> for Fasta {
 
     fn as_dataframe(
         records: Vec<FastaRecord>,
+        parser_options: &Option<FastaRecordParserOptions>,
     ) -> crate::error::FilterxResult<polars::prelude::DataFrame> {
-        let mut headers: Vec<String> = Vec::new();
-        let mut sequences: Vec<String> = Vec::new();
-        for record in records {
-            headers.push(record.name().into());
-            sequences.push(record.seq().into());
+        let mut include_comment = false;
+        if parser_options.is_some() {
+            include_comment = parser_options.as_ref().unwrap().include_comment;
         }
-        let df = polars::prelude::DataFrame::new(vec![
-            polars::prelude::Series::new("name".into(), headers),
-            polars::prelude::Series::new("seq".into(), sequences),
-        ])?;
-        Ok(df)
+        if !include_comment {
+            let mut headers: Vec<String> = Vec::new();
+            let mut sequences: Vec<String> = Vec::new();
+            for record in records {
+                headers.push(record.name().into());
+                sequences.push(record.seq().into());
+            }
+            let df = polars::prelude::DataFrame::new(vec![
+                polars::prelude::Series::new("name".into(), headers),
+                polars::prelude::Series::new("seq".into(), sequences),
+            ])?;
+            Ok(df)
+        } else {
+            let mut headers: Vec<String> = Vec::new();
+            let mut comments: Vec<String> = Vec::new();
+            let mut sequences: Vec<String> = Vec::new();
+            for record in records {
+                headers.push(record.name().into());
+                comments.push(record.comment().unwrap_or("").into());
+                sequences.push(record.seq().into());
+            }
+            let df = polars::prelude::DataFrame::new(vec![
+                polars::prelude::Series::new("name".into(), headers),
+                polars::prelude::Series::new("comment".into(), comments),
+                polars::prelude::Series::new("seq".into(), sequences),
+            ])?;
+            Ok(df)
+        }
     }
 
     fn columns(&self) -> &Vec<String> {

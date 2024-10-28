@@ -10,7 +10,7 @@ use crate::source::{DataframeSource, FastaSource, Source, TableLike};
 
 use crate::util;
 
-pub fn filter_fasta(cmd: FastaCommand) -> FilterxResult<()> {
+pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
     let FastaCommand {
         share_args:
             ShareArgs {
@@ -20,21 +20,23 @@ pub fn filter_fasta(cmd: FastaCommand) -> FilterxResult<()> {
                 table: _,
             },
         chunk: long,
+        no_comment,
     } = cmd;
     let expr = util::merge_expr(expr);
-    let mut source = FastaSource::new(path.as_str())?;
+    let mut source = FastaSource::new(path.as_str(), !no_comment.unwrap())?;
     let output = util::create_buffer_writer(output)?;
     let mut output = Box::new(output);
     if expr.is_empty() {
+        let no_comment = no_comment.unwrap();
         while let Some(record) = &mut source.fasta.parse_next()? {
+            if no_comment {
+                record.no_comment();
+            }
             writeln!(output, "{}", record)?;
         }
         return Ok(());
     }
-    let mut chunk_size = 1000;
-    if long.is_some() && long.unwrap() > 0 {
-        chunk_size = long.unwrap();
-    }
+    let mut chunk_size = long.unwrap();
     let mut vm = Vm::from_dataframe(DataframeSource::new(DataFrame::empty().lazy()));
     vm.set_scope(VmSourceType::Fasta);
     vm.set_writer(output);
@@ -49,8 +51,8 @@ pub fn filter_fasta(cmd: FastaCommand) -> FilterxResult<()> {
         vm.next_batch()?;
         vm.eval_once(&expr)?;
         vm.finish()?;
-        let writer = vm.writer.as_mut().unwrap();
         if !vm.status.printed {
+            let writer = vm.writer.as_mut().unwrap();
             let df = vm.source.into_dataframe().unwrap().into_df()?;
             let cols = df.get_columns();
             let rows = df.height();
@@ -62,12 +64,17 @@ pub fn filter_fasta(cmd: FastaCommand) -> FilterxResult<()> {
                         "seq" => {
                             let seq = col.get(i).unwrap();
                             let seq = seq.get_str().unwrap_or("");
-                            write!(writer, "{}\n", seq)?;
+                            write!(writer, "\n{}\n", seq)?;
+                        }
+                        "comment" => {
+                            let comment = col.get(i).unwrap();
+                            let comment = comment.get_str().unwrap_or("");
+                            write!(writer, " {}", comment)?;
                         }
                         "name" => {
                             let name = col.get(i).unwrap();
                             let name = name.get_str().unwrap_or("");
-                            write!(writer, ">{}\n", name)?;
+                            write!(writer, ">{}", name)?;
                         }
                         _ => {
                             break;
