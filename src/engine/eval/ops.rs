@@ -106,6 +106,23 @@ impl<'a> Eval<'a> for ast::ExprBinOp {
             Name
         );
 
+        if l.is_expr() || r.is_expr() {
+            let l = l.expr()?;
+            let r = r.expr()?;
+            let ret = match self.op {
+                ast::Operator::Add => l + r,
+                ast::Operator::Sub => l - r,
+                ast::Operator::Mult => l * r,
+                ast::Operator::Div => l / r,
+                _ => {
+                    return Err(FilterxError::RuntimeError(
+                        "Only support binary op : +, -, *, /".to_string(),
+                    ))
+                }
+            };
+            return Ok(Value::Expr(ret));
+        }
+
         if l.is_const() && r.is_const() {
             let ret = match self.op {
                 ast::Operator::Add => binop(l, r, ast::Operator::Add),

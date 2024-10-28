@@ -74,7 +74,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
 
     let comment_prefix = comment_prefix.unwrap();
     let separator = separator.unwrap();
-
+    let writer = util::create_buffer_writer(output.clone())?;
     let lazy_df = init_df(
         path.as_str(),
         header.unwrap(),
@@ -98,8 +98,13 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         vm.status.inject_columns_by_df(lazy)?;
     }
     let expr = util::merge_expr(expr);
+    let writer = Box::new(writer);
+    vm.set_writer(writer);
     vm.eval_once(&expr)?;
     vm.finish()?;
+    if vm.status.printed {
+        return Ok(());
+    }
     let mut df = vm.source.into_dataframe().unwrap().into_df()?;
     if output.is_none() && table.unwrap_or(false) {
         println!("{}", df);

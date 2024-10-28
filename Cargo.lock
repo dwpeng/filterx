@@ -505,6 +505,7 @@ dependencies = [
  "clap",
  "colored",
  "flate2",
+ "lazy_static",
  "polars",
  "polars-plan",
  "regex",

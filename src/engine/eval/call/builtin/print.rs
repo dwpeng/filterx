@@ -1,4 +1,7 @@
-use polars::prelude::format_str;
+use polars::{
+    frame::DataFrame,
+    prelude::{format_str, IntoLazy},
+};
 
 use super::*;
 use polars::prelude::{col, Expr};
@@ -6,10 +9,18 @@ use polars::prelude::{col, Expr};
 use regex::Regex;
 use std::io::Write;
 
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref REGEX_PATTERN: Regex = Regex::new(r"\{([\(\)a-zA-Z0-9_\-+*\\]*)\}").unwrap();
+    static ref REGEX_VARNAME: Regex = Regex::new(r"^[_a-zA-Z]+[a-zA-Z_0-9]*$").unwrap();
+}
+
 fn parse_format_string(s: &str) -> FilterxResult<(String, Option<Vec<Expr>>)> {
     // value: "xxxxx"  ->  "xxxxx"
     // value: "xxx_{seq}" ->  "xxx_{}" and col("seq")
     // value: "xxx_{seq}_{seq}" -> "xxx_{}_{}" and col("seq"), col("seq")
+    // value: "xxx{len(seq)} -> "xxx{}" and len(col("seq"))
 
     if s.is_empty() {
         return Err(FilterxError::RuntimeError(
@@ -21,18 +32,39 @@ fn parse_format_string(s: &str) -> FilterxResult<(String, Option<Vec<Expr>>)> {
         return Ok((s.to_string(), None));
     }
 
-    let re = Regex::new(r"\{(\w+)\}").unwrap();
+    let re = &REGEX_PATTERN;
     let fmt = re.replace_all(s, "{}").to_string();
-    let cols = re
-        .captures_iter(s)
-        .map(|x| col(x.get(1).unwrap().as_str()))
-        .collect::<Vec<Expr>>();
-
+    let mut cols = Vec::new();
+    let mut vm = Vm::from_dataframe(DataframeSource::new(DataFrame::empty().lazy()));
+    for cap in re.captures_iter(s) {
+        let item = cap.get(1).unwrap().as_str();
+        if item.is_empty() {
+            return Err(FilterxError::RuntimeError(
+                "Error format string, empty format value".to_string(),
+            ));
+        }
+        if REGEX_VARNAME.is_match(item) {
+            cols.push(col(item));
+            continue;
+        }
+        let ast = vm.ast(item)?;
+        if !ast.is_expression() {
+            return Err(FilterxError::RuntimeError(
+                "Error format string, only support expression".to_string(),
+            ));
+        }
+        let ast = ast.expression().unwrap();
+        let ast = ast.eval(&mut vm)?;
+        let value = ast.expr()?;
+        cols.push(value);
+    }
     Ok((fmt, Some(cols)))
 }
 
 #[test]
 fn test_parse_format_string() {
+    use polars::prelude::col;
+
     let s = "xxx_{seq}";
     let (fmt, cols) = parse_format_string(s).unwrap();
     assert_eq!(fmt, "xxx_{}");
@@ -54,6 +86,14 @@ fn test_parse_format_string() {
     let (fmt, cols) = parse_format_string(s).unwrap();
     assert_eq!(fmt, "xxx");
     assert!(cols.is_none());
+
+    let s = "xxx{len(seq)}";
+    let (fmt, cols) = parse_format_string(s).unwrap();
+    assert_eq!(fmt, "xxx{}");
+    assert!(cols.is_some());
+    let cols = cols.unwrap();
+    assert_eq!(cols.len(), 1);
+    assert_eq!(cols[0], col("seq").str().len_chars());
 }
 
 pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
@@ -62,15 +102,26 @@ pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
     let value = eval!(
         vm,
         &args[0],
-        "Only support column index",
-        Constant,
-        Name,
-        Call
+        "Only support string literal or format string expression",
+        Constant
     );
     let value = value.text()?;
-    let (fmt, cols) = parse_format_string(&value)?;
+    // get from cache
+    let fmt;
+    let cols;
+    if let Some(value) = vm.expr_cache.get(&value) {
+        fmt = &value.0;
+        cols = &value.1;
+    } else {
+        let (fmt_, cols_) = parse_format_string(&value)?;
+        let cols_ = cols_.unwrap_or(vec![]);
+        vm.expr_cache
+            .insert(value.clone(), (fmt_.clone(), cols_.clone()));
+        let value = vm.expr_cache.get(&value).unwrap();
+        fmt = &value.0;
+        cols = &value.1;
+    }
     let lazy = vm.source.dataframe_mut_ref().unwrap().lazy.clone();
-    let cols = cols.unwrap_or(vec![]);
     let lazy = lazy.with_column(format_str(&fmt, &cols)?.alias("fmt"));
     vm.source.dataframe_mut_ref().unwrap().update(lazy);
     let lazy = vm.source.dataframe_mut_ref().unwrap().lazy.clone();

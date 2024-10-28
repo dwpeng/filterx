@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::str::FromStr;
 
 use polars::prelude::*;
@@ -174,6 +175,7 @@ pub struct Vm {
     pub status: VmStatus,
     pub source_type: VmSourceType,
     pub writer: Option<Box<BufWriter<Box<dyn Write>>>>,
+    pub expr_cache: HashMap<String, (String, Vec<polars::prelude::Expr>)>,
 }
 
 impl Vm {
@@ -185,6 +187,7 @@ impl Vm {
             status: VmStatus::default(),
             source_type: VmSourceType::Csv,
             writer: None,
+            expr_cache: HashMap::new(),
         }
     }
 
@@ -200,7 +203,7 @@ impl Vm {
         self.writer = Some(writer);
     }
 
-    fn ast(&self, s: &str) -> FilterxResult<rustpython_parser::ast::Mod> {
+    pub fn ast(&self, s: &str) -> FilterxResult<rustpython_parser::ast::Mod> {
         if s.contains("=")
             && !s.contains("==")
             && !s.contains("!=")
