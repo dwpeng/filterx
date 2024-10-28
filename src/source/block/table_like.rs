@@ -11,10 +11,9 @@ pub trait TableLike<'a> {
     fn into_dataframe(self) -> FilterxResult<DataFrame>;
     fn as_dataframe(
         records: Vec<Self::Record>,
-        parser_options: &Option<Self::ParserOptions>,
+        parser_options: &Self::ParserOptions,
     ) -> FilterxResult<DataFrame>;
     fn parse_next(&'a mut self) -> FilterxResult<Option<&'a mut Self::Record>>;
     fn reset(&mut self) -> FilterxResult<()>;
     fn set_parser_options(self, parser_options: Self::ParserOptions) -> Self;
-    fn columns(&self) -> &Vec<String>;
 }

@@ -27,11 +27,7 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
     let output = util::create_buffer_writer(output)?;
     let mut output = Box::new(output);
     if expr.is_empty() {
-        let no_comment = no_comment.unwrap();
         while let Some(record) = &mut source.fasta.parse_next()? {
-            if no_comment {
-                record.no_comment();
-            }
             writeln!(output, "{}", record)?;
         }
         return Ok(());

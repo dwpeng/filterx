@@ -268,7 +268,6 @@ impl Vm {
 
     pub fn next_batch(&mut self) -> FilterxResult<()> {
         self.status.printed = false;
-
         Ok(())
     }
 
