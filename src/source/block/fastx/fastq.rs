@@ -60,7 +60,6 @@ impl Default for FastqParserOption {
 
 pub struct Fastq {
     reader: TableLikeReader,
-    line_buffer: String,
     read_end: bool,
     pub path: String,
     pub parser_option: FastqParserOption,
@@ -69,7 +68,7 @@ pub struct Fastq {
 
 #[derive(Debug, Default, Clone)]
 pub struct FastqRecord {
-    buffer: String,
+    buffer: Vec<u8>,
     _name: (usize, usize),
     _sequence: (usize, usize),
     _qual: (usize, usize),
@@ -93,7 +92,7 @@ impl std::fmt::Display for FastqRecord {
 impl FastqRecord {
     pub fn new() -> Self {
         FastqRecord {
-            buffer: String::new(),
+            buffer: Vec::new(),
             _name: (0, 0),
             _sequence: (0, 0),
             _qual: (0, 0),
@@ -112,19 +111,23 @@ impl FastqRecord {
 
 impl FastqRecord {
     pub fn name(&self) -> &str {
-        &self.buffer[self._name.0..self._name.1]
+        unsafe { std::str::from_utf8_unchecked(&self.buffer[self._name.0..self._name.1]) }
     }
 
     pub fn comment(&self) -> Option<&str> {
         if self._comment.0 == self._comment.1 {
             None
         } else {
-            Some(&self.buffer[self._comment.0..self._comment.1])
+            unsafe {
+                Some(std::str::from_utf8_unchecked(
+                    &self.buffer[self._comment.0..self._comment.1],
+                ))
+            }
         }
     }
 
     pub fn seq(&self) -> &str {
-        &self.buffer[self._sequence.0..self._sequence.1]
+        unsafe { std::str::from_utf8_unchecked(&self.buffer[self._sequence.0..self._sequence.1]) }
     }
 
     pub fn len(&self) -> usize {
@@ -135,7 +138,11 @@ impl FastqRecord {
         if self._qual.0 == self._qual.1 {
             None
         } else {
-            Some(&self.buffer[self._qual.0..self._qual.1])
+            unsafe {
+                Some(std::str::from_utf8_unchecked(
+                    &self.buffer[self._qual.0..self._qual.1],
+                ))
+            }
         }
     }
 }
@@ -176,7 +183,6 @@ impl<'a> TableLike<'a> for Fastq {
     fn from_path(path: &str) -> FilterxResult<Self::Table> {
         Ok(Fastq {
             reader: TableLikeReader::new(path)?,
-            line_buffer: String::new(),
             read_end: false,
             parser_option: FastqParserOption::default(),
             path: path.to_string(),
@@ -189,77 +195,89 @@ impl<'a> TableLike<'a> for Fastq {
             return Ok(None);
         }
         let record = &mut self.record;
-        record.clear();
-
-        if self.line_buffer.len() == 0 {
-            let bytes = self.reader.read_line(&mut self.line_buffer)?;
+        let parser_option = &self.parser_option;
+        loop {
+            record.clear();
+            let bytes = self.reader.read_until(b'@', &mut record.buffer)?;
             if bytes == 0 {
                 self.read_end = true;
                 return Ok(None);
             }
-        }
-        let line = self.line_buffer.trim_end();
-        if line.starts_with('@') {
-            record._name.0 = 1;
-            record.buffer.push_str(line);
-            record._name.1 = record.buffer.len();
-            let comment_start = line.find(' ');
-            if let Some(start) = comment_start {
-                record._name.1 = start;
-                if self.parser_option.include_comment {
-                    record._comment.0 = start + 1;
-                    record._comment.1 = record.buffer.len();
-                } else {
-                    record.buffer.truncate(start);
-                }
+            if bytes == 1 {
+                // first one is @, skip it
+                continue;
             }
-        } else {
-            return Err(crate::FilterxError::FastqError(
-                "Invalid fastq format".to_string(),
-            ));
+
+            // record buff have store name and comment and sequence and qual, as follow:
+            // \r\n|\n means the end of line is \r\n or \n
+            // name comment\r\n|\n
+            // sequence\r\n|\n
+            // +\r\n|\n
+            // qual\r\n|\n
+            // @
+
+            // find the end of name and comment
+            let mut i = 1;
+            let mut line_end = 0;
+            let mut space = 0;
+            let mut have_r = false;
+            while i < bytes {
+                if record.buffer[i] == b'\n' {
+                    line_end = i;
+                    if record.buffer[i - 1] == b'\r' {
+                        line_end -= 1;
+                        have_r = true;
+                    }
+                    break;
+                }
+                if record.buffer[i] == b' ' {
+                    space = i;
+                }
+                i += 1;
+            }
+            if space == 0 {
+                space = line_end;
+            }
+            if i == bytes {
+                return Err(crate::FilterxError::FastqError(
+                    "Invalid fastq format: name and comment".to_string(),
+                ));
+            }
+            if parser_option.include_comment {
+                record._name = (1, space);
+                record._comment = (space + 1, line_end);
+            } else {
+                record._name = (1, line_end);
+            }
+            // find the end of sequence
+            let mut j = line_end + if have_r { 2 } else { 1 };
+            record._sequence.0 = j;
+            while j < bytes {
+                if record.buffer[j] == b'+' {
+                    break;
+                }
+                j += 1;
+            }
+            if j == bytes {
+                return Err(crate::FilterxError::FastqError(
+                    "Invalid fastq format: sequence".to_string(),
+                ));
+            }
+            record._sequence.1 = j - 1 - if have_r { 2 } else { 1 };
+            if parser_option.include_qual {
+                let seq_len = record.len();
+                j = j + if have_r { 2 } else { 1 };
+                // find the end of qual
+                // check if qual is equal to sequence
+                if j + seq_len > bytes {
+                    return Err(crate::FilterxError::FastqError(
+                        "Invalid fastq format: qual".to_string(),
+                    ));
+                }
+                record._qual = (j, j + seq_len);
+            }
+            return Ok(Some(record));
         }
-        self.line_buffer.clear();
-        let bytes = self.reader.read_line(&mut self.line_buffer)?;
-        if bytes == 0 {
-            self.read_end = true;
-            return Err(crate::FilterxError::FastqError(
-                "Invalid fastq format".to_string(),
-            ));
-        }
-        let line = self.line_buffer.trim_end();
-        record._sequence.0 = record.buffer.len();
-        record.buffer.push_str(line);
-        record._sequence.1 = record.buffer.len();
-        self.line_buffer.clear();
-        let bytes = self.reader.read_line(&mut self.line_buffer)?;
-        if bytes == 0 {
-            self.read_end = true;
-            return Err(crate::FilterxError::FastqError(
-                "Invalid fastq format".to_string(),
-            ));
-        }
-        let line = self.line_buffer.trim_end();
-        if !line.starts_with('+') {
-            return Err(crate::FilterxError::FastqError(
-                "Invalid fastq format".to_string(),
-            ));
-        }
-        self.line_buffer.clear();
-        let bytes = self.reader.read_line(&mut self.line_buffer)?;
-        if bytes == 0 {
-            self.read_end = true;
-            return Err(crate::FilterxError::FastqError(
-                "Invalid fastq format".to_string(),
-            ));
-        }
-        if self.parser_option.include_qual {
-            let line = self.line_buffer.trim_end();
-            record._qual.0 = record.buffer.len();
-            record.buffer.push_str(line);
-            record._qual.1 = record.buffer.len();
-        }
-        self.line_buffer.clear();
-        Ok(Some(record))
     }
 
     fn set_parser_options(self, parser_options: Self::ParserOptions) -> Self {
@@ -347,7 +365,6 @@ impl<'a> TableLike<'a> for Fastq {
 
     fn reset(&mut self) -> FilterxResult<()> {
         self.reader.reset()?;
-        self.line_buffer.clear();
         self.read_end = false;
         Ok(())
     }

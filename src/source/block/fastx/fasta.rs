@@ -104,7 +104,6 @@ impl FastaRecord {
         }
         s.extend_from_slice(b"\n");
         s.extend_from_slice(&self.buffer[self._sequence.0..self._sequence.1]);
-        s.extend_from_slice(b"\n\0");
     }
 }
 
@@ -175,13 +174,6 @@ impl IntoIterator for Fasta {
     }
 }
 
-#[derive(PartialEq)]
-enum FastaRecordEnum {
-    Init,
-    Header,
-    Sequence,
-}
-
 impl Clone for Fasta {
     fn clone(&self) -> Self {
         Fasta {
@@ -231,65 +223,74 @@ impl<'a> TableLike<'a> for Fasta {
         }
         let record: &mut FastaRecord = &mut self.record;
         record.clear();
-        let mut status = FastaRecordEnum::Init;
+
+        // read name and comment
+        if !self.prev_line.is_empty() {
+            util::append_vec(&mut record.buffer, &self.prev_line);
+        } else {
+            let bytes = self.reader.read_until(b'\n', &mut record.buffer)?;
+            if bytes == 0 {
+                self.read_end = true;
+                return Ok(None);
+            }
+        }
+
+        // fill name and comment
+        record._name.0 = 1;
+        record._name.1 = record.buffer.len();
+
+        // remove \n or \r\n
+        let mut end = record.buffer.len();
+        let name = &record.buffer[..];
+        if name[name.len() - 1] == b'\n' {
+            end -= 1;
+            if name[name.len() - 2] == b'\r' {
+                end -= 1;
+            }
+        }
+        record.buffer.truncate(end);
+        record._name.1 = end;
+
+        if let Some(start) = record.buffer.iter().position(|&x| x == b' ') {
+            record._name.1 = start;
+            if self.parser_options.include_comment {
+                record._comment.0 = start + 1;
+                record._comment.1 = record.buffer.len();
+            } else {
+                record.buffer.truncate(start);
+                record._comment.0 = 0;
+                record._comment.1 = 0;
+            }
+        }
+
+        // fill sequence
+        self.prev_line.clear();
+        record._sequence.0 = record.buffer.len();
         loop {
-            if self.prev_line.len() == 0 {
-                let bytes = self.reader.read_until(b'\n', &mut self.prev_line)?;
-                if bytes == 0 {
-                    self.read_end = true;
-                    break;
+            let bytes = self.reader.read_until(b'\n', &mut self.prev_line)?;
+            if bytes == 0 {
+                self.read_end = true;
+                break;
+            }
+            if self.prev_line[0] == b'>' {
+                break;
+            }
+            // remove \n or \r\n
+            let mut line = self.prev_line.as_slice();
+            if line[line.len() - 1] == b'\n' {
+                line = &line[..line.len() - 1];
+                if line[line.len() - 1] == b'\r' {
+                    line = &line[..line.len() - 1];
                 }
             }
-            let line = self.prev_line.as_slice();
-            match status {
-                FastaRecordEnum::Init => {
-                    if line[0] == b'>' {
-                        record._name.0 = 1;
-                        util::append_vec(&mut record.buffer, &line[1..]);
-                        record._name.1 = record.buffer.len();
-                        let comment_start = line.iter().position(|&x| x == b' ');
-                        if let Some(start) = comment_start {
-                            record._name.1 = start;
-                            if self.parser_options.include_comment {
-                                record._comment.0 = start + 1;
-                                record._comment.1 = record.buffer.len();
-                            } else {
-                                record.buffer.truncate(start);
-                            }
-                        }
-                        status = FastaRecordEnum::Header;
-                    } else {
-                        return Err(crate::error::FilterxError::FastaError(
-                            "Fasta record must start with '>'".to_string(),
-                        ));
-                    }
-                }
-                FastaRecordEnum::Header => {
-                    if record._sequence.0 == 0 {
-                        record._sequence.0 = record.buffer.len();
-                    }
-                    util::append_vec(&mut record.buffer, line);
-                    status = FastaRecordEnum::Sequence;
-                }
-                FastaRecordEnum::Sequence => {
-                    if line[0] == b'>' {
-                        break;
-                    } else {
-                        util::append_vec(&mut record.buffer, line);
-                    }
-                }
-            }
+            util::append_vec(&mut record.buffer, line);
             self.prev_line.clear();
         }
-
-        record._sequence.1 = record.buffer.len();
-
-        if status != FastaRecordEnum::Sequence || record.len() == 0 {
-            return Err(crate::error::FilterxError::FastaError(
-                "Fasta record must have sequence".to_string(),
-            ));
+        if record.buffer.is_empty() {
+            return Ok(None);
         }
-        return Ok(Some(record));
+        record._sequence.1 = record.buffer.len();
+        Ok(Some(record))
     }
 
     fn into_dataframe(self) -> crate::error::FilterxResult<polars::prelude::DataFrame> {

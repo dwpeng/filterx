@@ -66,7 +66,7 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
                             let seq = seq.get_str().unwrap_or("");
                             write!(writer, "\n{}\n", seq)?;
                         }
-                        "comment" => {
+                        "comm" => {
                             let comment = col.get(i).unwrap();
                             let comment = comment.get_str().unwrap_or("");
                             write!(writer, " {}", comment)?;
