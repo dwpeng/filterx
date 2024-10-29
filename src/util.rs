@@ -127,9 +127,18 @@ pub fn create_buffer_writer(path: Option<String>) -> FilterxResult<BufWriter<Box
     Ok(BufWriter::new(writer))
 }
 
+#[inline]
 pub fn merge_expr(expr: Option<Vec<String>>) -> String {
     match expr {
         Some(expr) => expr.join(";"),
         None => "".to_string(),
     }
+}
+
+#[inline(always)]
+pub fn append_vec<T: Copy>(dst: &mut Vec<T>, src: &[T]) {
+    if src.len() + dst.len() > dst.capacity() {
+        dst.reserve(src.len());
+    }
+    dst.extend_from_slice(src);
 }

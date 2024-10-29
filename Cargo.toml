@@ -9,7 +9,7 @@ version = "0.0.1"
 [dependencies]
 anyhow = "1.0.89"
 clap = { version = "4.5.17" , features = ["derive"] }
-polars = { version = "0.43.1", features = [
+polars = { version = "0.43.1", default-features = false, features = [
     "lazy",
     "csv",
     "strings",
@@ -20,9 +20,7 @@ polars = { version = "0.43.1", features = [
     "streaming",
     "cum_agg",
     "avx512",
-    "serde",
 ] }
-polars-plan = { version = "0.43.1" }
 rustpython-parser = "0.4.0"
 thiserror = "1.0.63"
 flate2 = { version = "1.0.33", features = ["zlib-rs"] }

@@ -5,6 +5,7 @@ use super::FastaRecordType;
 use crate::error::FilterxResult;
 use crate::source::block::reader::TableLikeReader;
 use crate::source::block::table_like::TableLike;
+use crate::util;
 
 #[derive(Debug, Clone, Copy)]
 pub struct FastaRecordParserOptions {
@@ -58,7 +59,7 @@ impl FastaSource {
 
 pub struct Fasta {
     reader: TableLikeReader,
-    prev_line: String,
+    prev_line: Vec<u8>,
     read_end: bool,
     pub path: String,
     pub parser_options: FastaRecordParserOptions,
@@ -68,7 +69,7 @@ pub struct Fasta {
 
 #[derive(Clone, Debug, Default)]
 pub struct FastaRecord {
-    buffer: String,
+    buffer: Vec<u8>,
     _name: (usize, usize),
     _comment: (usize, usize),
     _sequence: (usize, usize),
@@ -77,38 +78,60 @@ pub struct FastaRecord {
 impl FastaRecord {
     pub fn new(raw: &str) -> Self {
         FastaRecord {
-            buffer: raw.to_string(),
+            buffer: raw.as_bytes().to_vec(),
             _name: (0, 0),
             _comment: (0, 0),
             _sequence: (0, 0),
         }
     }
 
+    #[inline(always)]
     pub fn clear(&mut self) {
         self.buffer.clear();
         self._name = (0, 0);
         self._comment = (0, 0);
         self._sequence = (0, 0);
     }
+
+    #[inline(always)]
+    pub fn format(&self, s: &mut Vec<u8>) {
+        s.clear();
+        s.extend_from_slice(b">");
+        s.extend_from_slice(&self.buffer[self._name.0..self._name.1]);
+        if self._comment.0 != self._comment.1 {
+            s.extend_from_slice(b" ");
+            s.extend_from_slice(&self.buffer[self._comment.0..self._comment.1]);
+        }
+        s.extend_from_slice(b"\n");
+        s.extend_from_slice(&self.buffer[self._sequence.0..self._sequence.1]);
+        s.extend_from_slice(b"\n\0");
+    }
 }
 
 impl FastaRecord {
+    #[inline(always)]
     pub fn name(&self) -> &str {
-        &self.buffer[self._name.0..self._name.1]
+        unsafe { std::str::from_utf8_unchecked(&self.buffer[self._name.0..self._name.1]) }
     }
 
+    #[inline(always)]
     pub fn comment(&self) -> Option<&str> {
         if self._comment.0 == self._comment.1 {
             None
         } else {
-            Some(&self.buffer[self._comment.0..self._comment.1])
+            let c = unsafe {
+                std::str::from_utf8_unchecked(&self.buffer[self._comment.0..self._comment.1])
+            };
+            Some(c)
         }
     }
 
+    #[inline(always)]
     pub fn seq(&self) -> &str {
-        &self.buffer[self._sequence.0..self._sequence.1]
+        unsafe { std::str::from_utf8_unchecked(&self.buffer[self._sequence.0..self._sequence.1]) }
     }
 
+    #[inline(always)]
     pub fn len(&self) -> usize {
         self._sequence.1 - self._sequence.0 + 1
     }
@@ -165,7 +188,7 @@ impl Clone for Fasta {
             reader: self.reader.clone(),
             path: self.path.clone(),
             parser_options: self.parser_options.clone(),
-            prev_line: String::new(),
+            prev_line: self.prev_line.clone(),
             read_end: false,
             record: self.record.clone(),
             record_type: self.record_type.clone(),
@@ -181,7 +204,7 @@ impl<'a> TableLike<'a> for Fasta {
     fn from_path(path: &str) -> crate::error::FilterxResult<Self::Table> {
         Ok(Fasta {
             reader: TableLikeReader::new(path)?,
-            prev_line: String::new(),
+            prev_line: Vec::new(),
             read_end: false,
             path: path.to_string(),
             parser_options: FastaRecordParserOptions::default(),
@@ -211,26 +234,20 @@ impl<'a> TableLike<'a> for Fasta {
         let mut status = FastaRecordEnum::Init;
         loop {
             if self.prev_line.len() == 0 {
-                let bytes = self.reader.read_line(&mut self.prev_line)?;
+                let bytes = self.reader.read_until(b'\n', &mut self.prev_line)?;
                 if bytes == 0 {
                     self.read_end = true;
                     break;
                 }
             }
-            let line = self.prev_line.trim_end();
+            let line = self.prev_line.as_slice();
             match status {
                 FastaRecordEnum::Init => {
-                    assert!(record.buffer.is_empty());
-                    if line.starts_with('>') {
-                        if line.len() == 1 {
-                            return Err(crate::error::FilterxError::FastaError(
-                                "Fasta record must have header".to_string(),
-                            ));
-                        }
+                    if line[0] == b'>' {
                         record._name.0 = 1;
-                        record.buffer.push_str(line);
+                        util::append_vec(&mut record.buffer, &line[1..]);
                         record._name.1 = record.buffer.len();
-                        let comment_start = line.find(' ');
+                        let comment_start = line.iter().position(|&x| x == b' ');
                         if let Some(start) = comment_start {
                             record._name.1 = start;
                             if self.parser_options.include_comment {
@@ -251,14 +268,14 @@ impl<'a> TableLike<'a> for Fasta {
                     if record._sequence.0 == 0 {
                         record._sequence.0 = record.buffer.len();
                     }
-                    record.buffer.push_str(line);
+                    util::append_vec(&mut record.buffer, line);
                     status = FastaRecordEnum::Sequence;
                 }
                 FastaRecordEnum::Sequence => {
-                    if line.starts_with('>') {
+                    if line[0] == b'>' {
                         break;
                     } else {
-                        record.buffer.push_str(line);
+                        util::append_vec(&mut record.buffer, line);
                     }
                 }
             }

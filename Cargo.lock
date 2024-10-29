@@ -159,9 +159,6 @@ name = "bitflags"
 version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "bumpalo"
@@ -318,18 +315,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "comfy-table"
-version = "7.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b34115915337defe99b2aff5c2ce6771e5fbc4079f4b506301f5cf394c8452f7"
-dependencies = [
- "crossterm",
- "strum",
- "strum_macros",
- "unicode-width",
-]
-
-[[package]]
 name = "compact_str"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -409,28 +394,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22ec99545bb0ed0ea7bb9b8e1e9122ea386ff8a48c0922e43f36d45ab09e0e80"
 
 [[package]]
-name = "crossterm"
-version = "0.27.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f476fe445d41c9e991fd07515a6f463074b782242ccf4a5b7b1d1012e70824df"
-dependencies = [
- "bitflags",
- "crossterm_winapi",
- "libc",
- "parking_lot",
- "winapi",
-]
-
-[[package]]
-name = "crossterm_winapi"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acdd7c62a3665c7f6830a51635d9ac9b23ed385797f70a83bb8bafe9c572ab2b"
-dependencies = [
- "winapi",
-]
-
-[[package]]
 name = "crunchy"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -507,7 +470,6 @@ dependencies = [
  "flate2",
  "lazy_static",
  "polars",
- "polars-plan",
  "regex",
  "rustpython-parser",
  "thiserror",
@@ -1009,7 +971,6 @@ dependencies = [
  "polars-ops",
  "polars-parquet",
  "polars-sql",
- "polars-time",
  "polars-utils",
  "version_check",
 ]
@@ -1087,7 +1048,6 @@ dependencies = [
  "bytemuck",
  "chrono",
  "chrono-tz",
- "comfy-table",
  "either",
  "hashbrown",
  "indexmap",
@@ -1103,7 +1063,6 @@ dependencies = [
  "rand_distr",
  "rayon",
  "regex",
- "serde",
  "thiserror",
  "version_check",
  "xxhash-rust",
@@ -1150,7 +1109,6 @@ dependencies = [
  "ahash",
  "atoi_simd",
  "bytes",
- "chrono",
  "fast-float",
  "glob",
  "hashbrown",
@@ -1165,7 +1123,6 @@ dependencies = [
  "polars-core",
  "polars-error",
  "polars-schema",
- "polars-time",
  "polars-utils",
  "rayon",
  "regex",
@@ -1343,7 +1300,6 @@ dependencies = [
  "indexmap",
  "polars-error",
  "polars-utils",
- "serde",
  "version_check",
 ]
 
@@ -1408,7 +1364,6 @@ dependencies = [
  "polars-error",
  "raw-cpuid",
  "rayon",
- "serde",
  "stacker",
  "sysinfo",
  "version_check",
@@ -1783,12 +1738,6 @@ name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
-
-[[package]]
-name = "strum"
-version = "0.26.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
 
 [[package]]
 name = "strum_macros"
