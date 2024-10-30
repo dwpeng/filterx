@@ -8,7 +8,7 @@ version = "0.0.1"
 
 [dependencies]
 anyhow = "1.0.89"
-clap = { version = "4.5.17" , features = ["derive"] }
+clap = { version = "4.5.17", features = ["derive"] }
 polars = { version = "0.43.1", default-features = false, features = [
     "lazy",
     "csv",
@@ -27,9 +27,6 @@ flate2 = { version = "1.0.33", features = ["zlib-rs"] }
 regex = "1.11.1"
 colored = "2.1.0"
 lazy_static = "1.5.0"
-
-[target.x86_64-unknown-linux-gnu]
-rustflags = ["-C", "link-arg=-fuse-ld=mold"]
 
 
 [profile.dev]

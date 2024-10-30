@@ -94,7 +94,7 @@ impl FastaRecord {
     }
 
     #[inline(always)]
-    pub fn format(&self, s: &mut Vec<u8>) {
+    pub fn format<'a>(&self, s: &'a mut Vec<u8>) -> &'a str {
         s.clear();
         s.extend_from_slice(b">");
         s.extend_from_slice(&self.buffer[self._name.0..self._name.1]);
@@ -104,6 +104,7 @@ impl FastaRecord {
         }
         s.extend_from_slice(b"\n");
         s.extend_from_slice(&self.buffer[self._sequence.0..self._sequence.1]);
+        unsafe { std::str::from_utf8_unchecked(s) }
     }
 }
 

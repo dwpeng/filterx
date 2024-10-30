@@ -100,6 +100,7 @@ impl FastqRecord {
         }
     }
 
+    #[inline(always)]
     pub fn clear(&mut self) {
         self.buffer.clear();
         self._name = (0, 0);
@@ -107,13 +108,35 @@ impl FastqRecord {
         self._qual = (0, 0);
         self._comment = (0, 0);
     }
+
+    #[inline(always)]
+    pub fn format<'a>(&self, b: &'a mut Vec<u8>) -> &'a str {
+        b.clear();
+        b.extend_from_slice(b"@");
+        b.extend_from_slice(&self.buffer[self._name.0..self._name.1]);
+        if self._comment.0 != self._comment.1 {
+            b.extend_from_slice(b" ");
+            b.extend_from_slice(&self.buffer[self._comment.0..self._comment.1]);
+        }
+        b.extend_from_slice(b"\n");
+        b.extend_from_slice(&self.buffer[self._sequence.0..self._sequence.1]);
+        b.extend_from_slice(b"\n");
+        if self._qual.0 != self._qual.1 {
+            b.extend_from_slice(b"+\n");
+            b.extend_from_slice(&self.buffer[self._qual.0..self._qual.1]);
+        }
+        unsafe { std::str::from_utf8_unchecked(b) }
+    }
 }
 
 impl FastqRecord {
+
+    #[inline(always)]
     pub fn name(&self) -> &str {
         unsafe { std::str::from_utf8_unchecked(&self.buffer[self._name.0..self._name.1]) }
     }
 
+    #[inline(always)]
     pub fn comment(&self) -> Option<&str> {
         if self._comment.0 == self._comment.1 {
             None
@@ -126,14 +149,17 @@ impl FastqRecord {
         }
     }
 
+    #[inline(always)]
     pub fn seq(&self) -> &str {
         unsafe { std::str::from_utf8_unchecked(&self.buffer[self._sequence.0..self._sequence.1]) }
     }
 
+    #[inline(always)]
     pub fn len(&self) -> usize {
         self._sequence.1 - self._sequence.0 + 1
     }
 
+    #[inline(always)]
     pub fn qual(&self) -> Option<&str> {
         if self._qual.0 == self._qual.1 {
             None

@@ -29,10 +29,7 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
     if expr.is_empty() {
         let mut buffer: Vec<u8> = Vec::new();
         while let Some(record) = &mut source.fasta.parse_next()? {
-            record.format(&mut buffer);
-            unsafe {
-                writeln!(output, "{}", std::str::from_utf8_unchecked(&buffer))?;
-            }
+            writeln!(output, "{}", record.format(&mut buffer))?;
         }
         return Ok(());
     }
