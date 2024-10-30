@@ -110,6 +110,9 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         println!("{}", df);
         return Ok(());
     }
+    if vm.status.printed {
+        return Ok(());
+    }
     write_df(
         &mut df,
         output.as_deref(),
