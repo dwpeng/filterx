@@ -207,7 +207,6 @@ impl<'a> TableLike<'a> for Fastq {
                 // first one is @, skip it
                 continue;
             }
-
             // record buff have store name and comment and sequence and qual, as follow:
             // \r\n|\n means the end of line is \r\n or \n
             // name comment\r\n|\n
@@ -243,12 +242,15 @@ impl<'a> TableLike<'a> for Fastq {
                     "Invalid fastq format: name and comment".to_string(),
                 ));
             }
-            if parser_option.include_comment {
-                record._name = (1, space);
-                record._comment = (space + 1, line_end);
-            } else {
-                record._name = (1, line_end);
+
+            record._name = (0, space);
+            if space != line_end {
+                if parser_option.include_comment {
+                    record._name = (0, space);
+                    record._comment = (space + 1, line_end);
+                }
             }
+
             // find the end of sequence
             let mut j = line_end + if have_r { 2 } else { 1 };
             record._sequence.0 = j;
@@ -263,7 +265,7 @@ impl<'a> TableLike<'a> for Fastq {
                     "Invalid fastq format: sequence".to_string(),
                 ));
             }
-            record._sequence.1 = j - 1 - if have_r { 2 } else { 1 };
+            record._sequence.1 = j - if have_r { 2 } else { 1 };
             if parser_option.include_qual {
                 let seq_len = record.len();
                 j = j + if have_r { 2 } else { 1 };
@@ -274,7 +276,7 @@ impl<'a> TableLike<'a> for Fastq {
                         "Invalid fastq format: qual".to_string(),
                     ));
                 }
-                record._qual = (j, j + seq_len);
+                record._qual = (j + 1, j + seq_len);
             }
             return Ok(Some(record));
         }
