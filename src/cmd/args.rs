@@ -33,6 +33,12 @@ pub enum Command {
 
     /// handle vcf file
     Vcf(VcfCommand),
+
+    /// handle gff file
+    GFF(GFFCommand),
+
+    /// handle gtf file
+    GTF(GFFCommand),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -138,4 +144,11 @@ pub struct VcfCommand {
     /// number of sequence per chunk
     #[clap(short = 'c', long, default_value = "4096")]
     pub chunk: Option<usize>,
+}
+
+
+#[derive(Debug, Clone, Parser)]
+pub struct GFFCommand {
+    #[clap(flatten)]
+    pub share_args: ShareArgs,
 }

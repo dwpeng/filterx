@@ -1,12 +1,15 @@
 use core::str;
 
 use crate::engine::value;
-use polars::prelude::*;
+use polars::{
+    io::{csv, SerWriter},
+    prelude::*,
+};
 
 use crate::{FilterxError, FilterxResult};
-use std::fs::File;
 use std::io::BufWriter;
 use std::io::Write;
+use std::{fs::File, num::NonZero};
 
 pub fn open_csv_file(path: &str, reader_options: CsvReadOptions) -> FilterxResult<DataFrame> {
     let path = std::path::Path::new(path);
@@ -141,4 +144,60 @@ pub fn append_vec<T: Copy>(dst: &mut Vec<T>, src: &[T]) {
         dst.reserve(src.len());
     }
     dst.extend_from_slice(src);
+}
+
+pub fn create_schemas(fileds: Vec<(&'static str, DataType)>) -> Option<SchemaRef> {
+    let mut schema = Schema::with_capacity(fileds.len());
+    for (name, dtype) in fileds {
+        schema.insert(name.into(), dtype.clone()).unwrap();
+    }
+    Some(Arc::new(schema))
+}
+
+pub fn init_df(
+    path: &str,
+    header: bool,
+    comment_prefix: &str,
+    separator: &str,
+    skip_row: usize,
+    limit_row: Option<usize>,
+    schema: Option<SchemaRef>,
+) -> FilterxResult<LazyFrame> {
+    let parser_options = CsvParseOptions::default()
+        .with_comment_prefix(Some(comment_prefix))
+        .with_separator(handle_sep(separator) as u8);
+
+    let mut parser_option = CsvReadOptions::default()
+        .with_parse_options(parser_options)
+        .with_has_header(header)
+        .with_skip_rows(skip_row)
+        .with_n_rows(limit_row);
+
+    if schema.is_some() {
+        parser_option = parser_option.with_schema(schema);
+    }
+
+    let lazy = open_csv_file_in_lazy(path, parser_option);
+
+    lazy
+}
+
+pub fn write_df(
+    df: &mut DataFrame,
+    output: Option<&str>,
+    output_header: bool,
+    output_separator: &str,
+) -> FilterxResult<()> {
+    let writer: Box<dyn Write>;
+    if let Some(output) = output {
+        writer = Box::new(File::create(output)?);
+    } else {
+        writer = Box::new(std::io::stdout());
+    }
+    let mut writer = csv::write::CsvWriter::new(writer)
+        .include_header(output_header)
+        .with_batch_size(NonZero::new(1024).unwrap())
+        .with_separator(handle_sep(output_separator) as u8);
+    writer.finish(df)?;
+    Ok(())
 }

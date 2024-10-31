@@ -2,6 +2,7 @@ use super::args::{Cli, Command};
 use super::csv::filterx_csv;
 use super::fasta::filterx_fasta;
 use super::fastq::filterx_fastq;
+use super::gxf::filterx_gxf;
 use crate::FilterxResult;
 
 use clap::Parser;
@@ -14,5 +15,7 @@ pub fn cli() -> FilterxResult<()> {
         Command::Fastq(cmd) => filterx_fastq(cmd),
         Command::Sam(_) => unimplemented!(),
         Command::Vcf(_) => unimplemented!(),
+        Command::GFF(cmd) => filterx_gxf(cmd),
+        Command::GTF(cmd) => filterx_gxf(cmd),
     }
 }
