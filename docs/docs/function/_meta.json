@@ -1,0 +1,32 @@
+[
+    {
+        "type": "file",
+        "name": "index",
+        "label": "Overview"
+    },
+    {
+        "type": "file",
+        "name": "str",
+        "label": "String"
+    },
+    {
+        "type": "file",
+        "name": "row",
+        "label": "Row"
+    },
+    {
+        "type": "file",
+        "name": "column",
+        "label": "Column"
+    },
+    {
+        "type": "file",
+        "name": "sequence",
+        "label": "Sequence"
+    },
+    {
+        "type": "file",
+        "name": "operator",
+        "label": "Operator"
+    }
+]

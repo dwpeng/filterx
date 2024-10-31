@@ -1,0 +1,227 @@
+# 10 minutes guide
+
+## Introduction
+
+`filterx` is a command line tool to filter lines from stdin or files. It is inspired by [grep](https://www.gnu.org/software/grep/) and [awk](https://www.gnu.org/software/gawk/) and [bioawk](https://github.com/lh3/bioawk).
+
+### Features
+- 🚀 Filter lines by column-based expression
+- 🎨 Support multiple input formats e.g. vcf/sam/fasta/fastq/gff/bed/csv/tsv
+- 🎉 Cross-platform support
+- 📦 Easy to install
+- 📚 Rich documentations
+
+
+## Installation
+
+```shell title=cargo
+cargo install filterx
+# or
+cargo install --git git@github.com:dwpeng/filterx.git
+```
+
+```shell title=Github Prebuild Binary
+https://github.com/dwpeng/filterx/releases
+```
+
+
+## Quick Start
+
+```csv title=example.csv
+name,age
+Alice,20
+Bob,30
+Charlie,40
+```
+
+### Filter by Column Value
+
+::: tip
+filterx assumes that the csv file does not contain a header. If the file contains a header, you need to add the `-H` parameter.
+:::
+
+one filter condition
+
+```shell
+filterx csv example.csv -H -e 'age > 25'
+
+# Output
+# Bob,30
+# Charlie,40
+```
+
+```txt title=example-without-header.csv
+Alice,20
+Bob,30
+Charlie,40
+```
+
+filterx can filter the csv file without a header. Use `col` to reference the column. The column index starts from 1. In the following example, `col(2)` refers to the second column in the csv file.
+
+```shell
+filterx csv example-without-header.csv -e 'col(2) > 25'
+
+# Output
+# Bob,30
+# Charlie,40
+```
+
+
+multiple filter conditions
+
+::: tip
+filterx don't output the header by default. If you want to output the header, you need to add the `--oH` parameter.
+:::
+
+```shell
+filterx csv example.csv -H --oH -e 'age > 25 and name == "Bob"'
+# Output
+# name,age
+# Bob,30
+```
+
+::: tip
+filterx can pass multiple expressions to filter lines by using `-e` multiple times.
+```shell
+filterx csv example.csv -H -e 'age > 25' -e 'name == "Bob"'
+# equivalent to
+filterx csv example.csv -H -e 'age > 25 and name == "Bob"'
+```
+:::
+
+
+### Filter by builtins functions
+
+# filter by length
+```shell
+filterx csv example.csv -H -e 'len(name) > 4'
+
+# Output
+# Charlie,40
+```
+
+### Column manipulation
+
+create a new column by using `alias` function
+
+```shell
+filterx csv example.csv -H -e 'alias(new_col) = age + 10'
+
+# Output
+# Alice,20,30
+# Bob,30,40
+# Charlie,40,50
+```
+
+select columns by using `select` function
+
+```shell
+filterx csv example.csv -H --oH -e 'select(age, name)'
+# Output
+# age,name
+# 20,Alice
+# 30,Bob
+# 40,Charlie
+```
+
+### Row manipulation
+
+process the first N rows
+
+```shell
+filterx csv example.csv -H -e 'head(1)' -e 'print("{name}")'
+
+# Output
+# Alice
+```
+
+process the last N rows
+
+```shell
+filterx csv example.csv -H -e 'tail(1)' -e 'print("{name}")'
+
+# Output
+# Charlie
+```
+
+### Filter by Regular Expression
+
+filterx use `in` to filter by regular expression pattern.
+
+```shell
+filterx csv example.csv -H -e '"^B" in name'
+
+# Output
+# Bob,30
+```
+
+
+### Format Output
+
+filterx use `print` function to format output. The `print` function supports python-like string formatting. Use `{}` to format the value.
+
+```shell
+filterx csv example.csv -H \
+     -e 'age > 25' 
+     -e 'print("this is {name}")'
+
+# Output
+# this is Bob
+# this is Charlie
+```
+
+```shell
+filterx csv example.csv -H \
+     -e 'age > 25' 
+     -e 'print("this is {name}, age is {age}")'
+
+# Output
+# this is Bob, age is 30
+# this is Charlie, age is 40
+```
+
+filterx also supports functions in the `print` function.
+
+```shell
+filterx csv example.csv -H \
+     -e 'age > 25' 
+     -e 'print("{name}: length is {len(name)}")'
+
+# Output
+# Bob: length is 3
+# Charlie: length is 7
+```
+
+
+### Sequence manipulation
+
+```txt title=example.fasta
+>seq1
+ACGT
+>seq2
+ACGTACGT
+```
+
+filter by sequence length and compute GC content
+
+```shell
+filterx fasta example.fasta -e 'len(seq) > 5' -e 'gc(seq) > 0.5' -e 'print('{name}: {gc(seq)}')'
+
+# Output
+# seq2: 0.5
+```
+
+### Inplace edit
+
+use function which ends with `_` to modify the value in place.
+
+```shell
+# inplace edit
+filterx fasta example.fasta -e 'lower_(seq)'
+
+# Output
+# >seq1
+# acgt
+# >seq2
+# acgtacgt
+```
