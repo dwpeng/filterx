@@ -55,14 +55,16 @@ jobs:
         directory=filterx-${{ matrix.target }}
         mkdir $directory
         cp target/${{ matrix.target }}/release/filterx $directory
-        if [ -f target/${{ matrix.target }}.2.17/release/filterx ]; then
-            cp target/${{ matrix.target }}.2.17/release/filterx $directory/filterx.2.17
-        fi
         tar cJf $directory.tar.xz $directory
+        if [ -f target/${{ matrix.target }}.2.17/release/filterx ]; then
+            mkdir $directory.2.17
+            cp target/${{ matrix.target }}.2.17/release/filterx $directory.2.17
+            tar cJf $directory.2.17.tar.xz $directory.2.17
+        fi
 
     - uses: ncipollo/release-action@v1.14.0
       with:
-        artifacts: "filterx-${{ matrix.target }}"
+        artifacts: "*.tar.xz"
         allowUpdates: true
         omitNameDuringUpdate: true
         omitBodyDuringUpdate: true
