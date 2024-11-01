@@ -1,14 +1,15 @@
 [package]
 name = "filterx"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "A simple command line tool to filter data using a python-like syntax"
 license = "MIT"
 repository = "https://github.com/dwpeng/filterx"
 homepage = "https://github.com/dwpeng/filterx"
-
-[workspace.package]
-version = "0.0.1"
+exclude = [
+    "spec/",
+    "docs/",
+]
 
 [dependencies]
 anyhow = "1.0.89"
