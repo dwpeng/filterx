@@ -3,4 +3,4 @@
 	url = https://github.com/The-Sequence-Ontology/Specifications
 [submodule "spec/sam-vcf"]
 	path = spec/sam-vcf
-	url = https://@github.com:samtools/hts-specs
+	url = https://@github.com/samtools/hts-specs
