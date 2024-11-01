@@ -49,8 +49,13 @@ pub fn open_csv_file_in_lazy(
     };
     let lazy_reader = lazy_reader.with_comment_prefix(comment_prefix);
     let lazy_reader = lazy_reader.with_separator(reader_options.parse_options.separator);
+    let lazy_reader =
+        lazy_reader.with_null_values(reader_options.parse_options.null_values.clone());
     let lazy_reader = lazy_reader.with_has_header(reader_options.has_header);
     let lazy_reader = lazy_reader.with_skip_rows(reader_options.skip_rows);
+    let lazy_reader = lazy_reader.with_n_rows(reader_options.n_rows);
+    let lazy_reader = lazy_reader.with_infer_schema_length(reader_options.infer_schema_length);
+    let lazy_reader = lazy_reader.with_schema(reader_options.schema);
     let lazy = lazy_reader.finish()?;
     Ok(lazy)
 }
@@ -146,10 +151,11 @@ pub fn append_vec<T: Copy>(dst: &mut Vec<T>, src: &[T]) {
     dst.extend_from_slice(src);
 }
 
-pub fn create_schemas(fileds: Vec<(&'static str, DataType)>) -> Option<SchemaRef> {
+pub fn create_schemas(fileds: Vec<(String, DataType)>) -> Option<SchemaRef> {
     let mut schema = Schema::with_capacity(fileds.len());
     for (name, dtype) in fileds {
-        schema.insert(name.into(), dtype.clone()).unwrap();
+        // TODO: return None although insert successed
+        let _r = schema.insert(name.into(), dtype.clone());
     }
     Some(Arc::new(schema))
 }
@@ -162,22 +168,31 @@ pub fn init_df(
     skip_row: usize,
     limit_row: Option<usize>,
     schema: Option<SchemaRef>,
+    null_values: Option<Vec<&str>>,
+    missing_is_null: bool,
 ) -> FilterxResult<LazyFrame> {
-    let parser_options = CsvParseOptions::default()
+    let mut parser_options = CsvParseOptions::default()
         .with_comment_prefix(Some(comment_prefix))
-        .with_separator(handle_sep(separator) as u8);
+        .with_separator(handle_sep(separator) as u8)
+        .with_missing_is_null(missing_is_null);
 
-    let mut parser_option = CsvReadOptions::default()
+    if let Some(null_values) = null_values {
+        let null_values = NullValues::AllColumns(null_values.iter().map(|x| (*x).into()).collect());
+        parser_options = parser_options.with_null_values(Some(null_values));
+    }
+
+    let mut read_options = CsvReadOptions::default()
         .with_parse_options(parser_options)
         .with_has_header(header)
         .with_skip_rows(skip_row)
         .with_n_rows(limit_row);
 
     if schema.is_some() {
-        parser_option = parser_option.with_schema(schema);
+        read_options = read_options.with_infer_schema_length(Some(0));
+        read_options = read_options.with_schema(schema);
     }
 
-    let lazy = open_csv_file_in_lazy(path, parser_option);
+    let lazy = open_csv_file_in_lazy(path, read_options);
 
     lazy
 }
@@ -187,17 +202,52 @@ pub fn write_df(
     output: Option<&str>,
     output_header: bool,
     output_separator: &str,
+    headers: Option<Vec<String>>,
+    null_value: Option<&str>,
 ) -> FilterxResult<()> {
-    let writer: Box<dyn Write>;
+    let mut writer: Box<dyn Write>;
     if let Some(output) = output {
         writer = Box::new(File::create(output)?);
     } else {
         writer = Box::new(std::io::stdout());
     }
+    if headers.is_some() {
+        let headers = headers.unwrap();
+        for line in headers {
+            writer.write_all(line.as_bytes())?;
+        }
+    }
     let mut writer = csv::write::CsvWriter::new(writer)
         .include_header(output_header)
         .with_batch_size(NonZero::new(1024).unwrap())
-        .with_separator(handle_sep(output_separator) as u8);
+        .with_separator(handle_sep(output_separator) as u8)
+        .with_quote_style(QuoteStyle::Never)
+        .with_float_precision(Some(3))
+        .n_threads(4)
+        .with_line_terminator("\n".into());
+    if let Some(null_value) = null_value {
+        writer = writer.with_null_value(null_value.into());
+    }
     writer.finish(df)?;
     Ok(())
+}
+
+pub fn collect_comment_lines(path: &str, comment_prefix: &str) -> FilterxResult<Vec<String>> {
+    use std::fs::File;
+    use std::io::BufRead;
+    use std::io::BufReader;
+    let file = File::open(path)?;
+    let mut reader = BufReader::new(file);
+    let mut line = String::new();
+    let mut comment_lines = Vec::new();
+    loop {
+        reader.read_line(&mut line)?;
+        if line.starts_with(comment_prefix) {
+            comment_lines.push(line.clone());
+            line.clear();
+            continue;
+        }
+        break;
+    }
+    Ok(comment_lines)
 }

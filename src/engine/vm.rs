@@ -168,6 +168,7 @@ impl FromStr for VmSourceType {
 pub struct Vm {
     /// eval_expr
     pub eval_expr: String,
+    pub parse_cache: HashMap<String, rustpython_parser::ast::Mod>,
     /// mode
     pub mode: VmMode,
     /// source
@@ -182,6 +183,7 @@ impl Vm {
     pub fn from_dataframe(dataframe: DataframeSource) -> Self {
         Self {
             eval_expr: String::new(),
+            parse_cache: HashMap::new(),
             mode: VmMode::Expression,
             source: Source::new_dataframe(dataframe),
             status: VmStatus::default(),
@@ -241,12 +243,18 @@ impl Vm {
                 continue;
             }
             self.eval_expr = expr.to_string();
-            let expr = self.ast(expr)?;
-            if expr.is_expression() {
-                let expr = expr.as_expression().unwrap();
+            let eval_expr;
+            if self.parse_cache.contains_key(expr) {
+                eval_expr = self.parse_cache.get(expr).unwrap().clone();
+            } else {
+                eval_expr = self.ast(expr)?;
+                self.parse_cache.insert(expr.to_string(), eval_expr.clone());
+            }
+            if eval_expr.is_expression() {
+                let expr = eval_expr.as_expression().unwrap();
                 expr.eval(self)?;
-            } else if expr.is_interactive() {
-                let expr = expr.as_interactive().unwrap();
+            } else if eval_expr.is_interactive() {
+                let expr = eval_expr.as_interactive().unwrap();
                 expr.eval(self)?;
             }
         }

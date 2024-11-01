@@ -77,6 +77,7 @@ impl<'a> Eval<'a> for ast::ExprCall {
                 "rstrip_" => call::strip(vm, &self.args, true, true, false),
                 "slice" => call::slice(vm, &self.args, false),
                 "slice_" => call::slice(vm, &self.args, true),
+                "header" => call::header(vm),
                 _ => Err(FilterxError::RuntimeError(format!(
                     "Function `{}` is not defined.",
                     function_name

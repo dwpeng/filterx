@@ -83,4 +83,5 @@ builtin_function! {
     replace,
     strip,
     slice,
+    header,
 }

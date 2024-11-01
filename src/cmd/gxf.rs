@@ -9,16 +9,16 @@ use crate::util;
 use crate::FilterxResult;
 
 fn init_gxf_schema() -> Option<SchemaRef> {
-    let mut files = Vec::<(&'static str, DataType)>::new();
-    files.push(("seqid", DataType::String));
-    files.push(("source", DataType::String));
-    files.push(("type", DataType::String));
-    files.push(("start", DataType::UInt32));
-    files.push(("end", DataType::UInt32));
-    files.push(("score", DataType::Float32));
-    files.push(("strand", DataType::String));
-    files.push(("phase", DataType::UInt8));
-    files.push(("attributes", DataType::String));
+    let mut files = Vec::<(String, DataType)>::new();
+    files.push(("seqid".into(), DataType::String));
+    files.push(("source".into(), DataType::String));
+    files.push(("type".into(), DataType::String));
+    files.push(("start".into(), DataType::UInt32));
+    files.push(("end".into(), DataType::UInt32));
+    files.push(("score".into(), DataType::Float32));
+    files.push(("strand".into(), DataType::String));
+    files.push(("phase".into(), DataType::UInt8));
+    files.push(("attributes".into(), DataType::String));
     util::create_schemas(files)
 }
 
@@ -36,6 +36,7 @@ pub fn filterx_gxf(cmd: GFFCommand) -> FilterxResult<()> {
     let comment_prefix = "#";
     let separator = "\t";
     let writer = util::create_buffer_writer(output.clone())?;
+    let schema = init_gxf_schema();
     let lazy_df = util::init_df(
         path.as_str(),
         false,
@@ -43,7 +44,9 @@ pub fn filterx_gxf(cmd: GFFCommand) -> FilterxResult<()> {
         separator,
         0,
         None,
-        init_gxf_schema(),
+        schema,
+        Some(vec![".", "?"]),
+        false,
     )?;
     let mut s = DataframeSource::new(lazy_df.clone());
     s.set_has_header(false);
@@ -64,5 +67,13 @@ pub fn filterx_gxf(cmd: GFFCommand) -> FilterxResult<()> {
     if vm.status.printed {
         return Ok(());
     }
-    util::write_df(&mut df, output.as_deref(), false, separator)
+    let headers = util::collect_comment_lines(path.as_str(), comment_prefix)?;
+    util::write_df(
+        &mut df,
+        output.as_deref(),
+        false,
+        separator,
+        Some(headers),
+        Some("."),
+    )
 }

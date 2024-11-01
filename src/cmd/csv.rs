@@ -34,6 +34,8 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         skip_row.unwrap(),
         limit_row,
         None,
+        None,
+        false,
     )?;
     let mut s = DataframeSource::new(lazy_df.clone());
     s.set_has_header(header.unwrap());
@@ -47,6 +49,8 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
             skip_row.unwrap(),
             limit_row,
             None,
+            None,
+            false,
         )?;
         vm.status.inject_columns_by_df(lazy)?;
     }
@@ -71,5 +75,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         output.as_deref(),
         output_header.unwrap(),
         output_separator.unwrap().as_str(),
+        None,
+        None,
     )
 }

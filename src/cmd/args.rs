@@ -130,20 +130,12 @@ pub struct FastqCommand {
 pub struct SamCommand {
     #[clap(flatten)]
     pub share_args: ShareArgs,
-
-    /// number of sequence per chunk
-    #[clap(short = 'c', long, default_value = "4096")]
-    pub chunk: Option<usize>,
 }
 
 #[derive(Debug, Clone, Parser)]
 pub struct VcfCommand {
     #[clap(flatten)]
     pub share_args: ShareArgs,
-
-    /// number of sequence per chunk
-    #[clap(short = 'c', long, default_value = "4096")]
-    pub chunk: Option<usize>,
 }
 
 

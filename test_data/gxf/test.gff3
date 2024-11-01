@@ -1,0 +1,21 @@
+##sequence-region NC_004367.1 1 149696
+NC_004367.1	RefSeq	gene	138637	150662	.	-	.	ID=gene0
+NC_004367.1	RefSeq	mRNA	138637	150662	.	-	.	ID=rna0;Parent=gene0
+NC_004367.1	RefSeq	exon	959	966	.	-	.	ID=id1;Parent=rna0
+NC_004367.1	RefSeq	exon	140247	140485	.	-	.	ID=id2;Parent=rna0
+NC_004367.1	RefSeq	exon	140075	140167	.	-	.	ID=id3;Parent=rna0
+NC_004367.1	RefSeq	exon	139744	139992	.	-	.	ID=id4;Parent=rna0
+NC_004367.1	RefSeq	exon	139572	139661	.	-	.	ID=id5;Parent=rna0
+NC_004367.1	RefSeq	exon	139294	139458	.	-	.	ID=id6;Parent=rna0
+NC_004367.1	RefSeq	exon	139106	139219	.	-	.	ID=id7;Parent=rna0
+NC_004367.1	RefSeq	exon	138904	139005	.	-	.	ID=id8;Parent=rna0
+NC_004367.1	RefSeq	exon	138637	138818	.	-	.	ID=id9;Parent=rna0
+NC_004367.1	RefSeq	CDS	959	966	.	-	0	ID=cds0;Parent=rna0
+NC_004367.1	RefSeq	CDS	140247	140485	.	-	1	ID=cds0;Parent=rna0
+NC_004367.1	RefSeq	CDS	140075	140167	.	-	2	ID=cds0;Parent=rna0
+NC_004367.1	RefSeq	CDS	139744	139992	.	-	2	ID=cds0;Parent=rna0
+NC_004367.1	RefSeq	CDS	139572	139661	.	-	2	ID=cds0;Parent=rna0
+NC_004367.1	RefSeq	CDS	139294	139458	.	-	2	ID=cds0;Parent=rna0
+NC_004367.1	RefSeq	CDS	139106	139219	.	-	2	ID=cds0;Parent=rna0
+NC_004367.1	RefSeq	CDS	138904	139005	.	-	2	ID=cds0;Parent=rna0
+NC_004367.1	RefSeq	CDS	138637	138818	.	-	2	ID=cds0;Parent=rna0

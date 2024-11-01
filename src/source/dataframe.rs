@@ -50,4 +50,10 @@ impl DataframeSource {
         let lazy = lazy.with_column(e);
         self.update(lazy);
     }
+
+    pub fn columns(&self) -> FilterxResult<Schema> {
+        let df = self.lazy.clone().fetch(20)?;
+        let schema = df.schema();
+        Ok(schema)
+    }
 }

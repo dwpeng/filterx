@@ -24,6 +24,8 @@ polars = { version = "0.43.1", default-features = false, features = [
     "streaming",
     "cum_agg",
     "avx512",
+    "dtype-u8",
+    "dtype-u16",
 ] }
 rustpython-parser = "0.4.0"
 thiserror = "1.0.63"
