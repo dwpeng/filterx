@@ -1,4 +1,0 @@
-[build]
-base = "docs"
-publish = "docs/doc_build"
-command = "pnpm run build"
