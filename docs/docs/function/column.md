@@ -150,3 +150,51 @@ filterx csv multi-sort.csv -H --oH -e 'sort(a, b)'
 # 1,1,3
 # 1,2,3
 ```
+
+
+## header
+
+print headers of files. so that you can know the column names to manipulate them.
+
+```txt title="test.vcf
+##fileformat=VCFv4.2
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##reference=file://some/path/human_g1k_v37.fasta
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">
+##INFO=<ID=MinDP,Number=1,Type=Integer,Description="Dummy">
+##ALT=<ID=DEL,Description="Deletion">
+##contig=<ID=1,assembly=b37,length=249250621>
+##contig=<ID=2,assembly=b37,length=249250621>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NA001
+1	5	.	C	a	.	PASS	.	GT	0/1
+1	5	.	C	t	.	PASS	.	GT	0/1
+1	7	.	T	a	.	PASS	.	GT	.
+1	10	.	G	a	.	PASS	.	GT	0/1
+1	12	.	GACA	ga	.	PASS	.	GT	0/1
+1	16	.	T	taaa	.	PASS	.	GT	1/1
+1	19	.	A	c	.	PASS	.	GT	0/1
+1	61	.	C	a	.	PASS	.	GT	0/1
+2	61	.	AGAG	aa	.	PASS	.	GT	0/1
+2	119	.	AAA	t	.	PASS	.	GT	0/1
+2	179	.	G	gacgtacgt	.	PASS	.	GT	0/1
+2	200	.	A	<DEL>	.	PASS	END=210	GT	1/0
+2	300	.	A	.	.	PASS	END=310;MinDP=10	GT	0/1
+2	320	.	A	<*>	.	PASS	END=330;MinDP=20	GT	0/1
+2	481	.	T	c,a	.	PASS	.	GT	0/2
+```
+
+```bash
+filterx vcf test.vcf -e 'header()'
+
+# output
+chrom   str
+pos     u32
+id      str
+ref     str
+alt     str
+qual    f32
+filter  str
+info    str
+format  str
+na001   str
+```
