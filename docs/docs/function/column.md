@@ -40,6 +40,15 @@ filterx csv test.csv -H -e 'col(1) == "Alice"' # error
 :::
 
 
+`col` can be used to slelect multiple columns by regex.
+
+```bash
+filterx csv test.csv -H -e 'col("^ind\d+$")'
+```
+
+means select all columns start with `ind` and followed by numbers.
+
+
 ## select
 
 get columns by name, output will follow the order of selection.
@@ -198,3 +207,71 @@ info    str
 format  str
 na001   str
 ```
+
+
+## cast_xxx
+
+cast column to specific type. The following types are supported.
+```sh
+str
+string
+u8
+u16
+u32
+u64
+i8
+i16
+i32
+i64
+f32
+f64
+bool
+int # cast to i32
+float # cast to f32
+```
+so full function name is `cast_str`, `cast_string`, `cast_u8`, `cast_u16`, `cast_u32`, `cast_u64`, `cast_i8`, `cast_i16`, `cast_i32`, `cast_i64`, `cast_f32`, `cast_f64`, `cast_bool`, `cast_int`, `cast_float`.
+
+if you want to cast a column to i32, you can use `cast_i32`, or cast inplace by `cast_i32_` (the same for other types).
+
+```bash
+filterx csv test.csv -H --oH -e 'cast_i32(age)'
+
+# output
+# name,age
+# Alice,20
+# Bob,30
+# Charlie,40
+```
+
+## fill
+
+fill missing values with a specific value. it is useful when you want to fill missing values with a specific value.
+
+```txt title="test.vcf"
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	ind1	ind2	ind3	ind4
+chr1	100	.	C	A	.	.	.	GT	0	0	0	.
+chr1	200	.	C	A	.	.	.	GT	1	1	1	.
+chr1	300	.	C	A	.	.	.	GT	1	1	1	1
+chr1	400	.	C	A,T	.	.	.	GT	2	1	1	.
+chr1	500	.	C	A	.	.	.	GT	0	0	1	1
+chr1	600	.	C	A	.	.	.	GT	0	0	1	.
+```
+
+```bash
+filterx vcf test.vcf -e 'fill_(cast_int(col("^ind\d+$")), 0)'
+
+# output
+# CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	ind1	ind2	ind3	ind4
+# chr1	100	.	C	A	.	.	.	GT	0	0	0	0
+# chr1	200	.	C	A	.	.	.	GT	1	1	1	0
+# chr1	300	.	C	A	.	.	.	GT	1	1	1	1
+# chr1	400	.	C	A,T	.	.	.	GT	2	1	1	0
+# chr1	500	.	C	A	.	.	.	GT	0	0	1	1
+# chr1	600	.	C	A	.	.	.	GT	0	0	1	0
+```
+
+This is a more complex example, let's talk about it.
+
+- `col("^ind\d+$")` will get all columns start with `ind` and followed by numbers.
+- `cast_int` will cast all these columns to i32. 
+- `fill_` will fill missing values with 0 inplace.
