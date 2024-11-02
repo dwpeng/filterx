@@ -1,6 +1,6 @@
 [package]
 name = "filterx"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 description = "A simple command line tool to filter data using a python-like syntax"
 license = "MIT"
@@ -30,7 +30,6 @@ polars = { version = "0.43.1", default-features = false, features = [
     "dtype-i16",
     "dtype-i8",
     "abs",
-    "simd"
 ] }
 rustpython-parser = "0.4.0"
 thiserror = "1.0.63"
