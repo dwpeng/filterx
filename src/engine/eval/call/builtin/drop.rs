@@ -4,16 +4,7 @@ pub fn drop<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::V
     let mut drop_columns = vec![];
     for arg in args {
         let col = eval!(vm, arg, "Only support column name", Name, Call, UnaryOp);
-        let col = match col {
-            value::Value::Column(c) => c,
-            _ => {
-                return Err(FilterxError::RuntimeError(
-                    "Only support column name".to_string(),
-                ));
-            }
-        };
-        drop_columns.push(col.col_name.clone());
-        vm.status.drop_column(&col.col_name);
+        drop_columns.push(col.expr()?);
     }
 
     match &mut vm.source {

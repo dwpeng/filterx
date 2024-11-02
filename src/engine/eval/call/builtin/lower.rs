@@ -10,8 +10,7 @@ pub fn lower<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>, inplace: bool) -> Filter
         &args[0],
         "Only support column name",
         Name,
-        Call,
-        UnaryOp
+        Call
     );
 
     let col_name = match col_name {

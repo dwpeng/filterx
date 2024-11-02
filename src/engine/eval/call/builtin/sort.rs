@@ -5,7 +5,6 @@ pub fn sort(vm: &mut Vm, args: &Vec<ast::Expr>, incr: bool) -> FilterxResult<val
     let mut cols = Vec::new();
     for arg in args {
         let v = eval!(vm, arg, "Only support column index", Name, Call);
-
         let col = match v {
             value::Value::Int(i) => {
                 if i >= 0 {

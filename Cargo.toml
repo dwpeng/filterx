@@ -27,6 +27,10 @@ polars = { version = "0.43.1", default-features = false, features = [
     "avx512",
     "dtype-u8",
     "dtype-u16",
+    "dtype-i16",
+    "dtype-i8",
+    "abs",
+    "simd"
 ] }
 rustpython-parser = "0.4.0"
 thiserror = "1.0.63"

@@ -2,8 +2,6 @@ use crate::{FilterxError, FilterxResult};
 use polars::prelude::*;
 use rustpython_parser::ast::bigint::{BigInt, Sign};
 
-use super::ast;
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Int(i64),
@@ -12,7 +10,6 @@ pub enum Value {
     Str(String),
     List(Vec<Value>),
     Column(Column),
-    MultiColumn(MultiColumn),
     Ident((String, Box<Value>)),
     AttrMethod(AttrMethod),
     File(File),
@@ -93,6 +90,7 @@ impl Value {
             Value::Str(s) => s.clone().lit(),
             Value::Column(c) => col(c.col_name.clone()),
             Value::Expr(e) => e.clone(),
+            Value::None => return Err(FilterxError::RuntimeError("function return None".into())),
             _ => return Err(FilterxError::RuntimeError("Can't convert to expr.".into())),
         };
         Ok(expr)
@@ -224,13 +222,6 @@ impl Default for Column {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct MultiColumn {
-    pub left: Box<Value>,
-    pub op: Vec<ast::CmpOp>,
-    pub other: Vec<Value>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
 pub struct AttrMethod {
     pub col: Column,
     pub method: String,
@@ -315,14 +306,6 @@ impl Value {
             }
             Value::File(f) => f.file_name.clone(),
             Value::Column(c) => c.col_name.clone(),
-            Value::MultiColumn(c) => {
-                let mut s = String::from("MultiColumn(");
-                s.push_str(&c.left.to_string());
-                for (i, op) in c.op.iter().enumerate() {
-                    s.push_str(&format!(" {:?} {}", op, c.other[i]))
-                }
-                s
-            }
             Value::Ident(i) => {
                 let mut s = String::from("(");
                 s.push_str(&i.0);

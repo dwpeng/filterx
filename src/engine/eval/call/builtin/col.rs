@@ -26,7 +26,7 @@ pub fn col(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
         value::Value::Column(c) => c.col_name,
         _ => {
             return Err(FilterxError::RuntimeError(
-                "Only support column index".to_string(),
+                "col only support column index or column name".to_string(),
             ));
         }
     };

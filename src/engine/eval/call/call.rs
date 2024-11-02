@@ -14,7 +14,7 @@ use crate::engine::eval::call::builtin as call;
 impl<'a> Eval<'a> for ast::ExprCall {
     type Output = value::Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
-        let function_name = match self.func.deref() {
+        let mut function_name: String = match self.func.deref() {
             ast::Expr::Name(e) => {
                 let v = e.eval(vm)?;
                 v.text()?
@@ -29,6 +29,19 @@ impl<'a> Eval<'a> for ast::ExprCall {
             }
             _ => unreachable!(),
         };
+
+        let mut inplace = false;
+        let mut sub_function_name = "".to_string();
+        if function_name.starts_with("cast_") {
+            if function_name.ends_with("_") {
+                inplace = true;
+                function_name = function_name.strip_suffix("_").unwrap().to_string();
+            }
+            sub_function_name = function_name.strip_prefix("cast_").unwrap().to_string();
+        }
+        if function_name.starts_with("cast") {
+            function_name = "cast".to_string();
+        }
 
         match vm.source {
             Source::Dataframe(_) => match function_name.as_str() {
@@ -78,6 +91,9 @@ impl<'a> Eval<'a> for ast::ExprCall {
                 "slice" => call::slice(vm, &self.args, false),
                 "slice_" => call::slice(vm, &self.args, true),
                 "header" => call::header(vm),
+                "cast" => call::cast(vm, &self.args, &sub_function_name, inplace),
+                "fill" => call::fill(vm, &self.args, false),
+                "fill_" => call::fill(vm, &self.args, true),
                 _ => Err(FilterxError::RuntimeError(format!(
                     "Function `{}` is not defined.",
                     function_name

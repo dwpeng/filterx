@@ -84,4 +84,6 @@ builtin_function! {
     strip,
     slice,
     header,
+    cast,
+    fill,
 }

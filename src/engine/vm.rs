@@ -206,6 +206,7 @@ impl Vm {
     }
 
     pub fn ast(&self, s: &str) -> FilterxResult<rustpython_parser::ast::Mod> {
+        let s = s.trim();
         if s.contains("=")
             && !s.contains("==")
             && !s.contains("!=")

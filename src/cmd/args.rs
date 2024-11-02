@@ -138,7 +138,6 @@ pub struct VcfCommand {
     pub share_args: ShareArgs,
 }
 
-
 #[derive(Debug, Clone, Parser)]
 pub struct GFFCommand {
     #[clap(flatten)]

@@ -130,7 +130,6 @@ impl FastqRecord {
 }
 
 impl FastqRecord {
-
     #[inline(always)]
     pub fn name(&self) -> &str {
         unsafe { std::str::from_utf8_unchecked(&self.buffer[self._name.0..self._name.1]) }
