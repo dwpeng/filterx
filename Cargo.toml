@@ -1,6 +1,6 @@
 [package]
 name = "filterx"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "A simple command line tool to filter data using a python-like syntax"
 license = "MIT"
