@@ -1,7 +1,5 @@
 use std::ops::Deref;
 
-use polars::prelude::*;
-
 use super::super::ast;
 use super::super::value::Value;
 
@@ -63,11 +61,6 @@ impl<'a> Eval<'a> for ast::StmtAssign {
             BinOp
         );
 
-        // TODO
-        // pass percise type
-        vm.status
-            .add_new_column(&new_col, DataType::Unknown(UnknownKind::Any));
-
         match vm.source {
             Source::Dataframe(ref mut df_source) => {
                 assign_in_dataframe(value, new_col, df_source)?;
@@ -83,64 +76,8 @@ fn assign_in_dataframe<'a>(
     new_col: String,
     df_source: &'a mut DataframeSource,
 ) -> FilterxResult<Value> {
-    match value {
-        Value::Column(c) => {
-            let lazy = df_source.lazy.clone();
-            let lazy = lazy.with_column(col(c.col_name).alias(new_col));
-            df_source.update(lazy);
-        }
-
-        Value::Int(i) => {
-            let lazy = df_source.lazy.clone();
-            let lazy = lazy.with_column(lit(i).alias(&new_col));
-            df_source.update(lazy);
-        }
-
-        Value::Float(f) => {
-            let lazy = df_source.lazy.clone();
-            let lazy = lazy.with_column(lit(f).alias(new_col));
-            df_source.update(lazy);
-        }
-
-        Value::Str(s) => {
-            let lazy = df_source.lazy.clone();
-            let lazy = lazy.with_column(lit(s).alias(new_col));
-            df_source.update(lazy);
-        }
-
-        Value::MultiColumn(m) => {
-            let lazy = df_source.lazy.clone();
-            let mut expr = m.left.expr()?;
-            for (i, op) in m.op.iter().enumerate() {
-                let other = m.other[i].clone();
-                expr = match op {
-                    ast::CmpOp::Eq => expr.eq(other.expr()?),
-                    ast::CmpOp::Gt => expr.gt(other.expr()?),
-                    ast::CmpOp::NotEq => expr.neq(other.expr()?),
-                    ast::CmpOp::Lt => expr.lt(other.expr()?),
-                    ast::CmpOp::LtE => expr.lt_eq(other.expr()?),
-                    ast::CmpOp::GtE => expr.gt_eq(other.expr()?),
-                    _ => {
-                        return Err(FilterxError::RuntimeError(
-                            format!("Not support {:?}.", op).into(),
-                        ))
-                    }
-                };
-            }
-            let lazy = lazy.with_column(expr);
-            df_source.update(lazy);
-        }
-        Value::Expr(e) => {
-            let lazy = df_source.lazy.clone();
-            let lazy = lazy.with_column(e.alias(new_col));
-            df_source.update(lazy);
-        }
-        _ => {
-            return Err(FilterxError::RuntimeError(
-                "use `alias` to create a new column, like alias(new_col) = col1 + col2".to_string(),
-            ))
-        }
-    }
-
+    let lazy = df_source.lazy.clone();
+    let lazy = lazy.with_column(value.expr()?.alias(new_col));
+    df_source.update(lazy);
     Ok(Value::None)
 }

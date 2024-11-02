@@ -93,7 +93,8 @@ impl<'a> Eval<'a> for ast::ExprBinOp {
             Constant,
             Call,
             UnaryOp,
-            Name
+            Name,
+            BinOp
         );
 
         let r = eval!(
@@ -103,7 +104,8 @@ impl<'a> Eval<'a> for ast::ExprBinOp {
             Constant,
             Call,
             UnaryOp,
-            Name
+            Name,
+            BinOp
         );
 
         if l.is_expr() || r.is_expr() {
@@ -135,7 +137,7 @@ impl<'a> Eval<'a> for ast::ExprBinOp {
                     ))
                 }
             };
-            return Ok(ret);
+            return Ok(Value::Expr(ret.expr()?));
         }
 
         match vm.source {
