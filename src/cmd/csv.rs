@@ -23,6 +23,12 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         limit_row,
     } = cmd;
 
+    let limit_row = if limit_row.is_some() && limit_row.unwrap() == 0 {
+        None
+    } else {
+        limit_row
+    };
+
     let comment_prefix = comment_prefix.unwrap();
     let separator = separator.unwrap();
     let writer = util::create_buffer_writer(output.clone())?;

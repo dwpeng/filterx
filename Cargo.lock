@@ -1110,6 +1110,7 @@ dependencies = [
  "atoi_simd",
  "bytes",
  "fast-float",
+ "flate2",
  "glob",
  "hashbrown",
  "home",
@@ -1128,6 +1129,7 @@ dependencies = [
  "regex",
  "ryu",
  "simdutf8",
+ "zstd",
 ]
 
 [[package]]

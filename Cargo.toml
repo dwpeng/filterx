@@ -9,6 +9,7 @@ homepage = "https://github.com/dwpeng/filterx"
 exclude = [
     "spec/",
     "docs/",
+    "python/"
 ]
 
 [dependencies]
@@ -30,10 +31,11 @@ polars = { version = "0.43.1", default-features = false, features = [
     "dtype-i16",
     "dtype-i8",
     "abs",
+    "decompress"
 ] }
 rustpython-parser = "0.4.0"
 thiserror = "1.0.63"
-flate2 = { version = "1.0.33", features = ["zlib-rs"] }
+flate2 = { version = "1.0.34", features = ["zlib-rs"] }
 regex = "1.11.1"
 colored = "2.1.0"
 lazy_static = "1.5.0"

@@ -173,12 +173,12 @@ pub fn init_df(
 ) -> FilterxResult<LazyFrame> {
     let mut parser_options = CsvParseOptions::default()
         .with_comment_prefix(Some(comment_prefix))
-        .with_separator(handle_sep(separator) as u8)
-        .with_missing_is_null(missing_is_null);
+        .with_separator(handle_sep(separator) as u8);
 
     if let Some(null_values) = null_values {
         let null_values = NullValues::AllColumns(null_values.iter().map(|x| (*x).into()).collect());
         parser_options = parser_options.with_null_values(Some(null_values));
+        parser_options = parser_options.with_missing_is_null(missing_is_null);
     }
 
     let mut read_options = CsvReadOptions::default()
@@ -188,8 +188,9 @@ pub fn init_df(
         .with_n_rows(limit_row);
 
     if schema.is_some() {
-        read_options = read_options.with_infer_schema_length(Some(0));
         read_options = read_options.with_schema(schema);
+    }else{
+        read_options = read_options.with_infer_schema_length(Some(1000));
     }
 
     let lazy = open_csv_file_in_lazy(path, read_options);
