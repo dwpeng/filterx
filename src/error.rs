@@ -22,7 +22,4 @@ pub enum FilterxError {
 
     #[error("Error reading Fastq file: {0}")]
     FastqError(String),
-
-    #[error("")]
-    PlaceholderError,
 }

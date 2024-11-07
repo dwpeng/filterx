@@ -37,6 +37,19 @@ pub fn dup<'a>(
             .print_and_exit();
     }
 
+    // check if the column exists
+    for col in &select_dolumns {
+        if !vm.source.has_column(col) {
+            let h = &mut vm.hint;
+            h.white("dup: column ")
+                .cyan(col)
+                .white(" does not exist in the source.")
+                .white(" Valid columns: ")
+                .green(&vm.source.ret_column_names.join(", "))
+                .print_and_exit();
+        }
+    }
+
     vm.source.unique(select_dolumns, unique_strategy);
 
     Ok(value::Value::None)

@@ -87,11 +87,11 @@ pub struct CsvCommand {
 
     /// skip row number, 0 means no skip
     #[clap(long, default_value = "0")]
-    pub skip_row: Option<usize>,
+    pub skip: Option<usize>,
 
     /// limit row number, 0 means no limit
     #[clap(long, default_value = "0")]
-    pub limit_row: Option<usize>,
+    pub limit: Option<usize>,
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -106,6 +106,10 @@ pub struct FastaCommand {
     /// don't parse comment
     #[clap(long, default_value = "false", action = ArgAction::SetTrue)]
     pub no_comment: Option<bool>,
+
+    /// limit sequence number, 0 means no limit
+    #[clap(long, default_value = "0")]
+    pub limit: Option<usize>,
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -124,6 +128,10 @@ pub struct FastqCommand {
     /// don't parse comment
     #[clap(long, default_value = "false", action = ArgAction::SetTrue)]
     pub no_comment: Option<bool>,
+
+    /// limit sequence number, 0 means no limit
+    #[clap(long, default_value = "0")]
+    pub limit: Option<usize>,
 }
 
 #[derive(Debug, Clone, Parser)]

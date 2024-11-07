@@ -6,7 +6,7 @@ use crate::FilterxResult;
 use std::io::Write;
 
 use crate::engine::vm::{Vm, VmSourceType};
-use crate::source::{DataframeSource, FastqSource, TableLike};
+use crate::source::{FastqSource, Source, TableLike};
 
 use crate::util;
 
@@ -22,7 +22,39 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
         chunk: long,
         no_comment,
         no_quality,
+        limit,
     } = cmd;
+
+    let _limit = match limit {
+        Some(l) => {
+            if l == 0 {
+                None
+            } else {
+                Some(l)
+            }
+        }
+        None => None,
+    };
+
+    let mut names = vec!["name", "seq", "comm", "qual"];
+
+    match no_comment {
+        Some(true) => {
+            let index = names.iter().position(|x| x == &"comm").unwrap();
+            names.remove(index);
+        }
+        _ => {}
+    }
+
+    match no_quality {
+        Some(true) => {
+            let index = names.iter().position(|x| x == &"qual").unwrap();
+            names.remove(index);
+        }
+        _ => {}
+    }
+
+    let names = names.iter().map(|x| x.to_string()).collect::<Vec<String>>();
     let expr = util::merge_expr(expr);
     let mut source = FastqSource::new(path.as_str(), !no_comment.unwrap(), !no_quality.unwrap())?;
     let output = util::create_buffer_writer(output)?;
@@ -35,7 +67,7 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
         return Ok(());
     }
     let mut chunk_size = long.unwrap();
-    let mut vm = Vm::from_dataframe(DataframeSource::new(DataFrame::empty().lazy()));
+    let mut vm = Vm::from_dataframe(Source::new(DataFrame::empty().lazy()));
     vm.set_scope(VmSourceType::Fastq);
     vm.set_writer(output);
     'stop_parse: loop {
@@ -44,7 +76,8 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
         if df.is_none() {
             break;
         }
-        let dataframe_source = DataframeSource::new(df.unwrap().lazy());
+        let mut dataframe_source = Source::new(df.unwrap().lazy());
+        dataframe_source.set_init_column_names(&names);
         vm.source = dataframe_source;
         vm.next_batch()?;
         vm.eval_once(&expr)?;

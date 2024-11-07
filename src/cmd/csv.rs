@@ -1,6 +1,7 @@
 use super::args::{CsvCommand, ShareArgs};
 use crate::engine::vm::Vm;
-use crate::source::DataframeSource;
+use crate::source::detect_columns;
+use crate::source::Source;
 
 use crate::util;
 use crate::FilterxResult;
@@ -19,14 +20,19 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         comment_prefix,
         separator,
         output_separator,
-        skip_row,
-        limit_row,
+        skip,
+        limit,
     } = cmd;
 
-    let limit_row = if limit_row.is_some() && limit_row.unwrap() == 0 {
-        None
-    } else {
-        limit_row
+    let limit = match limit {
+        Some(l) => {
+            if l == 0 {
+                None
+            } else {
+                Some(l)
+            }
+        }
+        None => None,
     };
 
     let comment_prefix = comment_prefix.unwrap();
@@ -37,29 +43,18 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         header.unwrap(),
         &comment_prefix,
         &separator,
-        skip_row.unwrap(),
-        limit_row,
+        skip.unwrap(),
+        limit,
         None,
         None,
         false,
     )?;
-    let mut s = DataframeSource::new(lazy_df.clone());
+    let columns = detect_columns(lazy_df.clone())?;
+    let mut s = Source::new(lazy_df.clone());
     s.set_has_header(header.unwrap());
+    s.set_init_column_names(&columns);
     let mut vm = Vm::from_dataframe(s);
-    if header.is_some() {
-        let lazy = util::init_df(
-            path.as_str(),
-            header.unwrap(),
-            &comment_prefix,
-            &separator,
-            skip_row.unwrap(),
-            limit_row,
-            None,
-            None,
-            false,
-        )?;
-        vm.status.inject_columns_by_df(lazy)?;
-    }
+    vm.source.set_has_header(header.unwrap());
     let expr = util::merge_expr(expr);
     let writer = Box::new(writer);
     vm.set_writer(writer);

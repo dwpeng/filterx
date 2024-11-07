@@ -56,7 +56,7 @@ pub fn strip<'a>(
 
     if inplace {
         vm.source
-            .with_column(e.alias(&col_name));
+            .with_column(e.alias(&col_name), None);
         return Ok(value::Value::None);
     }
 

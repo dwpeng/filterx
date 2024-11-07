@@ -30,7 +30,7 @@ pub fn upper<'a>(
 
     if inplace {
         vm.source
-            .with_column(col(&col_name).str().to_uppercase().alias(&col_name));
+            .with_column(col(&col_name).str().to_uppercase().alias(&col_name), None);
         return Ok(value::Value::None);
     }
 

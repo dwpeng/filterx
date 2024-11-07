@@ -7,7 +7,6 @@ use crate::check_types;
 use crate::engine::eval::Eval;
 use crate::engine::vm::Vm;
 use crate::eval;
-use crate::source::DataframeSource;
 use crate::FilterxResult;
 
 impl<'a> Eval<'a> for ast::StmtAssign {
@@ -79,19 +78,9 @@ impl<'a> Eval<'a> for ast::StmtAssign {
 
         let value = eval!(vm, right, Constant, Name, Call, UnaryOp, BinOp);
 
-        assign_in_dataframe(value, new_col, &mut vm.source)?;
+        vm.source
+            .with_column(value.expr()?.alias(new_col.clone()), Some(new_col.clone()));
 
         Ok(Value::None)
     }
-}
-
-fn assign_in_dataframe<'a>(
-    value: Value,
-    new_col: String,
-    df_source: &'a mut DataframeSource,
-) -> FilterxResult<Value> {
-    let lazy = df_source.lazy.clone();
-    let lazy = lazy.with_column(value.expr()?.alias(new_col));
-    df_source.update(lazy);
-    Ok(Value::None)
 }

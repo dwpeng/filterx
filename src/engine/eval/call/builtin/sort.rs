@@ -18,7 +18,7 @@ pub fn sort(vm: &mut Vm, args: &Vec<ast::Expr>, incr: bool) -> FilterxResult<val
         let col = match v {
             value::Value::Int(i) => {
                 if i >= 0 {
-                    DataframeSource::index2column(i as usize)
+                    vm.source.index2column(i as usize)
                 } else {
                     let h = &mut vm.hint;
                     h.white(

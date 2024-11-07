@@ -35,7 +35,7 @@ fn parse_format_string(s: &str) -> FilterxResult<(String, Option<Vec<Expr>>)> {
     let re = &REGEX_PATTERN;
     let fmt = re.replace_all(s, "{}").to_string();
     let mut cols = Vec::new();
-    let mut vm = Vm::from_dataframe(DataframeSource::new(DataFrame::empty().lazy()));
+    let mut vm = Vm::from_dataframe(Source::new(DataFrame::empty().lazy()));
     for cap in re.captures_iter(s) {
         let item = cap.get(1).unwrap().as_str();
         if item.is_empty() {
@@ -123,7 +123,7 @@ pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
         fmt = &value.0;
         cols = &value.1;
     }
-    vm.source.with_column(format_str(&fmt, &cols)?.alias("fmt"));
+    vm.source.with_column(format_str(&fmt, &cols)?.alias("fmt"), None);
     let df = vm.source.lazy().collect()?;
     let fmt = df.column("fmt").unwrap();
     let writer = vm.writer.as_mut().unwrap();

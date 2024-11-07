@@ -46,7 +46,7 @@ pub fn replace<'a>(
     let repl = lit(repl.as_str());
 
     if inplace {
-        let lazy = vm.source.lazy().with_column(match many {
+        vm.source.with_column(match many {
             true => col(&col_name)
                 .str()
                 .replace_all(patt, repl, true)
@@ -55,8 +55,7 @@ pub fn replace<'a>(
                 .str()
                 .replace(patt, repl, true)
                 .alias(&col_name),
-        });
-        vm.source.update(lazy);
+        }, None);
         return Ok(value::Value::None);
     }
 

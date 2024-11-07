@@ -35,9 +35,7 @@ pub fn rev<'a>(
     };
     let e = col(&col_name).str().reverse();
     if inplace {
-        let lazy = vm.source.lazy();
-        let lazy = lazy.with_column(e.clone().alias(&col_name));
-        vm.source.update(lazy);
+        vm.source.with_column(e.clone().alias(&col_name), None);
         return Ok(value::Value::None);
     }
     return Ok(value::Value::Expr(e));

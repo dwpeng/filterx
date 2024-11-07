@@ -3,7 +3,7 @@ use polars::prelude::SchemaRef;
 
 use super::args::{SamCommand, ShareArgs};
 use crate::engine::vm::Vm;
-use crate::source::DataframeSource;
+use crate::source::Source;
 
 use crate::util;
 use crate::FilterxResult;
@@ -51,8 +51,13 @@ pub fn filterx_sam(cmd: SamCommand) -> FilterxResult<()> {
         None,
         true,
     )?;
-    let mut s = DataframeSource::new(lazy_df.clone());
-    s.set_has_header(false);
+    let names = vec![
+        "qname", "flag", "rname", "pos", "mapq", "cigar", "rnext", "pnext", "tlen", "seq", "qual",
+        "tags",
+    ];
+    let names = names.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+    let mut s = Source::new(lazy_df.clone());
+    s.set_init_column_names(&names);
     let mut vm = Vm::from_dataframe(s);
     vm.set_scope(crate::engine::vm::VmSourceType::Sam);
     let expr = util::merge_expr(expr);

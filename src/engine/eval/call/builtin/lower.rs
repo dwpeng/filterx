@@ -29,7 +29,7 @@ pub fn lower<'a>(
 
     if inplace {
         vm.source
-            .with_column(col(&col_name).str().to_lowercase().alias(&col_name));
+            .with_column(col(&col_name).str().to_lowercase().alias(&col_name), None);
         return Ok(value::Value::None);
     }
 

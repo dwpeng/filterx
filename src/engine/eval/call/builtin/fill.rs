@@ -38,7 +38,7 @@ pub fn fill<'a>(
 
     if inplace {
         let lazy = &mut vm.source;
-        lazy.with_column(e);
+        lazy.with_column(e, None);
         return Ok(Value::None);
     }
     Ok(Value::Expr(e))

@@ -63,7 +63,7 @@ pub fn slice<'a>(
     let e = col(&col_name).str().slice(lit(start), lit(length));
 
     if inplace {
-        vm.source.with_column(e.alias(&col_name));
+        vm.source.with_column(e.alias(&col_name), None);
         return Ok(value::Value::None);
     }
 

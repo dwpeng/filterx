@@ -3,12 +3,12 @@ use polars::prelude::SchemaRef;
 
 use super::args::{ShareArgs, VcfCommand};
 use crate::engine::vm::Vm;
-use crate::source::DataframeSource;
+use crate::source::Source;
 
 use crate::util;
 use crate::FilterxResult;
 
-fn init_vcf_schema(path: &str) -> FilterxResult<Option<SchemaRef>> {
+fn init_vcf_schema(path: &str) -> FilterxResult<(Vec<String>, Option<SchemaRef>)> {
     use std::fs::File;
     use std::io::BufRead;
     use std::io::BufReader;
@@ -33,7 +33,9 @@ fn init_vcf_schema(path: &str) -> FilterxResult<Option<SchemaRef>> {
     }
     let mut schema = Vec::<(String, DataType)>::new();
     let fields: Vec<&str> = line.split("\t").collect();
+    let mut names = vec![];
     for filed in fields {
+        names.push(filed.to_ascii_lowercase());
         match filed {
             "CHROM" => schema.push(("chrom".into(), DataType::String)),
             "POS" => schema.push(("pos".into(), DataType::UInt32)),
@@ -50,7 +52,7 @@ fn init_vcf_schema(path: &str) -> FilterxResult<Option<SchemaRef>> {
             }
         }
     }
-    Ok(util::create_schemas(schema))
+    Ok((names, util::create_schemas(schema)))
 }
 
 pub fn filterx_vcf(cmd: VcfCommand) -> FilterxResult<()> {
@@ -67,7 +69,7 @@ pub fn filterx_vcf(cmd: VcfCommand) -> FilterxResult<()> {
     let comment_prefix = "#";
     let separator = "\t";
     let writer = util::create_buffer_writer(output.clone())?;
-    let schema = init_vcf_schema(&path)?;
+    let (names, schema) = init_vcf_schema(&path)?;
     let lazy_df = util::init_df(
         path.as_str(),
         false,
@@ -79,8 +81,8 @@ pub fn filterx_vcf(cmd: VcfCommand) -> FilterxResult<()> {
         Some(vec!["."]),
         true,
     )?;
-    let mut s = DataframeSource::new(lazy_df.clone());
-    s.set_has_header(false);
+    let mut s = Source::new(lazy_df.clone());
+    s.set_init_column_names(&names);
     let mut vm = Vm::from_dataframe(s);
     vm.set_scope(crate::engine::vm::VmSourceType::Vcf);
     let expr = util::merge_expr(expr);

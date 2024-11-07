@@ -1,7 +1,6 @@
 use crate::util::check_repeat;
 
 use super::*;
-use polars::prelude::col as polars_col;
 
 pub fn select<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     let mut select_dolumns = vec![];
@@ -37,10 +36,6 @@ pub fn select<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value:
             .print_and_exit();
     }
 
-    let exprs = select_dolumns.iter().map(|c| polars_col(c)).collect();
-
-    vm.source.select(exprs);
-    vm.status.select(select_dolumns);
-
+    vm.source.select(select_dolumns);
     Ok(value::Value::None)
 }

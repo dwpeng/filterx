@@ -6,7 +6,7 @@ use crate::FilterxResult;
 use std::io::Write;
 
 use crate::engine::vm::{Vm, VmSourceType};
-use crate::source::{DataframeSource, FastaSource, TableLike};
+use crate::source::{FastaSource, Source, TableLike};
 
 use crate::util;
 
@@ -21,7 +21,27 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
             },
         chunk: long,
         no_comment,
+        limit,
     } = cmd;
+
+    let _limit = match limit {
+        Some(l) => {
+            if l == 0 {
+                None
+            } else {
+                Some(l)
+            }
+        }
+        None => None,
+    };
+
+    let names = match no_comment {
+        Some(true) => vec!["name", "seq"],
+        _ => vec!["name", "seq", "comm"],
+    };
+
+    let names = names.iter().map(|x| x.to_string()).collect();
+
     let expr = util::merge_expr(expr);
     let mut source = FastaSource::new(path.as_str(), !no_comment.unwrap())?;
     let output = util::create_buffer_writer(output)?;
@@ -34,7 +54,7 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
         return Ok(());
     }
     let mut chunk_size = long.unwrap();
-    let mut vm = Vm::from_dataframe(DataframeSource::new(DataFrame::empty().lazy()));
+    let mut vm = Vm::from_dataframe(Source::new(DataFrame::empty().lazy()));
     vm.set_scope(VmSourceType::Fasta);
     vm.set_writer(output);
     'stop_parse: loop {
@@ -43,7 +63,8 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
         if df.is_none() {
             break;
         }
-        let dataframe_source = DataframeSource::new(df.unwrap().lazy());
+        let mut dataframe_source = Source::new(df.unwrap().lazy());
+        dataframe_source.set_init_column_names(&names);
         vm.source = dataframe_source;
         vm.next_batch()?;
         vm.eval_once(&expr)?;

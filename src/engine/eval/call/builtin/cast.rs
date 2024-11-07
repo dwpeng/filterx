@@ -46,7 +46,7 @@ pub fn cast<'a>(
     let e = col_name.cast(new_type);
 
     if inplace {
-        vm.source.with_column(e);
+        vm.source.with_column(e, None);
         return Ok(value::Value::None);
     }
 

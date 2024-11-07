@@ -3,7 +3,7 @@ use polars::prelude::SchemaRef;
 
 use super::args::{GFFCommand, ShareArgs};
 use crate::engine::vm::Vm;
-use crate::source::DataframeSource;
+use crate::source::Source;
 
 use crate::util;
 use crate::FilterxResult;
@@ -18,7 +18,7 @@ fn init_gxf_schema() -> Option<SchemaRef> {
     files.push(("score".into(), DataType::Float32));
     files.push(("strand".into(), DataType::String));
     files.push(("phase".into(), DataType::UInt8));
-    files.push(("attributes".into(), DataType::String));
+    files.push(("attr".into(), DataType::String));
     util::create_schemas(files)
 }
 
@@ -37,6 +37,10 @@ pub fn filterx_gxf(cmd: GFFCommand) -> FilterxResult<()> {
     let separator = "\t";
     let writer = util::create_buffer_writer(output.clone())?;
     let schema = init_gxf_schema();
+    let names = vec![
+        "seqid", "source", "type", "start", "end", "score", "strand", "phase", "attr",
+    ];
+    let names = names.iter().map(|x| x.to_string()).collect::<Vec<String>>();
     let lazy_df = util::init_df(
         path.as_str(),
         false,
@@ -48,8 +52,8 @@ pub fn filterx_gxf(cmd: GFFCommand) -> FilterxResult<()> {
         Some(vec![".", "?"]),
         false,
     )?;
-    let mut s = DataframeSource::new(lazy_df.clone());
-    s.set_has_header(false);
+    let mut s = Source::new(lazy_df.clone());
+    s.set_init_column_names(&names);
     let mut vm = Vm::from_dataframe(s);
     vm.set_scope(crate::engine::vm::VmSourceType::Gxf);
     let expr = util::merge_expr(expr);

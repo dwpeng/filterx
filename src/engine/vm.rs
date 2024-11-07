@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use polars::prelude::*;
-
 use crate::hint::Hint;
-use crate::source::DataframeSource;
+use crate::source::Source;
+use crate::FilterxError;
 
 use super::eval::Eval;
 use crate::FilterxResult;
@@ -17,14 +16,6 @@ pub enum VmMode {
     Expression,
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct Col {
-    pub name: String,
-    pub new: bool,
-    pub data_type: DataType,
-    pub index: usize,
-}
-
 #[derive(Debug)]
 pub struct VmStatus {
     pub apply_lazy: bool,
@@ -33,8 +24,6 @@ pub struct VmStatus {
     pub count: usize,
     pub limit: usize,
     pub offset: usize,
-    columns: Vec<Col>,
-    pub selected_columns: Vec<Col>,
     pub printed: bool,
     pub cosumer_rows: usize,
     pub nrows: usize,
@@ -49,8 +38,6 @@ impl VmStatus {
             count: 0,
             limit: usize::MAX,
             offset: 0,
-            columns: Vec::new(),
-            selected_columns: Vec::new(),
             printed: false,
             cosumer_rows: 0,
             nrows: 0,
@@ -58,83 +45,15 @@ impl VmStatus {
     }
 }
 
-impl Default for VmStatus {
-    fn default() -> Self {
-        Self::new()
+impl VmStatus {
+    pub fn update_apply_lazy(&mut self, apply_lazy: bool) {
+        self.apply_lazy = apply_lazy;
     }
 }
 
-impl VmStatus {
-    pub fn inject_columns_by_df(&mut self, df: LazyFrame) -> FilterxResult<()> {
-        let df = df.lazy().with_streaming(true).fetch(1)?;
-        let dtypes = df.dtypes();
-        for (i, col) in df.get_columns().iter().enumerate() {
-            let c = Col {
-                name: col.name().to_string(),
-                new: false,
-                data_type: dtypes[i].clone(),
-                index: i,
-            };
-            self.columns.push(c);
-        }
-        self.selected_columns = self.columns.clone();
-        Ok(())
-    }
-
-    pub fn inject_columns_by_default(&mut self, cols: Vec<Col>) {
-        self.columns = cols;
-        self.selected_columns = self.columns.clone();
-    }
-
-    pub fn add_new_column(&mut self, name: &str, t: DataType) {
-        let col = Col {
-            name: name.to_string(),
-            new: true,
-            data_type: t,
-            index: self.columns.len(),
-        };
-        self.selected_columns.push(col);
-    }
-
-    pub fn drop_column(&mut self, name: &str) {
-        self.selected_columns.retain(|x| x.name != name);
-    }
-
-    pub fn reset_selected_columns(&mut self) {
-        if self.selected_columns.len() < self.columns.len() {
-            // resize
-            self.selected_columns
-                .resize(self.columns.len(), Col::default());
-        }
-        // set selected_columns to columns
-        for (i, col) in self.columns.iter().enumerate() {
-            let c = &mut self.selected_columns[i];
-            c.name.clear();
-            c.name.push_str(&col.name);
-            c.data_type = col.data_type.clone();
-            c.index = i;
-        }
-    }
-
-    pub fn select(&mut self, col: Vec<String>) {
-        let selected_columns = self.selected_columns.clone();
-        self.selected_columns = selected_columns
-            .into_iter()
-            .filter(|x| col.contains(&x.name))
-            .collect();
-    }
-
-    pub fn is_column_exist(&self, name: &str) -> bool {
-        for col in &self.selected_columns {
-            if col.name == name {
-                return true;
-            }
-        }
-        false
-    }
-
-    pub fn update_apply_lazy(&mut self, apply_lazy: bool) {
-        self.apply_lazy = apply_lazy;
+impl Default for VmStatus {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -173,7 +92,7 @@ pub struct Vm {
     /// mode
     pub mode: VmMode,
     /// source
-    pub source: DataframeSource,
+    pub source: Source,
     pub status: VmStatus,
     pub source_type: VmSourceType,
     pub writer: Option<Box<BufWriter<Box<dyn Write>>>>,
@@ -182,7 +101,7 @@ pub struct Vm {
 }
 
 impl Vm {
-    pub fn from_dataframe(dataframe: DataframeSource) -> Self {
+    pub fn from_dataframe(dataframe: Source) -> Self {
         Self {
             eval_expr: String::new(),
             parse_cache: HashMap::new(),
@@ -241,7 +160,39 @@ impl Vm {
         if expr.is_empty() {
             return Ok(());
         }
+        // check ast process
         let exprs: Vec<&str> = expr.split(";").collect();
+
+        for expr in exprs.clone() {
+            if expr.is_empty() {
+                continue;
+            }
+            let a = self.ast(expr);
+            if a.is_err() {
+                let h = &mut self.hint;
+                let err = a.err().unwrap();
+                match err {
+                    FilterxError::ParseError(e) => {
+                        let pos = e.offset;
+                        h.white("expr: ")
+                            .cyan(expr)
+                            .white(" gets a parse error ")
+                            .next_line()
+                            .white(&(" ".repeat(pos.to_usize() + 5)))
+                            .red(&format!("^{}", e.error.to_string()))
+                            .print_and_exit();
+                    }
+                    _ => {
+                        h.white("expr: ")
+                            .cyan(expr)
+                            .white(" gets a parse error ")
+                            .red(&format!("{}", err))
+                            .print_and_exit();
+                    }
+                }
+            }
+        }
+
         for expr in exprs {
             if expr.is_empty() {
                 continue;
@@ -265,22 +216,6 @@ impl Vm {
         Ok(())
     }
 
-    pub fn eval_many(&mut self, exprs: Vec<&str>) -> FilterxResult<()> {
-        let asts = self.exprs_to_ast(exprs)?;
-        while self.status.stop == false {
-            for ast in &asts {
-                if ast.is_expression() {
-                    let expr = ast.as_expression().unwrap();
-                    expr.eval(self)?;
-                } else if ast.is_interactive() {
-                    let expr = ast.as_interactive().unwrap();
-                    expr.eval(self)?;
-                }
-            }
-        }
-        Ok(())
-    }
-
     pub fn next_batch(&mut self) -> FilterxResult<()> {
         self.status.printed = false;
         Ok(())
@@ -298,7 +233,7 @@ mod test {
 
     #[test]
     fn test_vm() {
-        let frame = DataframeSource::new(util::mock_lazy_df());
+        let frame = Source::new(util::mock_lazy_df());
         let mut vm = Vm::from_dataframe(frame);
         let expr = "alias(c) = a + b";
         let ret = vm.eval_once(expr);

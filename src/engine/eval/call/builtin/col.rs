@@ -17,7 +17,7 @@ pub fn col(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     let c = match col_value {
         value::Value::Int(i) => {
             if i >= 0 {
-                DataframeSource::index2column(i as usize)
+                vm.source.index2column(i as usize)
             } else {
                 let h = &mut vm.hint;
                 h.white("while using `col` function, column index should be positive integer and start from 1.").print_and_exit();
