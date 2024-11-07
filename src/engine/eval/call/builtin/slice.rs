@@ -44,7 +44,7 @@ pub fn slice<'a>(
     let col_name = eval!(vm, &args[0], Name, Call, UnaryOp);
     let col_name = match col_name {
         value::Value::Name(n) => n.name,
-        value::Value::Column(c) => c.col_name,
+        value::Value::Item(c) => c.col_name,
         _ => {
             let h = &mut vm.hint;
             h.white("slice: expected a column name as first argument")

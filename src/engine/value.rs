@@ -12,7 +12,7 @@ pub enum Value {
     Str(String),
     Name(Name),
     List(Vec<Value>),
-    Column(Column),
+    Item(Item),
     Ident((String, Box<Value>)),
     AttrMethod(AttrMethod),
     File(File),
@@ -117,7 +117,7 @@ impl Value {
             Value::Float(f) => f.lit(),
             Value::Int(i) => i.lit(),
             Value::Str(s) => s.clone().lit(),
-            Value::Column(c) => col(c.col_name.clone()),
+            Value::Item(c) => col(c.col_name.clone()),
             Value::Name(n) => col(n.name.clone()),
             Value::Expr(e) => e.clone(),
             Value::Null => Expr::Literal(LiteralValue::Null),
@@ -130,7 +130,7 @@ impl Value {
     pub fn text(&self) -> FilterxResult<String> {
         match self {
             Value::Str(s) => Ok(s.to_owned()),
-            Value::Column(c) => Ok(c.col_name.to_owned()),
+            Value::Item(c) => Ok(c.col_name.to_owned()),
             Value::Name(n) => Ok(n.name.to_owned()),
             _ => {
                 return Err(FilterxError::RuntimeError(
@@ -160,7 +160,7 @@ impl Value {
 
     pub fn is_column(&self) -> bool {
         match self {
-            Value::Column(_) => true,
+            Value::Item(_) => true,
             Value::Name(_) => true,
             _ => false,
         }
@@ -212,14 +212,14 @@ impl Default for Slice {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Column {
+pub struct Item {
     pub col_name: String,
     pub data_type: Option<DataType>,
 }
 
-impl Column {
+impl Item {
     pub fn new(col_name: String) -> Self {
-        Column {
+        Item {
             col_name,
             data_type: None,
         }
@@ -230,9 +230,9 @@ impl Column {
     }
 }
 
-impl Default for Column {
+impl Default for Item {
     fn default() -> Self {
-        Column {
+        Item {
             col_name: String::new(),
             data_type: None,
         }
@@ -241,7 +241,7 @@ impl Default for Column {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct AttrMethod {
-    pub col: Column,
+    pub col: Item,
     pub method: String,
     pub value: Vec<Value>,
 }
@@ -324,7 +324,7 @@ impl Value {
                 s
             }
             Value::File(f) => f.file_name.clone(),
-            Value::Column(c) => c.col_name.clone(),
+            Value::Item(c) => c.col_name.clone(),
             Value::Ident(i) => {
                 let mut s = String::from("(");
                 s.push_str(&i.0);

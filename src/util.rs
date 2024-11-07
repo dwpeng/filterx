@@ -117,9 +117,9 @@ pub fn handle_file(path_repr: &str) -> FilterxResult<value::Value> {
 
 pub fn mock_lazy_df() -> LazyFrame {
     let df = DataFrame::new(vec![
-        Series::new("a".into(), &[1, 2, 3]),
-        Series::new("b".into(), &[2, 3, 4]),
-        Series::new("c".into(), &["a", "b", "c"]),
+        Column::new("a".into(), &[1, 2, 3]),
+        Column::new("b".into(), &[2, 3, 4]),
+        Column::new("c".into(), &["a", "b", "c"]),
     ])
     .unwrap();
     df.lazy()

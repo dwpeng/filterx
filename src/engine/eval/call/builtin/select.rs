@@ -18,7 +18,7 @@ pub fn select<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value:
     for arg in args {
         let col = eval!(vm, arg, Name, Call);
         let col = match col {
-            value::Value::Column(c) => c.col_name,
+            value::Value::Item(c) => c.col_name,
             value::Value::Name(c) => c.name,
             _ => {
                 let h = &mut vm.hint;

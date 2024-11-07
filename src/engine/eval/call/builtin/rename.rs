@@ -22,7 +22,7 @@ pub fn rename(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value>
             }
         }
         value::Value::Str(s) => s,
-        value::Value::Column(c) => c.col_name,
+        value::Value::Item(c) => c.col_name,
         value::Value::Name(c) => c.name,
         _ => {
             let h = &mut vm.hint;
@@ -41,7 +41,7 @@ pub fn rename(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value>
 
     let new_col = match new_col_value {
         value::Value::Str(s) => s,
-        value::Value::Column(c) => c.col_name,
+        value::Value::Item(c) => c.col_name,
         value::Value::Name(n) => n.name,
         _ => {
             let h = &mut vm.hint;

@@ -7,10 +7,9 @@ use polars::error::PolarsResult;
 use polars::prelude::col;
 use polars::prelude::ChunkApply;
 use polars::prelude::GetOutput;
-use polars::series::IntoSeries;
-use polars::series::Series;
+use polars::prelude::*;
 
-fn compute_revcomp(s: Series) -> PolarsResult<Option<Series>> {
+fn compute_revcomp(s: Column) -> PolarsResult<Option<Column>> {
     let ca = s.str()?;
     let ca = ca.apply_values(|s| {
         let s = s.chars().rev().collect::<String>();
@@ -30,7 +29,7 @@ fn compute_revcomp(s: Series) -> PolarsResult<Option<Series>> {
             .collect::<String>();
         Cow::Owned(s)
     });
-    Ok(Some(ca.into_series()))
+    Ok(Some(ca.into_column()))
 }
 
 pub fn revcomp<'a>(
@@ -49,7 +48,7 @@ pub fn revcomp<'a>(
 
     let col_name = eval!(vm, &args[0], Name, Call);
     let col_name = match col_name {
-        value::Value::Column(c) => c.col_name,
+        value::Value::Item(c) => c.col_name,
         value::Value::Name(n) => n.name,
         _ => {
             let h = &mut vm.hint;

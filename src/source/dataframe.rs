@@ -105,7 +105,7 @@ impl DataframeSource {
         S: AsRef<str>,
     {
         let lazy = self.lazy.clone();
-        let lazy = lazy.rename(columns, names);
+        let lazy = lazy.rename(columns, names, true);
         self.update(lazy);
     }
 }

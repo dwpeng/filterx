@@ -44,7 +44,7 @@ impl<'a> Eval<'a> for ast::StmtAssign {
         let new_col = eval!(vm, target, Call);
 
         let new_col = match new_col {
-            Value::Column(col) => col.col_name,
+            Value::Item(col) => col.col_name,
             Value::Name(n) => n.name,
             _ => {
                 let h = &mut vm.hint;

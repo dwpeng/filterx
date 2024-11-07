@@ -314,11 +314,11 @@ impl<'a> TableLike<'a> for Fasta {
         }
         let mut cols = Vec::with_capacity(3);
         cols.append(&mut vec![
-            polars::prelude::Series::new("name".into(), names),
-            polars::prelude::Series::new("seq".into(), sequences),
+            polars::prelude::Column::new("name".into(), names),
+            polars::prelude::Column::new("seq".into(), sequences),
         ]);
         if !comments.is_empty() {
-            cols.push(polars::prelude::Series::new("comment".into(), comments));
+            cols.push(polars::prelude::Column::new("comment".into(), comments));
         }
         let df = polars::prelude::DataFrame::new(cols)?;
 
@@ -344,11 +344,11 @@ impl<'a> TableLike<'a> for Fasta {
             }
         }
         let mut cols = vec![
-            polars::prelude::Series::new("name".into(), headers),
-            polars::prelude::Series::new("seq".into(), sequences),
+            polars::prelude::Column::new("name".into(), headers),
+            polars::prelude::Column::new("seq".into(), sequences),
         ];
         if comments.len() > 0 {
-            cols.push(polars::prelude::Series::new("comment".into(), comments));
+            cols.push(polars::prelude::Column::new("comment".into(), comments));
         }
         let df = polars::prelude::DataFrame::new(cols)?;
         Ok(df)

@@ -20,7 +20,7 @@ pub fn dup<'a>(
         let col = eval!(vm, arg, Name, Call);
         let col = match col {
             value::Value::Name(c) => c.name,
-            value::Value::Column(c) => c.col_name,
+            value::Value::Item(c) => c.col_name,
             _ => {
                 let h = &mut vm.hint;
                 h.white("dup only support column name").print_and_exit();

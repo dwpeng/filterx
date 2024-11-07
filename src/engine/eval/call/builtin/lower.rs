@@ -18,7 +18,7 @@ pub fn lower<'a>(
 
     let col_name = eval!(vm, &args[0], Name, Call);
     let col_name = match col_name {
-        value::Value::Column(c) => c.col_name,
+        value::Value::Item(c) => c.col_name,
         value::Value::Name(n) => n.name,
         _ => {
             let h = &mut vm.hint;

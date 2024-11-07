@@ -28,7 +28,7 @@ pub fn sort(vm: &mut Vm, args: &Vec<ast::Expr>, incr: bool) -> FilterxResult<val
                 }
             }
             value::Value::Str(s) => s,
-            value::Value::Column(c) => c.col_name,
+            value::Value::Item(c) => c.col_name,
             value::Value::Name(c) => c.name,
             _ => {
                 let h = &mut vm.hint;

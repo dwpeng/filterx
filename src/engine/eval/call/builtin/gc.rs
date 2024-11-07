@@ -4,7 +4,7 @@ use polars::prelude::*;
 
 use polars::prelude::col;
 
-fn compute_gc(s: Series) -> PolarsResult<Option<Series>> {
+fn compute_gc(s: Column) -> PolarsResult<Option<Column>> {
     if !s.dtype().is_string() {
         return Err(PolarsError::InvalidOperation(
             format!(
@@ -15,6 +15,9 @@ fn compute_gc(s: Series) -> PolarsResult<Option<Series>> {
             .into(),
         ));
     }
+
+    let s = s.as_series().unwrap();
+
     let v = s
         .iter()
         .map(|seq| {
@@ -32,7 +35,7 @@ fn compute_gc(s: Series) -> PolarsResult<Option<Series>> {
             return gc_base as f32 / seq.len() as f32;
         })
         .collect::<Vec<f32>>();
-    Ok(Some(Series::new("gc".into(), v)))
+    Ok(Some(Column::new("gc".into(), v)))
 }
 
 pub fn gc<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
@@ -45,7 +48,7 @@ pub fn gc<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Val
     }
     let col_name = eval!(vm, &args[0], Name, Call);
     let col_name = match col_name {
-        value::Value::Column(c) => c.col_name,
+        value::Value::Item(c) => c.col_name,
         value::Value::Name(n) => n.name,
         _ => {
             let h = &mut vm.hint;

@@ -25,7 +25,7 @@ pub fn rev<'a>(
         Call
     );
     let col_name = match col_name {
-        value::Value::Column(c) => c.col_name.to_string(),
+        value::Value::Item(c) => c.col_name.to_string(),
         value::Value::Name(n) => n.name,
         _ => {
             let h = &mut vm.hint;

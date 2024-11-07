@@ -337,13 +337,13 @@ impl<'a> TableLike<'a> for Fastq {
         }
 
         let mut cols = Vec::new();
-        cols.push(Series::new("name".into(), &names));
-        cols.push(Series::new("seq".into(), &sequences));
+        cols.push(Column::new("name".into(), &names));
+        cols.push(Column::new("seq".into(), &sequences));
         if !quals.is_empty() {
-            cols.push(Series::new("qual".into(), &quals));
+            cols.push(Column::new("qual".into(), &quals));
         }
         if !comments.is_empty() {
-            cols.push(Series::new("comm".into(), &comments));
+            cols.push(Column::new("comm".into(), &comments));
         }
         let df = DataFrame::new(cols)?;
         Ok(df)
@@ -377,13 +377,13 @@ impl<'a> TableLike<'a> for Fastq {
         }
 
         let mut cols = Vec::new();
-        cols.push(Series::new("name".into(), &names));
+        cols.push(Column::new("name".into(), &names));
         if !comments.is_empty() {
-            cols.push(Series::new("comm".into(), &comments));
+            cols.push(Column::new("comm".into(), &comments));
         }
-        cols.push(Series::new("seq".into(), &sequences));
+        cols.push(Column::new("seq".into(), &sequences));
         if !quals.is_empty() {
-            cols.push(Series::new("qual".into(), &quals));
+            cols.push(Column::new("qual".into(), &quals));
         }
 
         let df = DataFrame::new(cols)?;

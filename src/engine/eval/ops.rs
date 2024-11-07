@@ -55,8 +55,7 @@ impl<'a> Eval<'a> for ast::ExprUnaryOp {
                 let r = unary(v, self.op)?;
                 return Ok(r);
             }
-            Value::Name(_) | Value::Column(_) => {
-                println!("{:?}", -v.expr()?);
+            Value::Name(_) | Value::Item(_) => {
                 return Ok(Value::Expr(-(v.expr()?)));
             }
             Value::Expr(e) => {
@@ -363,7 +362,7 @@ fn str_in_col<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Filt
         _ => unreachable!(),
     };
     let right_col = match &right {
-        Value::Column(c) => c.col_name.clone(),
+        Value::Item(c) => c.col_name.clone(),
         _ => unreachable!(),
     };
 
@@ -436,7 +435,7 @@ fn compare_in_and_not_in_dataframe<'a>(
                         }
                     }
                 }
-                DataFrame::new(vec![Series::new(right_col.as_str().into(), v)])?
+                DataFrame::new(vec![Column::new(right_col.as_str().into(), v)])?
             }
             DataType::Int32 | DataType::Int64 => {
                 let mut v = Vec::new();
@@ -451,7 +450,7 @@ fn compare_in_and_not_in_dataframe<'a>(
                         }
                     }
                 }
-                DataFrame::new(vec![Series::new(right_col.as_str().into(), v)])?
+                DataFrame::new(vec![Column::new(right_col.as_str().into(), v)])?
             }
             DataType::String => {
                 let mut v = Vec::new();
@@ -467,7 +466,7 @@ fn compare_in_and_not_in_dataframe<'a>(
                         }
                     }
                 }
-                DataFrame::new(vec![Series::new(right_col.as_str().into(), v)])?
+                DataFrame::new(vec![Column::new(right_col.as_str().into(), v)])?
             }
             _ => {
                 return Err(FilterxError::RuntimeError(
