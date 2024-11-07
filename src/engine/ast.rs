@@ -29,3 +29,5 @@ pub use python_ast::ExprUnaryOp; // a.b(...)
 pub use python_ast::Constant;
 pub use python_ast::Expr;
 pub use python_ast::ModExpression;
+
+pub use python_ast::ExprContext;

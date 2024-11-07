@@ -24,7 +24,7 @@ fn parse_format_string(s: &str) -> FilterxResult<(String, Option<Vec<Expr>>)> {
 
     if s.is_empty() {
         return Err(FilterxError::RuntimeError(
-            "Empty format string".to_string(),
+            "Error format string, empty format string".to_string(),
         ));
     }
 
@@ -99,12 +99,14 @@ fn test_parse_format_string() {
 pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     expect_args_len(args, 1)?;
 
-    let value = eval!(
-        vm,
-        &args[0],
-        "Only support string literal or format string expression",
-        Constant
-    );
+    let pass = check_types!(&args[0], Constant);
+    if !pass {
+        let h = &mut vm.hint;
+        h.white("print: expected a string literal or format string expression as first argument")
+            .print_and_exit();
+    }
+    let value = eval!(vm, &args[0], Constant);
+
     let value = value.text()?;
     // get from cache
     let fmt;

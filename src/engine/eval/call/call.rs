@@ -1,5 +1,7 @@
 use std::ops::Deref;
 
+use polars::frame::UniqueKeepStrategy;
+
 use super::super::ast;
 use super::super::value;
 
@@ -7,7 +9,7 @@ use crate::engine::eval::Eval;
 use crate::engine::vm::Vm;
 use crate::engine::vm::VmSourceType;
 use crate::source::Source;
-use crate::{FilterxError, FilterxResult};
+use crate::FilterxResult;
 
 use crate::engine::eval::call::builtin as call;
 
@@ -53,10 +55,11 @@ impl<'a> Eval<'a> for ast::ExprCall {
                     if vm.source_type == VmSourceType::Fasta
                         || vm.source_type == VmSourceType::Fastq
                     {
-                        Err(FilterxError::RuntimeError(format!(
-                            "Function `{}` does not be supported in source `{:?}`.",
-                            function_name, vm.source_type
-                        )))
+                        let h = &mut vm.hint;
+                        h.white("Function `rename` does not be supported in source `")
+                            .cyan(&format!("{:?}", vm.source_type))
+                            .white("`.")
+                            .print_and_exit();
                     } else {
                         call::rename(vm, &self.args)
                     }
@@ -94,10 +97,17 @@ impl<'a> Eval<'a> for ast::ExprCall {
                 "cast" => call::cast(vm, &self.args, &sub_function_name, inplace),
                 "fill" => call::fill(vm, &self.args, false),
                 "fill_" => call::fill(vm, &self.args, true),
-                _ => Err(FilterxError::RuntimeError(format!(
-                    "Function `{}` is not defined.",
-                    function_name
-                ))),
+                "dup" => call::dup(vm, &self.args, UniqueKeepStrategy::First),
+                "dup_none" => call::dup(vm, &self.args, UniqueKeepStrategy::None),
+                "dup_last" => call::dup(vm, &self.args, UniqueKeepStrategy::Last),
+                "dup_any" => call::dup(vm, &self.args, UniqueKeepStrategy::Any),
+                _ => {
+                    let h = &mut vm.hint;
+                    h.white("Function `")
+                        .cyan(&function_name)
+                        .white("` does not found.")
+                        .print_and_exit();
+                }
             },
         }
     }

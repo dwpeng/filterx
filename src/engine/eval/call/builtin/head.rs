@@ -2,21 +2,26 @@ use super::*;
 
 pub fn head(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     expect_args_len(args, 1)?;
-    let n = eval!(vm, &args[0], "Only support integer", Constant, UnaryOp);
+    let pass = check_types!(&args[0], Constant, UnaryOp);
+    if !pass {
+        let h = &mut vm.hint;
+        h.white("head: expected a non-negative number as first argument").print_and_exit();
+    }
+    let n = eval!(vm, &args[0], Constant, UnaryOp);
     let nrow = match n {
         value::Value::Int(i) => {
             if i >= 0 {
                 i as usize
             } else {
-                return Err(FilterxError::RuntimeError(
-                    "Index starts from 0".to_string(),
-                ));
+                let h = &mut vm.hint;
+                h.white("head: expected a non-negative number as first argument, but got ")
+                    .cyan(&format!("{}", i))
+                    .print_and_exit();
             }
         }
         _ => {
-            return Err(FilterxError::RuntimeError(
-                "Only support integer".to_string(),
-            ));
+            let h = &mut vm.hint;
+            h.white("head: expected a non-negative number as first argument").print_and_exit();
         }
     };
 

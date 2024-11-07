@@ -51,6 +51,7 @@ pub fn filterx_gxf(cmd: GFFCommand) -> FilterxResult<()> {
     let mut s = DataframeSource::new(lazy_df.clone());
     s.set_has_header(false);
     let mut vm = Vm::from_dataframe(s);
+    vm.set_scope(crate::engine::vm::VmSourceType::Gxf);
     let expr = util::merge_expr(expr);
     let writer = Box::new(writer);
     vm.set_writer(writer);

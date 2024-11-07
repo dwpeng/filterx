@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 use super::*;
 use crate::eval;
-use crate::FilterxError;
 
 use polars::error::PolarsResult;
 use polars::prelude::col;
@@ -40,19 +39,27 @@ pub fn revcomp<'a>(
     inplace: bool,
 ) -> FilterxResult<value::Value> {
     expect_args_len(args, 1)?;
+
+    let pass = check_types!(&args[0], Name, Call);
+    if !pass {
+        let h = &mut vm.hint;
+        h.white("revcomp: expected a column name as first argument")
+            .print_and_exit();
+    }
+
     let col_name = eval!(
         vm,
         &args[0],
-        "rev: expected a Series as first argument",
         Name,
         Call
     );
     let col_name = match col_name {
-        value::Value::Column(c) => c.col_name.to_string(),
+        value::Value::Column(c) => c.col_name,
+        value::Value::Name(n) => n.name,
         _ => {
-            return Err(FilterxError::RuntimeError(
-                "rev: need a column name".to_string(),
-            ))
+            let h = &mut vm.hint;
+            h.white("revcomp: expected a column name as first argument")
+                .print_and_exit();
         }
     };
     let e = col(&col_name).map(compute_revcomp, GetOutput::same_type());

@@ -10,27 +10,43 @@ use crate::util;
 
 use crate::engine::eval::Eval;
 use crate::engine::vm::Vm;
-use crate::eval;
+use crate::{check_types, eval};
 use crate::{FilterxError, FilterxResult};
 
 impl<'a> Eval<'a> for ast::ExprUnaryOp {
     type Output = Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
-        let v = eval!(
-            vm,
-            self.operand.deref(),
-            "Only support int/float/column to apply unary op",
-            Constant,
-            Call,
-            UnaryOp,
-            Name
-        );
+        if !check_types!(self.operand.deref(), Constant, Call, UnaryOp, Name, BinOp) {
+            let h = &mut vm.hint;
+            h.white("only support constant, call, unaryop, name, BinOp, ")
+                .white("example: ")
+                .cyan("-1")
+                .white(", ")
+                .cyan("-(a + 1)")
+                .white(", ")
+                .cyan("-(a)")
+                .white(", ")
+                .cyan("-gc(seq)")
+                .next_line()
+                .white("Got: ")
+                .red(&format!("{:?}", self.operand.deref()))
+                .print_and_exit();
+        }
 
+        let v = eval!(vm, self.operand.deref(), Constant, Call, UnaryOp, Name);
         match self.op {
             ast::UnaryOp::Invert | ast::UnaryOp::Not | ast::UnaryOp::UAdd => {
-                return Err(FilterxError::RuntimeError(
-                    "Only support unary op : -".to_string(),
-                ))
+                let h = &mut vm.hint;
+                h.white("only support -")
+                    .white("example: ")
+                    .cyan("-1")
+                    .white(", ")
+                    .cyan("-(a + 1)")
+                    .white(", ")
+                    .cyan("-(a)")
+                    .white(", ")
+                    .cyan("-gc(seq)")
+                    .print_and_exit();
             }
             _ => {}
         }
@@ -40,20 +56,15 @@ impl<'a> Eval<'a> for ast::ExprUnaryOp {
                 let r = unary(v, self.op)?;
                 return Ok(r);
             }
-
-            Value::Column(_) => {
-                let expr = v.expr()?;
-                return Ok(Value::Expr(-expr));
+            Value::Name(_) | Value::Column(_) => {
+                println!("{:?}", -v.expr()?);
+                return Ok(Value::Expr(-(v.expr()?)));
             }
-
             Value::Expr(e) => {
                 return Ok(Value::Expr(-e.clone()));
             }
-
             _ => {
-                return Err(FilterxError::RuntimeError(
-                    "Only support int/float/column to apply unary op".to_string(),
-                ))
+                unreachable!();
             }
         }
     }
@@ -86,27 +97,39 @@ fn unary(v: Value, _op: ast::UnaryOp) -> FilterxResult<Value> {
 impl<'a> Eval<'a> for ast::ExprBinOp {
     type Output = Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
-        let l = eval!(
-            vm,
-            self.left.deref(),
-            "Only support constant and Column",
-            Constant,
-            Call,
-            UnaryOp,
-            Name,
-            BinOp
-        );
+        let pass = check_types!(self.left.deref(), Constant, Call, UnaryOp, Name, BinOp)
+            && check_types!(self.right.deref(), Constant, Call, UnaryOp, Name, BinOp);
 
-        let r = eval!(
-            vm,
-            self.right.deref(),
-            "Only support constant and Column",
-            Constant,
-            Call,
-            UnaryOp,
-            Name,
-            BinOp
-        );
+        if !pass {
+            let h = &mut vm.hint;
+            h.white("Only support constant and constant, column and constant, column and column")
+                .print_and_exit();
+        }
+
+        let l = eval!(vm, self.left.deref(), Constant, Call, UnaryOp, Name, BinOp);
+        let r = eval!(vm, self.right.deref(), Constant, Call, UnaryOp, Name, BinOp);
+
+        match self.op {
+            ast::Operator::Add | ast::Operator::Sub | ast::Operator::Mult | ast::Operator::Div => {}
+            _ => {
+                let h = &mut vm.hint;
+                h.white("Only support binary op : +, -, *, /")
+                    .print_and_exit();
+            }
+        }
+
+        if l.is_const() && r.is_const() {
+            let ret = match self.op {
+                ast::Operator::Add => binop(l, r, ast::Operator::Add),
+                ast::Operator::Sub => binop(l, r, ast::Operator::Sub),
+                ast::Operator::Mult => binop(l, r, ast::Operator::Mult),
+                ast::Operator::Div => binop(l, r, ast::Operator::Div),
+                _ => {
+                    unreachable!();
+                }
+            };
+            return Ok(Value::Expr(ret.expr()?));
+        }
 
         if l.is_expr() || r.is_expr() {
             let l = l.expr()?;
@@ -117,27 +140,10 @@ impl<'a> Eval<'a> for ast::ExprBinOp {
                 ast::Operator::Mult => l * r,
                 ast::Operator::Div => l / r,
                 _ => {
-                    return Err(FilterxError::RuntimeError(
-                        "Only support binary op : +, -, *, /".to_string(),
-                    ))
+                    unreachable!();
                 }
             };
             return Ok(Value::Expr(ret));
-        }
-
-        if l.is_const() && r.is_const() {
-            let ret = match self.op {
-                ast::Operator::Add => binop(l, r, ast::Operator::Add),
-                ast::Operator::Sub => binop(l, r, ast::Operator::Sub),
-                ast::Operator::Mult => binop(l, r, ast::Operator::Mult),
-                ast::Operator::Div => binop(l, r, ast::Operator::Div),
-                _ => {
-                    return Err(FilterxError::RuntimeError(
-                        "Only support binary op : +, -, *, /".to_string(),
-                    ))
-                }
-            };
-            return Ok(Value::Expr(ret.expr()?));
         }
 
         match vm.source {
@@ -201,21 +207,16 @@ impl<'a> Eval<'a> for ast::ExprBoolOp {
         let left = &self.values[0];
         let vm_apply_lazy = vm.status.apply_lazy;
         vm.status.update_apply_lazy(false);
-        let left = eval!(
-            vm,
-            left,
-            "Only support chain compare, like a > 1 and a < 2",
-            Compare,
-            BoolOp
-        );
+
+        let pass = check_types!(left, Compare, BoolOp) && check_types!(self.values[1], Compare);
+        if !pass {
+            let h = &mut vm.hint;
+            h.white("Only support chain compare, like a > 1 and a < 2")
+                .print_and_exit();
+        }
+        let left = eval!(vm, left, Compare, BoolOp);
         let right = &self.values[1];
-        let right = eval!(
-            vm,
-            right,
-            "Only support chain compare, like a > 1 and a < 2",
-            Compare,
-            BoolOp
-        );
+        let right = eval!(vm, right, Compare, BoolOp);
         vm.status.update_apply_lazy(vm_apply_lazy);
 
         match vm.source {
@@ -279,10 +280,14 @@ fn boolop_in_dataframe<'a>(
 impl<'a> Eval<'a> for ast::ExprCompare {
     type Output = Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
-        let left = eval!(
-            vm,
+        if self.ops.len() > 1 {
+            let h = &mut vm.hint;
+            h.white("Only support one compare op, like a > 1. If you want to chain compare, use `and` or `or`")
+                .print_and_exit();
+        }
+
+        let pass = check_types!(
             self.left.deref(),
-            "Only support constant/Column",
             Constant,
             Call,
             UnaryOp,
@@ -291,27 +296,45 @@ impl<'a> Eval<'a> for ast::ExprCompare {
             Name
         );
 
-        if self.ops.len() > 1 {
-            return Err(FilterxError::RuntimeError(
-                "Only support one compare op, like a > 1. If you want to chain compare, use `and` or `or`"
-                    .to_string(),
-            ));
+        if !pass {
+            let h = &mut vm.hint;
+            h.white("In `in` compare, left must be column, or string constant, ")
+                .white("example: ")
+                .cyan("'a' in a")
+                .white(", ")
+                .cyan("a in (1, 2, 3)")
+                // .white(", ")
+                // .cyan("a in file('path')")
+                .print_and_exit();
         }
 
         let right = &self.comparators[0];
-        let op = &self.ops[0];
-        let right = eval!(
+        let pass = check_types!(right, Constant, Call, UnaryOp, BinOp, BoolOp, Name, Tuple);
+
+        if !pass {
+            let h = &mut vm.hint;
+            h.white("In `in` compare, right must be column, or constant, ")
+                .white("example: ")
+                .cyan("'a' in a")
+                .white(", ")
+                .cyan("a in (1, 2, 3)")
+                // .white(", ")
+                // .cyan("a in file('path')")
+                .print_and_exit();
+        }
+
+        let left = eval!(
             vm,
-            right,
-            "Only support List/File/Column/Constant",
+            self.left.deref(),
             Constant,
             Call,
             UnaryOp,
             BinOp,
             BoolOp,
-            Name,
-            Tuple
+            Name
         );
+        let op = &self.ops[0];
+        let right = eval!(vm, right, Constant, Call, UnaryOp, BinOp, BoolOp, Name, Tuple);
         match vm.source {
             Source::Dataframe(_) => {
                 return compare_in_datarame(vm, left, right, op);
@@ -334,18 +357,18 @@ fn compare_in_datarame<'a>(
             if vm.status.apply_lazy {
                 return compare_in_and_not_in_dataframe(vm, left, right, op);
             } else {
-                return Err(FilterxError::RuntimeError(
-                    "in/not in operator can't be used with and/or".to_string(),
-                ));
+                let h = &mut vm.hint;
+                h.white("in/not in operator can't be used with and/or")
+                    .print_and_exit();
             }
         }
         CmpOp::Eq | CmpOp::NotEq | CmpOp::Lt | CmpOp::LtE | CmpOp::Gt | CmpOp::GtE => {
             return compare_cond_expr_in_dataframe(vm, left, right, op)
         }
         _ => {
-            return Err(FilterxError::RuntimeError(
-                "Only support compare op : ==, !=, >, >=, <, <=, in, not in".to_string(),
-            ))
+            let h = &mut vm.hint;
+            h.white("Only support compare op : ==, !=, >, >=, <, <=")
+                .print_and_exit();
         }
     };
 }
@@ -368,9 +391,9 @@ fn str_in_col<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Filt
             .contains(left_str.lit(), true)
             .eq(false),
         _ => {
-            return Err(FilterxError::RuntimeError(
-                "Only support in/not in for string".to_string(),
-            ))
+            let h = &mut vm.hint;
+            h.white("Only support in/not in for string")
+                .print_and_exit();
         }
     };
     let lazy = lazy.filter(e);
@@ -385,7 +408,7 @@ fn compare_in_and_not_in_dataframe<'a>(
     op: &CmpOp,
 ) -> FilterxResult<Value> {
     let left_col = match &left {
-        Value::Column(l) => l.col_name.clone(),
+        Value::Name(l) => l.name.clone(),
         _ => {
             return Err(FilterxError::RuntimeError(
                 "Only support in/not in for column".to_string(),
@@ -396,9 +419,9 @@ fn compare_in_and_not_in_dataframe<'a>(
         Value::Str(path_repr) => util::handle_file(&path_repr)?,
         Value::List(_l) => right.clone(),
         _ => {
-            return Err(FilterxError::RuntimeError(
-                "Only support File/List for in/not in".to_string(),
-            ));
+            let h = &mut vm.hint;
+            h.white("Only support File/List for in/not in")
+                .print_and_exit();
         }
     };
     let df_root = vm.source.dataframe_mut_ref().unwrap();
@@ -500,7 +523,7 @@ fn compare_cond_expr_in_dataframe<'a>(
 ) -> FilterxResult<Value> {
     let left_expr = left.expr()?;
     let right_expr = right.expr()?;
-    let e = cond_expr_build(left_expr, right_expr, op.clone())?;
+    let e = cond_expr_build(vm, left_expr, right_expr, op.clone())?;
     let df = vm.source.dataframe_mut_ref().unwrap();
     let mut lazy = df.lazy.clone();
     lazy = lazy.filter(e);
@@ -508,7 +531,7 @@ fn compare_cond_expr_in_dataframe<'a>(
     Ok(Value::None)
 }
 
-fn cond_expr_build(left: Expr, right: Expr, op: CmpOp) -> FilterxResult<Expr> {
+fn cond_expr_build<'a>(vm: &'a mut Vm, left: Expr, right: Expr, op: CmpOp) -> FilterxResult<Expr> {
     let e = match op {
         CmpOp::Eq => left.eq(right),
         CmpOp::NotEq => left.neq(right),
@@ -517,9 +540,9 @@ fn cond_expr_build(left: Expr, right: Expr, op: CmpOp) -> FilterxResult<Expr> {
         CmpOp::Gt => left.gt(right),
         CmpOp::GtE => left.gt_eq(right),
         _ => {
-            return Err(FilterxError::RuntimeError(
-                "Only support compare op : ==, !=, >, >=, <, <=".to_string(),
-            ));
+            let h = &mut vm.hint;
+            h.white("Only support compare op : ==, !=, >, >=, <, <=")
+                .print_and_exit();
         }
     };
     Ok(e)

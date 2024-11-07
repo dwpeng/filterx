@@ -2,17 +2,14 @@ use super::super::ast;
 use super::super::value;
 
 use crate::engine::eval::Eval;
+use crate::engine::value::Name;
 use crate::engine::value::Value;
 use crate::engine::vm::Vm;
-use crate::eval;
-use crate::FilterxError;
 use crate::FilterxResult;
-
-use polars::prelude::*;
 
 impl<'a> Eval<'a> for ast::ExprConstant {
     type Output = value::Value;
-    fn eval(&self, _vm: &'a mut Vm) -> FilterxResult<Self::Output> {
+    fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
         let r = match &self.value {
             ast::Constant::Int(i) => {
                 let v: Value = i.clone().into();
@@ -20,10 +17,18 @@ impl<'a> Eval<'a> for ast::ExprConstant {
             }
             ast::Constant::Float(f) => value::Value::Float(f.clone()),
             ast::Constant::Str(s) => value::Value::Str(s.clone()),
+            ast::Constant::Bool(b) => value::Value::Bool(*b),
+            ast::Constant::None => value::Value::Null,
             _ => {
-                return Err(FilterxError::RuntimeError(
-                    "Unsupported type. Only int/float/str supported.".to_string(),
-                ))
+                let h = &mut vm.hint;
+                h.white("Only ")
+                    .cyan("int")
+                    .white(", ")
+                    .cyan("float")
+                    .white(", ")
+                    .cyan("str")
+                    .white(" are supported in expression.");
+                h.print_and_exit();
             }
         };
         Ok(r)
@@ -35,8 +40,27 @@ impl<'a> Eval<'a> for ast::ExprTuple {
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
         let mut r = Vec::new();
         for e in &self.elts {
-            let v = eval!(vm, e, "Only support constant", Constant, Call);
-            r.push(v);
+            match e {
+                ast::Expr::Constant(c) => {
+                    let v = c.eval(vm)?;
+                    r.push(v);
+                }
+                ast::Expr::Call(c) => {
+                    let v = c.eval(vm)?;
+                    r.push(v);
+                }
+                _ => {
+                    let h = &mut vm.hint;
+                    h.white("Only ")
+                        .cyan("int")
+                        .white(", ")
+                        .cyan("float")
+                        .white(", ")
+                        .cyan("str")
+                        .white(" are supported in expression.");
+                    h.print_and_exit();
+                }
+            }
         }
         Ok(value::Value::List(r))
     }
@@ -45,58 +69,26 @@ impl<'a> Eval<'a> for ast::ExprTuple {
 impl<'a> Eval<'a> for ast::ExprName {
     type Output = value::Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
-        let id = self.id.as_str().to_string();
-        for col in &vm.status.selected_columns {
-            if col.name == id {
-                return Ok(value::Value::Column({
-                    value::Column {
-                        col_name: id,
-                        new: col.new,
-                        force: false,
-                        data_type: Some(col.data_type.clone()),
-                    }
-                }));
+        match self.ctx {
+            ast::ExprContext::Del => {
+                let h = &mut vm.hint;
+                h.white("Can't use ").cyan("del").white(" on name.");
+                h.print_and_exit();
             }
-        }
-
-        Ok(value::Value::Column({
-            value::Column {
-                col_name: id,
-                new: true,
-                force: false,
-                data_type: Some(DataType::String),
-            }
-        }))
+            _ => {}
+        };
+        let id = self.id.as_str();
+        let name = Name {
+            name: id.to_string(),
+            ctx: match self.ctx {
+                ast::ExprContext::Load => value::NameContext::Load,
+                ast::ExprContext::Store => value::NameContext::Store,
+                _ => unreachable!(),
+            },
+        };
+        Ok(value::Value::Name(name))
     }
 }
-
-// impl<'a> Eval<'a> for ast::ExprSlice {
-//     type Output = value::Value;
-//     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
-//         let mut slice = value::Slice::default();
-//         match self.lower {
-//             Some(ref l) => match l.deref() {
-//                 ast::Expr::Constant(c) => {
-//                     let v = c.eval(vm)?;
-//                     slice.start = Some(Box::new(v));
-//                 }
-//                 _ => panic!("unsupported type"),
-//             },
-//             None => {}
-//         }
-//         match self.upper {
-//             Some(ref u) => match u.deref() {
-//                 ast::Expr::Constant(c) => {
-//                     let v = c.eval(vm)?;
-//                     slice.end = Some(Box::new(v));
-//                 }
-//                 _ => panic!("unsupported type"),
-//             },
-//             None => {}
-//         }
-//         Ok(value::Value::Slice(slice))
-//     }
-// }
 
 impl<'a> Eval<'a> for ast::ExprAttribute {
     type Output = value::Value;

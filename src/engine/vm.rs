@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use polars::prelude::*;
 
+use crate::hint::Hint;
 use crate::source::{DataframeSource, Source};
 
 use super::eval::Eval;
@@ -144,8 +145,7 @@ pub enum VmSourceType {
     Fastq,
     Vcf,
     Sam,
-    Gff,
-    Gtf,
+    Gxf,
 }
 
 impl FromStr for VmSourceType {
@@ -158,8 +158,9 @@ impl FromStr for VmSourceType {
             "fastq" => Ok(VmSourceType::Fastq),
             "vcf" => Ok(VmSourceType::Vcf),
             "sam" => Ok(VmSourceType::Sam),
-            "gff" => Ok(VmSourceType::Gff),
-            "gtf" => Ok(VmSourceType::Gtf),
+            "gtf" => Ok(VmSourceType::Gxf),
+            "gff" => Ok(VmSourceType::Gxf),
+            "gff3" => Ok(VmSourceType::Gxf),
             _ => Err(()),
         }
     }
@@ -177,6 +178,7 @@ pub struct Vm {
     pub source_type: VmSourceType,
     pub writer: Option<Box<BufWriter<Box<dyn Write>>>>,
     pub expr_cache: HashMap<String, (String, Vec<polars::prelude::Expr>)>,
+    pub hint: Hint,
 }
 
 impl Vm {
@@ -190,6 +192,7 @@ impl Vm {
             source_type: VmSourceType::Csv,
             writer: None,
             expr_cache: HashMap::new(),
+            hint: Hint::new(),
         }
     }
 

@@ -3,63 +3,82 @@ use std::ops::Deref;
 use super::super::ast;
 use super::super::value::Value;
 
+use crate::check_types;
 use crate::engine::eval::Eval;
 use crate::engine::vm::Vm;
 use crate::eval;
 use crate::source::DataframeSource;
 use crate::source::Source;
-use crate::{FilterxError, FilterxResult};
+use crate::FilterxResult;
 
 impl<'a> Eval<'a> for ast::StmtAssign {
     type Output = Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
         if self.targets.len() != 1 {
-            return Err(FilterxError::RuntimeError(
-                "Only support one target".to_string(),
-            ));
+            let h = &mut vm.hint;
+            h.white("Dosn't support unpacking multiple assignment expression")
+                .next_line()
+                .next_line()
+                .green(" Right: alias(new_col) = col1 + col2")
+                .next_line()
+                .red(" Wrong: alias(new_col) = col1, col2")
+                .next_line()
+                .print_and_exit();
         }
+
         let target = self.targets.first().unwrap();
-        let new_col = match target {
-            ast::Expr::Call(c) => c.eval(vm)?,
-            _ => {
-                return Err(FilterxError::RuntimeError(
-                    "use `alias`/`Alias` to create a new column, like alias(new_col) = col1 + col2"
-                        .to_string(),
-                ));
-            }
+
+        let pass = match target {
+            ast::Expr::Call(_) => true,
+            _ => false,
         };
+        if !pass {
+            let h = &mut vm.hint;
+            h.white("Use")
+                .cyan(" `alias` ")
+                .bold()
+                .white("to create a new column.")
+                .green(" alias(new_col) = col1 + col2")
+                .print_and_exit();
+        }
+
+        let new_col = eval!(vm, target, Call);
 
         let new_col = match new_col {
-            Value::Column(c) => {
-                if c.new == false && c.force == false {
-                    return Err(FilterxError::RuntimeError(format!(
-                        "Column `{}` already exist, use `Alias({})` to force creation.",
-                        c.col_name, c.col_name
-                    )));
-                }
-                c.col_name
-            }
-
+            Value::Column(col) => col.col_name,
+            Value::Name(n) => n.name,
             _ => {
-                return Err(FilterxError::RuntimeError(
-                    "use `alias` to create a new column, like alias(new_col) = col1 + col2"
-                        .to_string(),
-                ));
+                let h = &mut vm.hint;
+                h.white("Use")
+                    .cyan(" `alias` ")
+                    .bold()
+                    .white("to create a new column.")
+                    .green(" alias(new_col) = col1 + col2")
+                    .print_and_exit();
             }
         };
 
         let right = self.value.deref();
 
-        let value = eval!(
-            vm,
-            right,
-            "use `alias` to create a new column, like alias(new_col) = col1 + col2",
-            Constant,
-            Name,
-            Call,
-            UnaryOp,
-            BinOp
-        );
+        if !check_types!(right, Constant, Name, Call, UnaryOp, BinOp) {
+            let h = &mut vm.hint;
+            h.white("While using `alias` to create a new column, valid values are:")
+                .next_line()
+                .cyan("1. Constant, like 1 or 'a'")
+                .next_line()
+                .cyan("2. Column Name, like col1")
+                .next_line()
+                .cyan("3. Call, like upper(col1)")
+                .next_line()
+                .cyan("4. UnaryOp, like -col1")
+                .next_line()
+                .cyan("5. BinOp, like col1 + col2")
+                .next_line()
+                .next_line()
+                .print_and_exit();
+        }
+
+        let value = eval!(vm, right, Constant, Name, Call, UnaryOp, BinOp);
 
         match vm.source {
             Source::Dataframe(ref mut df_source) => {

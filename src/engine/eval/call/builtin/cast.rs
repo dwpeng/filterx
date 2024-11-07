@@ -10,7 +10,14 @@ pub fn cast<'a>(
 ) -> FilterxResult<value::Value> {
     expect_args_len(args, 1)?;
 
-    let col_name = eval!(vm, &args[0], "Only support column name", Name, Call);
+    let pass = check_types!(&args[0], Name, Call);
+    if !pass {
+        let h = &mut vm.hint;
+        h.white("cast: expected a column name as first argument")
+            .print_and_exit();
+    }
+
+    let col_name = eval!(vm, &args[0],  Name, Call);
     let col_name = col_name.expr()?;
     let new_type = match new_type.to_lowercase().as_str() {
         "int" => DataType::Int32,
@@ -29,10 +36,10 @@ pub fn cast<'a>(
         "u8" => DataType::UInt8,
         "u16" => DataType::UInt16,
         _ => {
-            return Err(FilterxError::RuntimeError(format!(
-                "Unsupported type: {}",
-                new_type
-            )));
+            let h = &mut vm.hint;
+            h.white("cast: expected a valid type as second argument, but got ")
+                .cyan(new_type)
+                .print_and_exit();
         }
     };
 

@@ -8,16 +8,30 @@ pub fn fill<'a>(
     inplace: bool,
 ) -> FilterxResult<value::Value> {
     expect_args_len(args, 2)?;
-    let col_name = eval!(vm, &args[0], "Only support column name", Name, Call);
+
+    let pass = check_types!(&args[0], Name, Call);
+    if !pass {
+        let h = &mut vm.hint;
+        h.white("fill: expected a column name as first argument")
+            .print_and_exit();
+    }
+
+    let pass = check_types!(&args[1], Constant);
+    if !pass {
+        let h = &mut vm.hint;
+        h.white("fill: expected a constant value as second argument")
+            .print_and_exit();
+    }
+
+    let col_name = eval!(vm, &args[0], Name, Call);
     let col_name = col_name.expr()?;
-    let const_value = eval!(vm, &args[1], "Only support constant value", Constant).expr()?;
+    let const_value = eval!(vm, &args[1], Constant).expr()?;
     match const_value {
         Expr::Literal(_) => {}
         _ => {
-            return Err(FilterxError::RuntimeError(format!(
-                "Only support constant value, but got: {:?}",
-                const_value
-            )));
+            let h = &mut vm.hint;
+            h.white("fill: expected a constant value as second argument")
+                .print_and_exit();
         }
     }
     let e = col_name.fill_null(const_value);

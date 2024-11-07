@@ -11,10 +11,16 @@ pub fn strip<'a>(
 ) -> FilterxResult<value::Value> {
     expect_args_len(args, 2)?;
 
+    let pass = check_types!(&args[0], Name, Call);
+    if !pass {
+        let h = &mut vm.hint;
+        h.white("strip: expected a column name as first argument")
+            .print_and_exit();
+    }
+
     let col_name = eval!(
         vm,
         &args[0],
-        "Only support column name",
         Name,
         Call,
         UnaryOp
@@ -22,14 +28,22 @@ pub fn strip<'a>(
 
     let col_name = match col_name {
         value::Value::Column(c) => c.col_name,
+        value::Value::Name(n) => n.name,
         _ => {
-            return Err(FilterxError::RuntimeError(
-                "Only support column name".to_string(),
-            ));
+            let h = &mut vm.hint;
+            h.white("strip: expected a column name as first argument")
+                .print_and_exit();
         }
     };
 
-    let patt = eval!(vm, &args[1], "Only support pattern", Constant);
+    let pass = check_types!(&args[1], Constant);
+    if !pass {
+        let h = &mut vm.hint;
+        h.white("strip: expected a string pattern as second argument")
+            .print_and_exit();
+    }
+
+    let patt = eval!(vm, &args[1], Constant);
     let patt = patt.string()?;
     let patt = lit(patt.as_str());
 

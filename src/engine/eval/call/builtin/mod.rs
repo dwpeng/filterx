@@ -6,6 +6,10 @@ pub use crate::engine::vm::Vm;
 pub use crate::source::DataframeSource;
 pub use crate::source::Source;
 pub use crate::{FilterxError, FilterxResult};
+pub use crate::{
+    eval,
+    check_types,
+};
 
 pub fn expect_args_len(
     args: &Vec<crate::engine::ast::Expr>,
@@ -19,20 +23,6 @@ pub fn expect_args_len(
         )));
     }
     Ok(())
-}
-
-#[macro_export]
-macro_rules! eval {
-    ($vm:expr, $target:expr, $msg:literal, $($expr:ident),*) => {
-        match $target {
-            $(
-                ast::Expr::$expr(x) => x.eval($vm)?,
-            )*
-            _ => {
-                return Err(FilterxError::RuntimeError($msg.to_string()));
-            }
-        }
-    };
 }
 
 macro_rules! builtin_function {
@@ -86,4 +76,5 @@ builtin_function! {
     header,
     cast,
     fill,
+    dup,
 }

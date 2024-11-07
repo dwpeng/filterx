@@ -1,6 +1,5 @@
 use super::*;
 use crate::eval;
-use crate::FilterxError;
 use polars::prelude::*;
 
 use polars::prelude::col;
@@ -38,19 +37,20 @@ fn compute_gc(s: Series) -> PolarsResult<Option<Series>> {
 
 pub fn gc<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     expect_args_len(args, 1)?;
-    let col_name = eval!(
-        vm,
-        &args[0],
-        "gc: expected a Series as first argument",
-        Name,
-        Call
-    );
+    let pass = check_types!(&args[0], Name, Call);
+    if !pass {
+        let h = &mut vm.hint;
+        h.white("gc: expected a column name as first argument")
+            .print_and_exit();
+    }
+    let col_name = eval!(vm, &args[0], Name, Call);
     let col_name = match col_name {
-        value::Value::Column(c) => c.col_name.to_string(),
+        value::Value::Column(c) => c.col_name,
+        value::Value::Name(n) => n.name,
         _ => {
-            return Err(FilterxError::RuntimeError(
-                "gc: need a column name".to_string(),
-            ))
+            let h = &mut vm.hint;
+            h.white("gc: expected a column name as first argument")
+                .print_and_exit();
         }
     };
     let e = col(col_name).map(compute_gc, GetOutput::float_type());

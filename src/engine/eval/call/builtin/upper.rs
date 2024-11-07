@@ -9,21 +9,22 @@ pub fn upper<'a>(
 ) -> FilterxResult<value::Value> {
     expect_args_len(args, 1)?;
 
-    let col_name = eval!(
-        vm,
-        &args[0],
-        "Only support column name",
-        Name,
-        Call,
-        UnaryOp
-    );
+    let pass = check_types!(&args[0], Name, Call);
+    if !pass {
+        let h = &mut vm.hint;
+        h.white("upper: expected a column name as first argument")
+            .print_and_exit();
+    }
+
+    let col_name = eval!(vm, &args[0], Name, Call, UnaryOp);
 
     let col_name = match col_name {
         value::Value::Column(c) => c.col_name,
+        value::Value::Name(n) => n.name,
         _ => {
-            return Err(FilterxError::RuntimeError(
-                "Only support column name".to_string(),
-            ));
+            let h = &mut vm.hint;
+            h.white("upper: expected a column name as first argument")
+                .print_and_exit();
         }
     };
 

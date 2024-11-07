@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::{FilterxError, FilterxResult};
 use polars::prelude::*;
 use rustpython_parser::ast::bigint::{BigInt, Sign};
@@ -8,6 +10,7 @@ pub enum Value {
     Float(f64),
     Bool(bool),
     Str(String),
+    Name(Name),
     List(Vec<Value>),
     Column(Column),
     Ident((String, Box<Value>)),
@@ -15,6 +18,7 @@ pub enum Value {
     File(File),
     Expr(Expr),
     // Slice(Slice),
+    Null,
     None,
 }
 
@@ -28,6 +32,32 @@ impl Literal for Value {
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum NameContext {
+    Load,
+    Store,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Name{
+    pub name: String,
+    pub ctx: NameContext,
+}
+
+impl Deref for Name {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        &self.name
+    }
+}
+
+impl From<Name> for Value {
+    fn from(n: Name) -> Self {
+        Value::Name(n)
+    }
+}
+
 
 impl From<i64> for Value {
     fn from(i: i64) -> Self {
@@ -89,7 +119,9 @@ impl Value {
             Value::Int(i) => i.lit(),
             Value::Str(s) => s.clone().lit(),
             Value::Column(c) => col(c.col_name.clone()),
+            Value::Name(n) => col(n.name.clone()),
             Value::Expr(e) => e.clone(),
+            Value::Null => Expr::Literal(LiteralValue::Null),
             Value::None => return Err(FilterxError::RuntimeError("function return None".into())),
             _ => return Err(FilterxError::RuntimeError("Can't convert to expr.".into())),
         };
@@ -100,6 +132,7 @@ impl Value {
         match self {
             Value::Str(s) => Ok(s.to_owned()),
             Value::Column(c) => Ok(c.col_name.to_owned()),
+            Value::Name(n) => Ok(n.name.to_owned()),
             _ => {
                 return Err(FilterxError::RuntimeError(
                     "Only Str or Column can convert to text".into(),
@@ -117,15 +150,6 @@ impl Value {
         Ok(s)
     }
 
-    pub fn column(&self) -> FilterxResult<Column> {
-        match self {
-            Value::Column(c) => Ok(c.clone()),
-            _ => Err(FilterxError::RuntimeError(
-                "Only Column can convert to column".into(),
-            )),
-        }
-    }
-
     pub fn u32(&self) -> FilterxResult<u32> {
         match self {
             Value::Int(i) => Ok(*i as u32),
@@ -138,6 +162,7 @@ impl Value {
     pub fn is_column(&self) -> bool {
         match self {
             Value::Column(_) => true,
+            Value::Name(_) => true,
             _ => false,
         }
     }
@@ -190,17 +215,13 @@ impl Default for Slice {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Column {
     pub col_name: String,
-    pub new: bool,
-    pub force: bool,
     pub data_type: Option<DataType>,
 }
 
 impl Column {
-    pub fn new(col_name: String, new: bool) -> Self {
+    pub fn new(col_name: String) -> Self {
         Column {
             col_name,
-            new,
-            force: false,
             data_type: None,
         }
     }
@@ -214,8 +235,6 @@ impl Default for Column {
     fn default() -> Self {
         Column {
             col_name: String::new(),
-            new: false,
-            force: false,
             data_type: None,
         }
     }
@@ -297,6 +316,7 @@ impl Value {
                 s.push_str("]");
                 s
             }
+            Value::Name(n) => n.to_string(),
             Value::AttrMethod(attr) => {
                 let s = format!(
                     "AttrMethod({}.{} {:?})",
@@ -314,6 +334,7 @@ impl Value {
                 s.push_str(")");
                 s
             }
+            Value::Null => String::from("Null"),
             Value::None => String::from("None"),
             // Value::Slice(s) => {
             //     let mut str = String::from("Slice(");
