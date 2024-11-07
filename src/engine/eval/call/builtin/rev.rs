@@ -35,9 +35,9 @@ pub fn rev<'a>(
     };
     let e = col(&col_name).str().reverse();
     if inplace {
-        let lazy = vm.source.dataframe_mut_ref().unwrap().lazy.clone();
+        let lazy = vm.source.lazy();
         let lazy = lazy.with_column(e.clone().alias(&col_name));
-        vm.source.dataframe_mut_ref().unwrap().update(lazy);
+        vm.source.update(lazy);
         return Ok(value::Value::None);
     }
     return Ok(value::Value::Expr(e));

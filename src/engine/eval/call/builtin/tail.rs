@@ -30,13 +30,7 @@ pub fn tail(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
         }
     };
 
-    match &mut vm.source {
-        Source::Dataframe(ref mut df_source) => {
-            let lazy = df_source.lazy.clone();
-            let lazy = lazy.tail(nrow as u32);
-            df_source.lazy = lazy;
-        }
-    };
-
+    let lazy = vm.source.lazy().tail(nrow as u32);
+    vm.source.update(lazy);
     Ok(value::Value::None)
 }

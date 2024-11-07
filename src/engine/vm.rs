@@ -4,7 +4,7 @@ use std::str::FromStr;
 use polars::prelude::*;
 
 use crate::hint::Hint;
-use crate::source::{DataframeSource, Source};
+use crate::source::DataframeSource;
 
 use super::eval::Eval;
 use crate::FilterxResult;
@@ -173,7 +173,7 @@ pub struct Vm {
     /// mode
     pub mode: VmMode,
     /// source
-    pub source: Source,
+    pub source: DataframeSource,
     pub status: VmStatus,
     pub source_type: VmSourceType,
     pub writer: Option<Box<BufWriter<Box<dyn Write>>>>,
@@ -187,7 +187,7 @@ impl Vm {
             eval_expr: String::new(),
             parse_cache: HashMap::new(),
             mode: VmMode::Expression,
-            source: Source::new_dataframe(dataframe),
+            source: dataframe,
             status: VmStatus::default(),
             source_type: VmSourceType::Csv,
             writer: None,

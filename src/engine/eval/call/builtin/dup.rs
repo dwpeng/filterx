@@ -37,13 +37,7 @@ pub fn dup<'a>(
             .print_and_exit();
     }
 
-    match &mut vm.source {
-        Source::Dataframe(ref mut df_source) => {
-            let lazy = df_source.lazy.clone();
-            let lazy = lazy.unique_generic(Some(select_dolumns), unique_strategy);
-            df_source.update(lazy);
-        }
-    }
+    vm.source.unique(select_dolumns, unique_strategy);
 
     Ok(value::Value::None)
 }

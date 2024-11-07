@@ -41,6 +41,10 @@ impl DataframeSource {
         Ok(df)
     }
 
+    pub fn lazy(&self) -> LazyFrame {
+        self.lazy.clone()
+    }
+
     pub fn update(&mut self, lazy: LazyFrame) {
         self.lazy = lazy.with_streaming(true);
     }
@@ -55,5 +59,53 @@ impl DataframeSource {
         let df = self.lazy.clone().fetch(20)?;
         let schema = df.schema();
         Ok(schema)
+    }
+
+    pub fn finish(&mut self) -> FilterxResult<()> {
+        let df = self.lazy.clone().collect()?;
+        self.update(df.lazy());
+        Ok(())
+    }
+
+    pub fn filter(&mut self, expr: Expr) {
+        let lazy = self.lazy.clone();
+        let lazy = lazy.filter(expr);
+        self.update(lazy);
+    }
+
+    pub fn select(&mut self, exprs: Vec<Expr>) {
+        let lazy = self.lazy.clone();
+        let lazy = lazy.select(exprs);
+        self.update(lazy);
+    }
+
+    pub fn drop(&mut self, columns: Vec<String>) {
+        let lazy = self.lazy.clone();
+        let lazy = lazy.drop(columns);
+        self.update(lazy);
+    }
+
+    pub fn unique(&mut self, columns: Vec<String>, keep: UniqueKeepStrategy) {
+        let lazy = self.lazy.clone();
+        let lazy = lazy.unique_generic(Some(columns), keep);
+        self.update(lazy);
+    }
+
+    pub fn slice(&mut self, offset: i64, length: usize) {
+        let lazy = self.lazy.clone();
+        let lazy = lazy.slice(offset, length as IdxSize);
+        self.update(lazy);
+    }
+
+    pub fn rename<I, J, T, S>(&mut self, columns: I, names: J)
+    where
+        I: IntoIterator<Item = T>,
+        J: IntoIterator<Item = S>,
+        T: AsRef<str>,
+        S: AsRef<str>,
+    {
+        let lazy = self.lazy.clone();
+        let lazy = lazy.rename(columns, names);
+        self.update(lazy);
     }
 }

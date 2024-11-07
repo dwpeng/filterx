@@ -60,7 +60,7 @@ pub fn filterx_gxf(cmd: GFFCommand) -> FilterxResult<()> {
     if vm.status.printed {
         return Ok(());
     }
-    let mut df = vm.source.into_dataframe().unwrap().into_df()?;
+    let mut df = vm.source.into_df()?;
     if output.is_none() && table.unwrap_or(false) {
         println!("{}", df);
         return Ok(());

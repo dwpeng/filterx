@@ -46,19 +46,17 @@ pub fn replace<'a>(
     let repl = lit(repl.as_str());
 
     if inplace {
-        vm.source
-            .dataframe_mut_ref()
-            .unwrap()
-            .with_column(match many {
-                true => col(&col_name)
-                    .str()
-                    .replace_all(patt, repl, true)
-                    .alias(&col_name),
-                false => col(&col_name)
-                    .str()
-                    .replace(patt, repl, true)
-                    .alias(&col_name),
-            });
+        let lazy = vm.source.lazy().with_column(match many {
+            true => col(&col_name)
+                .str()
+                .replace_all(patt, repl, true)
+                .alias(&col_name),
+            false => col(&col_name)
+                .str()
+                .replace(patt, repl, true)
+                .alias(&col_name),
+        });
+        vm.source.update(lazy);
         return Ok(value::Value::None);
     }
 

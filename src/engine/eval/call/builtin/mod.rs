@@ -4,12 +4,8 @@ pub use crate::engine::eval::Eval;
 pub use crate::engine::value;
 pub use crate::engine::vm::Vm;
 pub use crate::source::DataframeSource;
-pub use crate::source::Source;
+pub use crate::{check_types, eval};
 pub use crate::{FilterxError, FilterxResult};
-pub use crate::{
-    eval,
-    check_types,
-};
 
 pub fn expect_args_len(
     args: &Vec<crate::engine::ast::Expr>,

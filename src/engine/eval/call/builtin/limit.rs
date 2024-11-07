@@ -30,7 +30,7 @@ pub fn limit<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
         }
     };
 
-    match vm.source_type{
+    match vm.source_type {
         VmSourceType::Fasta | VmSourceType::Fastq => {
             vm.status.limit = nrow;
             return Ok(value::Value::None);
@@ -38,13 +38,7 @@ pub fn limit<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
         _ => {}
     }
 
-    match &mut vm.source {
-        Source::Dataframe(ref mut df_source) => {
-            let lazy = df_source.lazy.clone();
-            let lazy = lazy.slice(0, nrow as u32);
-            df_source.lazy = lazy;
-        }
-    };
+    vm.source.slice(0, nrow);
 
     Ok(value::Value::None)
 }

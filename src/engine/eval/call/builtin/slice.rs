@@ -63,10 +63,7 @@ pub fn slice<'a>(
     let e = col(&col_name).str().slice(lit(start), lit(length));
 
     if inplace {
-        vm.source
-            .dataframe_mut_ref()
-            .unwrap()
-            .with_column(e.alias(&col_name));
+        vm.source.with_column(e.alias(&col_name));
         return Ok(value::Value::None);
     }
 

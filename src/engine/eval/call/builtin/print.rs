@@ -123,11 +123,8 @@ pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
         fmt = &value.0;
         cols = &value.1;
     }
-    let lazy = vm.source.dataframe_mut_ref().unwrap().lazy.clone();
-    let lazy = lazy.with_column(format_str(&fmt, &cols)?.alias("fmt"));
-    vm.source.dataframe_mut_ref().unwrap().update(lazy);
-    let lazy = vm.source.dataframe_mut_ref().unwrap().lazy.clone();
-    let df = lazy.collect()?;
+    vm.source.with_column(format_str(&fmt, &cols)?.alias("fmt"));
+    let df = vm.source.lazy().collect()?;
     let fmt = df.column("fmt").unwrap();
     let writer = vm.writer.as_mut().unwrap();
     let writer = writer.as_mut();

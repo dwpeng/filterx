@@ -14,16 +14,9 @@ pub fn drop<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::V
 
     for arg in args {
         let col = eval!(vm, arg, Name, Call, UnaryOp);
-        drop_columns.push(col.expr()?);
+        drop_columns.push(col.text()?);
     }
 
-    match &mut vm.source {
-        Source::Dataframe(ref mut df_source) => {
-            let lazy = df_source.lazy.clone();
-            let lazy = lazy.drop(drop_columns);
-            df_source.lazy = lazy;
-        }
-    }
-
+    vm.source.drop(drop_columns);
     Ok(value::Value::None)
 }

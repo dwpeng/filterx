@@ -37,7 +37,7 @@ pub fn fill<'a>(
     let e = col_name.fill_null(const_value);
 
     if inplace {
-        let lazy = vm.source.dataframe_mut_ref().unwrap();
+        let lazy = &mut vm.source;
         lazy.with_column(e);
         return Ok(Value::None);
     }

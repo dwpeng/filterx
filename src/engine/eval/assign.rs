@@ -8,7 +8,6 @@ use crate::engine::eval::Eval;
 use crate::engine::vm::Vm;
 use crate::eval;
 use crate::source::DataframeSource;
-use crate::source::Source;
 use crate::FilterxResult;
 
 impl<'a> Eval<'a> for ast::StmtAssign {
@@ -80,11 +79,7 @@ impl<'a> Eval<'a> for ast::StmtAssign {
 
         let value = eval!(vm, right, Constant, Name, Call, UnaryOp, BinOp);
 
-        match vm.source {
-            Source::Dataframe(ref mut df_source) => {
-                assign_in_dataframe(value, new_col, df_source)?;
-            }
-        }
+        assign_in_dataframe(value, new_col, &mut vm.source)?;
 
         Ok(Value::None)
     }

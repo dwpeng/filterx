@@ -40,7 +40,7 @@ pub enum NameContext {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Name{
+pub struct Name {
     pub name: String,
     pub ctx: NameContext,
 }
@@ -57,7 +57,6 @@ impl From<Name> for Value {
         Value::Name(n)
     }
 }
-
 
 impl From<i64> for Value {
     fn from(i: i64) -> Self {

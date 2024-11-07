@@ -6,7 +6,7 @@ use crate::FilterxResult;
 use std::io::Write;
 
 use crate::engine::vm::{Vm, VmSourceType};
-use crate::source::{DataframeSource, FastqSource, Source, TableLike};
+use crate::source::{DataframeSource, FastqSource, TableLike};
 
 use crate::util;
 
@@ -45,13 +45,13 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
             break;
         }
         let dataframe_source = DataframeSource::new(df.unwrap().lazy());
-        vm.source = Source::Dataframe(dataframe_source);
+        vm.source = dataframe_source;
         vm.next_batch()?;
         vm.eval_once(&expr)?;
         vm.finish()?;
         if !vm.status.printed {
             let writer = vm.writer.as_mut().unwrap();
-            let df = vm.source.into_dataframe().unwrap().into_df()?;
+            let df = vm.source.into_df()?;
             let cols = df.get_columns();
             let rows = df.height();
             for i in 0..rows {

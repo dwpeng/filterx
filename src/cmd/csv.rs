@@ -1,6 +1,3 @@
-use std::borrow::Borrow;
-use std::borrow::BorrowMut;
-
 use super::args::{CsvCommand, ShareArgs};
 use crate::engine::vm::Vm;
 use crate::source::DataframeSource;
@@ -71,7 +68,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
     if vm.status.printed {
         return Ok(());
     }
-    let mut df = vm.source.into_dataframe().unwrap().into_df()?;
+    let mut df = vm.source.into_df()?;
     if output.is_none() && table.unwrap_or(false) {
         println!("{}", df);
         return Ok(());

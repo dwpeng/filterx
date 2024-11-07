@@ -8,7 +8,6 @@ use super::super::value;
 use crate::engine::eval::Eval;
 use crate::engine::vm::Vm;
 use crate::engine::vm::VmSourceType;
-use crate::source::Source;
 use crate::FilterxResult;
 
 use crate::engine::eval::call::builtin as call;
@@ -45,70 +44,66 @@ impl<'a> Eval<'a> for ast::ExprCall {
             function_name = "cast".to_string();
         }
 
-        match vm.source {
-            Source::Dataframe(_) => match function_name.as_str() {
-                "alias" => call::alias(vm, &self.args),
-                "drop" => call::drop(vm, &self.args),
-                "select" => call::select(vm, &self.args),
-                "col" => call::col(vm, &self.args),
-                "rename" => {
-                    if vm.source_type == VmSourceType::Fasta
-                        || vm.source_type == VmSourceType::Fastq
-                    {
-                        let h = &mut vm.hint;
-                        h.white("Function `rename` does not be supported in source `")
-                            .cyan(&format!("{:?}", vm.source_type))
-                            .white("`.")
-                            .print_and_exit();
-                    } else {
-                        call::rename(vm, &self.args)
-                    }
-                }
-                "head" => call::head(vm, &self.args),
-                "tail" => call::tail(vm, &self.args),
-                "Sort" => call::sort(vm, &self.args, false),
-                "sorT" => call::sort(vm, &self.args, true),
-                "sort" => call::sort(vm, &self.args, true),
-                "len" => call::len(vm, &self.args),
-                "print" => call::print(vm, &self.args),
-                "limit" => call::limit(vm, &self.args),
-                "gc" => call::gc(vm, &self.args),
-                "rev" => call::rev(vm, &self.args, false),
-                "rev_" => call::rev(vm, &self.args, true),
-                "revcomp" => call::revcomp(vm, &self.args, false),
-                "revcomp_" => call::revcomp(vm, &self.args, true),
-                "upper" => call::upper(vm, &self.args, false),
-                "upper_" => call::upper(vm, &self.args, true),
-                "lower" => call::lower(vm, &self.args, false),
-                "lower_" => call::lower(vm, &self.args, true),
-                "replace" => call::replace(vm, &self.args, false, true),
-                "replace_" => call::replace(vm, &self.args, true, true),
-                "replace_one" => call::replace(vm, &self.args, false, false),
-                "replace_one_" => call::replace(vm, &self.args, true, false),
-                "strip" => call::strip(vm, &self.args, false, true, true),
-                "strip_" => call::strip(vm, &self.args, true, true, true),
-                "lstrip" => call::strip(vm, &self.args, false, false, true),
-                "lstrip_" => call::strip(vm, &self.args, true, false, true),
-                "rstrip" => call::strip(vm, &self.args, false, true, false),
-                "rstrip_" => call::strip(vm, &self.args, true, true, false),
-                "slice" => call::slice(vm, &self.args, false),
-                "slice_" => call::slice(vm, &self.args, true),
-                "header" => call::header(vm),
-                "cast" => call::cast(vm, &self.args, &sub_function_name, inplace),
-                "fill" => call::fill(vm, &self.args, false),
-                "fill_" => call::fill(vm, &self.args, true),
-                "dup" => call::dup(vm, &self.args, UniqueKeepStrategy::First),
-                "dup_none" => call::dup(vm, &self.args, UniqueKeepStrategy::None),
-                "dup_last" => call::dup(vm, &self.args, UniqueKeepStrategy::Last),
-                "dup_any" => call::dup(vm, &self.args, UniqueKeepStrategy::Any),
-                _ => {
+        match function_name.as_str() {
+            "alias" => call::alias(vm, &self.args),
+            "drop" => call::drop(vm, &self.args),
+            "select" => call::select(vm, &self.args),
+            "col" => call::col(vm, &self.args),
+            "rename" => {
+                if vm.source_type == VmSourceType::Fasta || vm.source_type == VmSourceType::Fastq {
                     let h = &mut vm.hint;
-                    h.white("Function `")
-                        .cyan(&function_name)
-                        .white("` does not found.")
+                    h.white("Function `rename` does not be supported in source `")
+                        .cyan(&format!("{:?}", vm.source_type))
+                        .white("`.")
                         .print_and_exit();
+                } else {
+                    call::rename(vm, &self.args)
                 }
-            },
+            }
+            "head" => call::head(vm, &self.args),
+            "tail" => call::tail(vm, &self.args),
+            "Sort" => call::sort(vm, &self.args, false),
+            "sorT" => call::sort(vm, &self.args, true),
+            "sort" => call::sort(vm, &self.args, true),
+            "len" => call::len(vm, &self.args),
+            "print" => call::print(vm, &self.args),
+            "limit" => call::limit(vm, &self.args),
+            "gc" => call::gc(vm, &self.args),
+            "rev" => call::rev(vm, &self.args, false),
+            "rev_" => call::rev(vm, &self.args, true),
+            "revcomp" => call::revcomp(vm, &self.args, false),
+            "revcomp_" => call::revcomp(vm, &self.args, true),
+            "upper" => call::upper(vm, &self.args, false),
+            "upper_" => call::upper(vm, &self.args, true),
+            "lower" => call::lower(vm, &self.args, false),
+            "lower_" => call::lower(vm, &self.args, true),
+            "replace" => call::replace(vm, &self.args, false, true),
+            "replace_" => call::replace(vm, &self.args, true, true),
+            "replace_one" => call::replace(vm, &self.args, false, false),
+            "replace_one_" => call::replace(vm, &self.args, true, false),
+            "strip" => call::strip(vm, &self.args, false, true, true),
+            "strip_" => call::strip(vm, &self.args, true, true, true),
+            "lstrip" => call::strip(vm, &self.args, false, false, true),
+            "lstrip_" => call::strip(vm, &self.args, true, false, true),
+            "rstrip" => call::strip(vm, &self.args, false, true, false),
+            "rstrip_" => call::strip(vm, &self.args, true, true, false),
+            "slice" => call::slice(vm, &self.args, false),
+            "slice_" => call::slice(vm, &self.args, true),
+            "header" => call::header(vm),
+            "cast" => call::cast(vm, &self.args, &sub_function_name, inplace),
+            "fill" => call::fill(vm, &self.args, false),
+            "fill_" => call::fill(vm, &self.args, true),
+            "dup" => call::dup(vm, &self.args, UniqueKeepStrategy::First),
+            "dup_none" => call::dup(vm, &self.args, UniqueKeepStrategy::None),
+            "dup_last" => call::dup(vm, &self.args, UniqueKeepStrategy::Last),
+            "dup_any" => call::dup(vm, &self.args, UniqueKeepStrategy::Any),
+            _ => {
+                let h = &mut vm.hint;
+                h.white("Function `")
+                    .cyan(&function_name)
+                    .white("` does not found.")
+                    .print_and_exit();
+            }
         }
     }
 }

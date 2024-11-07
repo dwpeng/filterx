@@ -31,7 +31,6 @@ macro_rules! check_types {
     };
 }
 
-
 #[macro_export]
 macro_rules! eval {
     ($vm:expr, $target:expr, $msg:literal, $($expr:ident),*) => {

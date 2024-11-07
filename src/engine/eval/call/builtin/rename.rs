@@ -49,13 +49,6 @@ pub fn rename(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value>
         }
     };
 
-    match &mut vm.source {
-        Source::Dataframe(ref mut df_source) => {
-            let lazy = df_source.lazy.clone();
-            let lazy = lazy.rename([old_col], [new_col]);
-            df_source.lazy = lazy;
-        }
-    }
-
+    vm.source.rename([old_col], [new_col]);
     Ok(value::Value::None)
 }

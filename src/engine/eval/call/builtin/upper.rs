@@ -30,8 +30,6 @@ pub fn upper<'a>(
 
     if inplace {
         vm.source
-            .dataframe_mut_ref()
-            .unwrap()
             .with_column(col(&col_name).str().to_uppercase().alias(&col_name));
         return Ok(value::Value::None);
     }

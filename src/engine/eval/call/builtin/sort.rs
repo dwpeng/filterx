@@ -39,19 +39,15 @@ pub fn sort(vm: &mut Vm, args: &Vec<ast::Expr>, incr: bool) -> FilterxResult<val
         cols.push(col);
     }
 
-    match &mut vm.source {
-        Source::Dataframe(ref mut df_source) => {
-            let lazy = df_source.lazy.clone();
-            let sort_options = SortMultipleOptions::default()
-                .with_maintain_order(true)
-                .with_order_descending(!incr)
-                .with_nulls_last(true)
-                .with_multithreaded(true);
+    let lazy = vm.source.lazy();
+    let sort_options = SortMultipleOptions::default()
+        .with_maintain_order(true)
+        .with_order_descending(!incr)
+        .with_nulls_last(true)
+        .with_multithreaded(true);
 
-            let lazy = lazy.sort(cols, sort_options);
-            df_source.lazy = lazy;
-        }
-    };
+    let lazy = lazy.sort(cols, sort_options);
+    vm.source.update(lazy);
 
     Ok(value::Value::None)
 }

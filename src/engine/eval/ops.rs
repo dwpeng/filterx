@@ -5,7 +5,6 @@ use rustpython_parser::ast::located::CmpOp;
 
 use super::super::ast;
 use crate::engine::value::Value;
-use crate::source::Source;
 use crate::util;
 
 use crate::engine::eval::Eval;
@@ -145,12 +144,7 @@ impl<'a> Eval<'a> for ast::ExprBinOp {
             };
             return Ok(Value::Expr(ret));
         }
-
-        match vm.source {
-            Source::Dataframe(_) => {
-                return binop_for_dataframe(l, r, self.op);
-            }
-        }
+        binop_for_dataframe(l, r, self.op)
     }
 }
 
@@ -219,11 +213,7 @@ impl<'a> Eval<'a> for ast::ExprBoolOp {
         let right = eval!(vm, right, Compare, BoolOp);
         vm.status.update_apply_lazy(vm_apply_lazy);
 
-        match vm.source {
-            Source::Dataframe(_) => {
-                return boolop_in_dataframe(vm, &left, &right, self.op.clone());
-            }
-        }
+        boolop_in_dataframe(vm, &left, &right, self.op.clone())
     }
 }
 
@@ -242,21 +232,19 @@ fn boolop_in_dataframe<'a>(
         return e;
     }
 
-    let df = vm.source.dataframe_mut_ref().unwrap();
+    let lazy = vm.source.lazy();
 
     match op {
         ast::BoolOp::And => match (l, r) {
             (_, _) => {
-                let lazy = df.lazy.clone();
                 let lazy = lazy.filter(l.expr()?.and(r.clone().expr()?));
-                df.lazy = lazy;
+                vm.source.update(lazy);
             }
         },
         ast::BoolOp::Or => match (l, r) {
             (_, _) => {
-                let lazy = df.lazy.clone();
                 let lazy = lazy.filter(l.expr()?.or(r.expr()?));
-                df.lazy = lazy;
+                vm.source.update(lazy);
             }
         },
     }
@@ -335,11 +323,7 @@ impl<'a> Eval<'a> for ast::ExprCompare {
         );
         let op = &self.ops[0];
         let right = eval!(vm, right, Constant, Call, UnaryOp, BinOp, BoolOp, Name, Tuple);
-        match vm.source {
-            Source::Dataframe(_) => {
-                return compare_in_datarame(vm, left, right, op);
-            }
-        }
+        compare_in_datarame(vm, left, right, op)
     }
 }
 
@@ -382,8 +366,8 @@ fn str_in_col<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Filt
         Value::Column(c) => c.col_name.clone(),
         _ => unreachable!(),
     };
-    let df = vm.source.dataframe_mut_ref().unwrap();
-    let lazy = df.lazy.clone();
+
+    let lazy = vm.source.lazy();
     let e = match op {
         CmpOp::In => col(right_col).str().contains(left_str.lit(), true),
         CmpOp::NotIn => col(right_col)
@@ -397,7 +381,7 @@ fn str_in_col<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Filt
         }
     };
     let lazy = lazy.filter(e);
-    df.lazy = lazy;
+    vm.source.update(lazy);
     Ok(Value::None)
 }
 
@@ -424,9 +408,9 @@ fn compare_in_and_not_in_dataframe<'a>(
                 .print_and_exit();
         }
     };
-    let df_root = vm.source.dataframe_mut_ref().unwrap();
+    let df_root = vm.source.lazy();
 
-    let left_df = df_root.lazy.clone().collect()?;
+    let left_df = df_root.collect()?;
     let left_col_type = left_df.column(&left.to_string())?.dtype();
 
     let right_col = match &right {
@@ -503,11 +487,11 @@ fn compare_in_and_not_in_dataframe<'a>(
     match op {
         CmpOp::In => {
             let df = left_df.join(&right_df, left_on, right_on, JoinArgs::new(JoinType::Semi))?;
-            df_root.lazy = df.lazy();
+            vm.source.update(df.lazy());
         }
         CmpOp::NotIn => {
             let df = left_df.join(&right_df, left_on, right_on, JoinArgs::new(JoinType::Anti))?;
-            df_root.lazy = df.lazy();
+            vm.source.update(df.lazy());
         }
         _ => unreachable!(),
     }
@@ -524,10 +508,9 @@ fn compare_cond_expr_in_dataframe<'a>(
     let left_expr = left.expr()?;
     let right_expr = right.expr()?;
     let e = cond_expr_build(vm, left_expr, right_expr, op.clone())?;
-    let df = vm.source.dataframe_mut_ref().unwrap();
-    let mut lazy = df.lazy.clone();
-    lazy = lazy.filter(e);
-    df.lazy = lazy;
+    let lazy = vm.source.lazy();
+    let lazy = lazy.filter(e);
+    vm.source.update(lazy);
     Ok(Value::None)
 }
 

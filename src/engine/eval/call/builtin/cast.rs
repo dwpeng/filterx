@@ -17,7 +17,7 @@ pub fn cast<'a>(
             .print_and_exit();
     }
 
-    let col_name = eval!(vm, &args[0],  Name, Call);
+    let col_name = eval!(vm, &args[0], Name, Call);
     let col_name = col_name.expr()?;
     let new_type = match new_type.to_lowercase().as_str() {
         "int" => DataType::Int32,
@@ -46,8 +46,7 @@ pub fn cast<'a>(
     let e = col_name.cast(new_type);
 
     if inplace {
-        let lazy = vm.source.dataframe_mut_ref().unwrap();
-        lazy.with_column(e);
+        vm.source.with_column(e);
         return Ok(value::Value::None);
     }
 

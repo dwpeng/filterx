@@ -47,12 +47,7 @@ pub fn revcomp<'a>(
             .print_and_exit();
     }
 
-    let col_name = eval!(
-        vm,
-        &args[0],
-        Name,
-        Call
-    );
+    let col_name = eval!(vm, &args[0], Name, Call);
     let col_name = match col_name {
         value::Value::Column(c) => c.col_name,
         value::Value::Name(n) => n.name,
@@ -64,9 +59,9 @@ pub fn revcomp<'a>(
     };
     let e = col(&col_name).map(compute_revcomp, GetOutput::same_type());
     if inplace {
-        let lazy = vm.source.dataframe_mut_ref().unwrap().lazy.clone();
+        let lazy = vm.source.lazy();
         let lazy = lazy.with_column(e.clone().alias(&col_name));
-        vm.source.dataframe_mut_ref().unwrap().update(lazy);
+        vm.source.update(lazy);
         return Ok(value::Value::None);
     }
     return Ok(value::Value::Expr(e));
