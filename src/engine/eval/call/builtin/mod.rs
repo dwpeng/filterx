@@ -73,4 +73,9 @@ builtin_function! {
     cast,
     fill,
     dup,
+    abs,
+    is_null,
+    is_na,
+    nr,
+    drop_null
 }

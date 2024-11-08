@@ -47,7 +47,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         limit,
         None,
         None,
-        false,
+        true,
     )?;
     let columns = detect_columns(lazy_df.clone())?;
     let mut s = Source::new(lazy_df.clone());

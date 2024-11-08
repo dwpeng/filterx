@@ -12,6 +12,10 @@ use crate::FilterxResult;
 
 use crate::engine::eval::call::builtin as call;
 
+fn compute_similarity(_target: &str, _reference: Vec<&'static str>) -> Option<&'static str> {
+    None
+}
+
 impl<'a> Eval<'a> for ast::ExprCall {
     type Output = value::Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
@@ -91,18 +95,33 @@ impl<'a> Eval<'a> for ast::ExprCall {
             "slice_" => call::slice(vm, &self.args, true),
             "header" => call::header(vm),
             "cast" => call::cast(vm, &self.args, &sub_function_name, inplace),
-            "fill" => call::fill(vm, &self.args, false),
-            "fill_" => call::fill(vm, &self.args, true),
+            "fill_null" => call::fill(vm, &self.args, false),
+            "fill_null_" => call::fill(vm, &self.args, true),
             "dup" => call::dup(vm, &self.args, UniqueKeepStrategy::First),
             "dup_none" => call::dup(vm, &self.args, UniqueKeepStrategy::None),
             "dup_last" => call::dup(vm, &self.args, UniqueKeepStrategy::Last),
             "dup_any" => call::dup(vm, &self.args, UniqueKeepStrategy::Any),
+            "abs" => call::abs(vm, &self.args, false),
+            "abs_" => call::abs(vm, &self.args, true),
+            "is_null" => call::is_null(vm, &self.args, false),
+            "is_not_null" => call::is_null(vm, &self.args, true),
+            "is_na" => call::is_na(vm, &self.args, false),
+            "is_not_na" => call::is_na(vm, &self.args, true),
+            "drop_null" => call::drop_null(vm, &self.args, false),
+            "drop_null_" => call::drop_null(vm, &self.args, true),
             _ => {
+                let simi = compute_similarity(&function_name, vec![]);
                 let h = &mut vm.hint;
                 h.white("Function `")
                     .cyan(&function_name)
-                    .white("` does not found.")
-                    .print_and_exit();
+                    .white("` does not found.");
+
+                if simi.is_some() {
+                    h.white(" Similar function `")
+                        .cyan(simi.unwrap())
+                        .white("` found.");
+                }
+                h.print_and_exit();
             }
         }
     }

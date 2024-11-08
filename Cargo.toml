@@ -31,8 +31,9 @@ polars = { version = "0.44.2", default-features = false, features = [
     "dtype-i8",
     "abs",
     "decompress",
-    "bitwise",
     "describe",
+    "fmt",
+    "fmt_no_tty"
 ] }
 rustpython-parser = "0.4.0"
 thiserror = "2.0.0"

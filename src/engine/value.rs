@@ -19,6 +19,7 @@ pub enum Value {
     Expr(Expr),
     // Slice(Slice),
     Null,
+    Na,
     None,
 }
 
@@ -121,6 +122,7 @@ impl Value {
             Value::Name(n) => col(n.name.clone()),
             Value::Expr(e) => e.clone(),
             Value::Null => Expr::Literal(LiteralValue::Null),
+            Value::Na => Expr::Literal(LiteralValue::Null),
             Value::None => return Err(FilterxError::RuntimeError("function return None".into())),
             _ => return Err(FilterxError::RuntimeError("Can't convert to expr.".into())),
         };
@@ -302,7 +304,7 @@ impl Value {
             Value::Int(i) => i.to_string(),
             Value::Float(f) => f.to_string(),
             Value::Bool(b) => b.to_string(),
-            Value::Str(s) => s.clone(),
+            Value::Str(s) => format!("'{}'", s),
             Value::Expr(e) => e.to_string(),
             Value::List(l) => {
                 let mut s = String::from("[");
@@ -334,6 +336,7 @@ impl Value {
                 s
             }
             Value::Null => String::from("Null"),
+            Value::Na => String::from("Na"),
             Value::None => String::from("None"),
             // Value::Slice(s) => {
             //     let mut str = String::from("Slice(");

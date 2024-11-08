@@ -175,10 +175,10 @@ pub fn init_df(
         .with_comment_prefix(Some(comment_prefix))
         .with_separator(handle_sep(separator) as u8);
 
+    parser_options = parser_options.with_missing_is_null(missing_is_null);
     if let Some(null_values) = null_values {
         let null_values = NullValues::AllColumns(null_values.iter().map(|x| (*x).into()).collect());
         parser_options = parser_options.with_null_values(Some(null_values));
-        parser_options = parser_options.with_missing_is_null(missing_is_null);
     }
 
     let mut read_options = CsvReadOptions::default()

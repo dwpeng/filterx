@@ -50,7 +50,7 @@ pub fn filterx_gxf(cmd: GFFCommand) -> FilterxResult<()> {
         None,
         schema,
         Some(vec![".", "?"]),
-        false,
+        true,
     )?;
     let mut s = Source::new(lazy_df.clone());
     s.set_init_column_names(&names);

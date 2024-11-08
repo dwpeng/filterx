@@ -5,6 +5,7 @@ use rustpython_parser::ast::located::CmpOp;
 
 use super::super::ast;
 use crate::engine::value::Value;
+use crate::hint::Hint;
 use crate::util;
 
 use crate::engine::eval::Eval;
@@ -108,10 +109,17 @@ impl<'a> Eval<'a> for ast::ExprBinOp {
         let r = eval!(vm, self.right.deref(), Constant, Call, UnaryOp, Name, BinOp);
 
         match self.op {
-            ast::Operator::Add | ast::Operator::Sub | ast::Operator::Mult | ast::Operator::Div => {}
+            ast::Operator::Add
+            | ast::Operator::Sub
+            | ast::Operator::Mult
+            | ast::Operator::Div
+            | ast::Operator::Mod
+            | ast::Operator::BitAnd
+            | ast::Operator::BitOr => {}
             _ => {
                 let h = &mut vm.hint;
-                h.white("Only support binary op : +, -, *, /")
+                h.white("Only support binary op: ")
+                    .cyan("+, -, *, /, %, &, |")
                     .print_and_exit();
             }
         }
@@ -122,6 +130,9 @@ impl<'a> Eval<'a> for ast::ExprBinOp {
                 ast::Operator::Sub => binop(l, r, ast::Operator::Sub),
                 ast::Operator::Mult => binop(l, r, ast::Operator::Mult),
                 ast::Operator::Div => binop(l, r, ast::Operator::Div),
+                ast::Operator::Mod => binop(l, r, ast::Operator::Mod),
+                ast::Operator::BitAnd => binop(l, r, ast::Operator::BitAnd),
+                ast::Operator::BitOr => binop(l, r, ast::Operator::BitOr),
                 _ => {
                     unreachable!();
                 }
@@ -137,6 +148,9 @@ impl<'a> Eval<'a> for ast::ExprBinOp {
                 ast::Operator::Sub => l - r,
                 ast::Operator::Mult => l * r,
                 ast::Operator::Div => l / r,
+                ast::Operator::Mod => l % r,
+                ast::Operator::BitAnd => l.and(r),
+                ast::Operator::BitOr => l.or(r),
                 _ => {
                     unreachable!();
                 }
@@ -152,31 +166,97 @@ fn binop(l: Value, r: Value, op: ast::Operator) -> Value {
         ast::Operator::Add => match (l, r) {
             (Value::Int(l), Value::Int(r)) => Value::Int(l + r),
             (Value::Float(l), Value::Float(r)) => Value::Float(l + r),
-            (Value::Str(l), Value::Str(r)) => Value::Str(l + &r),
+            (Value::Str(l), Value::Str(r)) => {
+                let mut new = String::with_capacity(l.len() + r.len());
+                new.push_str(&l);
+                new.push_str(&r);
+                Value::Str(new)
+            }
             (Value::Float(l), Value::Int(r)) => Value::Float(l + r as f64),
             (Value::Int(l), Value::Float(r)) => Value::Float(l as f64 + r),
-            _ => unreachable!(),
+            (l, r) => {
+                let mut h = Hint::new();
+                h.white("can't perform add(+) operation bwtween left: ")
+                    .cyan(&format!("{}", l))
+                    .white(" and right: ")
+                    .cyan(&format!("{}", r))
+                    .print_and_exit();
+            }
         },
         ast::Operator::Sub => match (l, r) {
             (Value::Int(l), Value::Int(r)) => Value::Int(l - r),
             (Value::Float(l), Value::Float(r)) => Value::Float(l - r),
             (Value::Float(l), Value::Int(r)) => Value::Float(l - r as f64),
             (Value::Int(l), Value::Float(r)) => Value::Float(l as f64 - r),
-            _ => unreachable!(),
+            (l, r) => {
+                let mut h = Hint::new();
+                h.white("can't perform sub(-) operation bwtween left: ")
+                    .cyan(&format!("{}", l))
+                    .white(" and right: ")
+                    .cyan(&format!("{}", r))
+                    .print_and_exit();
+            }
         },
         ast::Operator::Mult => match (l, r) {
             (Value::Int(l), Value::Int(r)) => Value::Int(l * r),
             (Value::Float(l), Value::Float(r)) => Value::Float(l * r),
             (Value::Float(l), Value::Int(r)) => Value::Float(l * r as f64),
             (Value::Int(l), Value::Float(r)) => Value::Float(l as f64 * r),
-            _ => unreachable!(),
+            (l, r) => {
+                let mut h = Hint::new();
+                h.white("can't perform mult(*) operation bwtween left: ")
+                    .cyan(&format!("{}", l))
+                    .white(" and right: ")
+                    .cyan(&format!("{}", r))
+                    .print_and_exit();
+            }
         },
         ast::Operator::Div => match (l, r) {
             (Value::Int(l), Value::Int(r)) => Value::Int(l / r),
             (Value::Float(l), Value::Float(r)) => Value::Float(l / r),
             (Value::Float(l), Value::Int(r)) => Value::Float(l / r as f64),
             (Value::Int(l), Value::Float(r)) => Value::Float(l as f64 / r),
-            _ => unreachable!(),
+            (l, r) => {
+                let mut h = Hint::new();
+                h.white("can't perform div(/) operation bwtween left: ")
+                    .cyan(&format!("{}", l))
+                    .white(" and right: ")
+                    .cyan(&format!("{}", r))
+                    .print_and_exit();
+            }
+        },
+        ast::Operator::Mod => match (l.clone(), r.clone()) {
+            (Value::Int(l), Value::Int(r)) => Value::Int(l % r),
+            (l, r) => {
+                let mut h = Hint::new();
+                h.white("can't perform mod(%) operation bwtween left: ")
+                    .cyan(&format!("{}", l))
+                    .white(" and right: ")
+                    .cyan(&format!("{}", r))
+                    .print_and_exit();
+            }
+        },
+        ast::Operator::BitAnd => match (l.clone(), r.clone()) {
+            (Value::Int(l), Value::Int(r)) => Value::Int(l & r),
+            (l, r) => {
+                let mut h = Hint::new();
+                h.white("can't perform bitand(&) operation bwtween left: ")
+                    .cyan(&format!("{}", l))
+                    .white(" and right: ")
+                    .cyan(&format!("{}", r))
+                    .print_and_exit();
+            }
+        },
+        ast::Operator::BitOr => match (l.clone(), r.clone()) {
+            (Value::Int(l), Value::Int(r)) => Value::Int(l | r),
+            (l, r) => {
+                let mut h = Hint::new();
+                h.white("can't perform bitor(|) operation bwtween left: ")
+                    .cyan(&format!("{}", l))
+                    .white(" and right: ")
+                    .cyan(&format!("{}", r))
+                    .print_and_exit();
+            }
         },
         _ => unreachable!(),
     }
@@ -188,6 +268,9 @@ fn binop_for_dataframe(left: Value, right: Value, op: ast::Operator) -> FilterxR
         ast::Operator::Sub => left.expr()? - right.expr()?,
         ast::Operator::Mult => left.expr()? * right.expr()?,
         ast::Operator::Div => left.expr()? / right.expr()?,
+        ast::Operator::Mod => left.expr()? % right.expr()?,
+        ast::Operator::BitAnd => left.expr()?.and(right.expr()?),
+        ast::Operator::BitOr => left.expr()?.or(right.expr()?),
         _ => unreachable!(),
     };
     Ok(Value::Expr(ret))
@@ -231,19 +314,15 @@ fn boolop_in_dataframe<'a>(
         return e;
     }
 
-    let lazy = vm.source.lazy();
-
     match op {
         ast::BoolOp::And => match (l, r) {
             (_, _) => {
-                let lazy = lazy.filter(l.expr()?.and(r.clone().expr()?));
-                vm.source.update(lazy);
+                vm.source.filter(l.expr()?.and(r.clone().expr()?));
             }
         },
         ast::BoolOp::Or => match (l, r) {
             (_, _) => {
-                let lazy = lazy.filter(l.expr()?.or(r.expr()?));
-                vm.source.update(lazy);
+                vm.source.filter(l.expr()?.or(r.expr()?));
             }
         },
     }
@@ -366,7 +445,6 @@ fn str_in_col<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Filt
         _ => unreachable!(),
     };
 
-    let lazy = vm.source.lazy();
     let e = match op {
         CmpOp::In => col(right_col).str().contains(left_str.lit(), true),
         CmpOp::NotIn => col(right_col)
@@ -379,8 +457,7 @@ fn str_in_col<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Filt
                 .print_and_exit();
         }
     };
-    let lazy = lazy.filter(e);
-    vm.source.update(lazy);
+    vm.source.filter(e);
     Ok(Value::None)
 }
 
@@ -408,10 +485,8 @@ fn compare_in_and_not_in_dataframe<'a>(
         }
     };
     let df_root = vm.source.lazy();
-
     let left_df = df_root.collect()?;
     let left_col_type = left_df.column(&left.to_string())?.dtype();
-
     let right_col = match &right {
         Value::File(f) => f.select.clone(),
         Value::List(_l) => "__vitrual_column_filterx__".into(),
@@ -507,9 +582,7 @@ fn compare_cond_expr_in_dataframe<'a>(
     let left_expr = left.expr()?;
     let right_expr = right.expr()?;
     let e = cond_expr_build(vm, left_expr, right_expr, op.clone())?;
-    let lazy = vm.source.lazy();
-    let lazy = lazy.filter(e);
-    vm.source.update(lazy);
+    vm.source.filter(e);
     Ok(Value::None)
 }
 

@@ -32,6 +32,17 @@ pub fn col(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
         }
     };
 
+    // check if column exist
+    let exist = vm.source.ret_column_names.iter().find(|s| s == &&c);
+    if exist.is_none() {
+        let h = &mut vm.hint;
+        h.white("Column ")
+            .cyan(&c)
+            .white(" not found. Valid columns: ")
+            .green(&vm.source.ret_column_names.join(", "))
+            .print_and_exit();
+    }
+
     Ok(value::Value::Item(value::Item {
         col_name: c,
         data_type: None,

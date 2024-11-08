@@ -1,3 +1,5 @@
+use polars::prelude::Literal;
+
 use super::super::ast;
 use super::super::value;
 
@@ -86,6 +88,20 @@ impl<'a> Eval<'a> for ast::ExprName {
                 _ => unreachable!(),
             },
         };
+
+        // impl keywords
+        let keywords = match name.name.as_str() {
+            "NR" => Value::Expr(1.lit().cum_sum(false)),
+            "True" => Value::Expr(true.lit()),
+            "False" => Value::Expr(false.lit()),
+            _ => Value::None,
+        };
+
+        match keywords {
+            Value::None => {}
+            _ => return Ok(keywords),
+        }
+
         Ok(value::Value::Name(name))
     }
 }
