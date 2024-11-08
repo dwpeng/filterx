@@ -32,7 +32,7 @@ pub fn limit<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
 
     match vm.source_type {
         VmSourceType::Fasta | VmSourceType::Fastq => {
-            vm.status.limit = nrow;
+            vm.status.limit_rows = nrow;
             return Ok(value::Value::None);
         }
         _ => {}

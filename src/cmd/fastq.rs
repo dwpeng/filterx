@@ -36,7 +36,7 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
         None => None,
     };
 
-    let mut names = vec!["name", "seq", "comm", "qual"];
+    let mut names = vec!["name", "comm", "seq", "qual"];
 
     match no_comment {
         Some(true) => {
@@ -71,7 +71,10 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
     vm.set_scope(VmSourceType::Fastq);
     vm.set_writer(output);
     'stop_parse: loop {
-        chunk_size = usize::min(chunk_size, vm.status.limit - vm.status.cosumer_rows);
+        if vm.status.consume_rows >= vm.status.limit_rows {
+            break;
+        }
+        chunk_size = usize::min(chunk_size, vm.status.limit_rows - vm.status.consume_rows);
         let df = source.into_dataframe(chunk_size)?;
         if df.is_none() {
             break;
@@ -89,6 +92,10 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
             let rows = df.height();
             for i in 0..rows {
                 for col in cols.iter() {
+                    if vm.status.consume_rows >= vm.status.limit_rows {
+                        break 'stop_parse;
+                    }
+                    vm.status.consume_rows += 1;
                     match col.name().as_str() {
                         "name" => {
                             let name = col.get(i).unwrap();
@@ -115,10 +122,6 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
                         }
                     }
                 }
-            }
-            vm.status.cosumer_rows += 1;
-            if vm.status.cosumer_rows >= vm.status.limit {
-                break 'stop_parse;
             }
         }
     }

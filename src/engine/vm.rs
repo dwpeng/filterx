@@ -19,28 +19,24 @@ pub enum VmMode {
 #[derive(Debug)]
 pub struct VmStatus {
     pub apply_lazy: bool,
-    pub skip: bool,
     pub stop: bool,
     pub count: usize,
-    pub limit: usize,
+    pub limit_rows: usize,
     pub offset: usize,
     pub printed: bool,
-    pub cosumer_rows: usize,
-    pub nrows: usize,
+    pub consume_rows: usize,
 }
 
 impl VmStatus {
     pub fn new() -> Self {
         Self {
             apply_lazy: true,
-            skip: false,
             stop: false,
             count: 0,
-            limit: usize::MAX,
+            limit_rows: usize::MAX,
             offset: 0,
             printed: false,
-            cosumer_rows: 0,
-            nrows: 0,
+            consume_rows: 0,
         }
     }
 }
@@ -212,6 +208,12 @@ impl Vm {
                 let expr = eval_expr.as_interactive().unwrap();
                 expr.eval(self)?;
             }
+            // if self.status.stop {
+            //     std::process::exit(0);
+            // }
+            // if self.status.printed {
+            //     return Ok(());
+            // }
         }
         Ok(())
     }

@@ -128,8 +128,8 @@ pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
     let fmt = df.column("fmt").unwrap();
     let writer = vm.writer.as_mut().unwrap();
     let writer = writer.as_mut();
-    let mut consmer_rows = vm.status.cosumer_rows;
-    if vm.status.cosumer_rows >= vm.status.limit {
+    println!("limit: {}, consume: {}", vm.status.limit_rows, vm.status.consume_rows);
+    if vm.status.consume_rows >= vm.status.limit_rows {
         return Ok(value::Value::None);
     }
     for i in 0..fmt.len() {
@@ -140,9 +140,8 @@ pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
         }
         let s = s.unwrap();
         writeln!(writer, "{}", s)?;
-        consmer_rows += 1;
-        if consmer_rows >= vm.status.limit {
-            vm.status.stop = true;
+        vm.status.consume_rows += 1;
+        if vm.status.consume_rows >= vm.status.limit_rows {
             break;
         }
     }

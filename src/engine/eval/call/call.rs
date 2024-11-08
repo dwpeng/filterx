@@ -109,6 +109,8 @@ impl<'a> Eval<'a> for ast::ExprCall {
             "is_not_na" => call::is_na(vm, &self.args, true),
             "drop_null" => call::drop_null(vm, &self.args, false),
             "drop_null_" => call::drop_null(vm, &self.args, true),
+            "to_fa" | "to_fasta" => call::to_fasta(vm),
+            "to_fq" | "to_fastq" => call::to_fastq(vm),
             _ => {
                 let simi = compute_similarity(&function_name, vec![]);
                 let h = &mut vm.hint;

@@ -28,6 +28,6 @@ pub fn head(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     };
 
     vm.source.slice(0, nrow);
-    vm.status.limit = nrow;
+    vm.status.limit_rows = nrow;
     Ok(value::Value::None)
 }

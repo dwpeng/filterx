@@ -58,7 +58,10 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
     vm.set_scope(VmSourceType::Fasta);
     vm.set_writer(output);
     'stop_parse: loop {
-        chunk_size = usize::min(chunk_size, vm.status.limit - vm.status.cosumer_rows);
+        if vm.status.consume_rows >= vm.status.limit_rows {
+            break;
+        }
+        chunk_size = usize::min(chunk_size, vm.status.limit_rows - vm.status.consume_rows);
         let df = source.into_dataframe(chunk_size)?;
         if df.is_none() {
             break;
@@ -73,11 +76,43 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
             let writer = vm.writer.as_mut().unwrap();
             let df = vm.source.into_df()?;
             let cols = df.get_columns();
+            let seq_col = cols.iter().position(|x| x.name() == "seq");
+            if seq_col.is_none() {
+                let h = &mut vm.hint;
+                h.white("Lost ")
+                    .cyan("'seq'")
+                    .white(" column.")
+                    .print_and_exit();
+            }
+            let name_col = cols.iter().position(|x| x.name() == "name");
+            if name_col.is_none() {
+                let h = &mut vm.hint;
+                h.white("Lost ")
+                    .cyan("'name'")
+                    .white(" column.")
+                    .print_and_exit();
+            }
+
+            let comm_col = cols.iter().position(|x| x.name() == "comm");
+            let cols = df.get_columns();
+            let seq_col = seq_col.unwrap();
+            let name_col = name_col.unwrap();
+
+            let valid_cols;
+            if comm_col.is_some() {
+                valid_cols = vec![name_col, comm_col.unwrap(), seq_col]
+            } else {
+                valid_cols = vec![name_col, seq_col]
+            }
+
             let rows = df.height();
             for i in 0..rows {
-                // TODO: handle the case where the column is not found
-                // TODO: handle the case where the column's rank is not right
-                for col in cols.iter() {
+                if vm.status.consume_rows >= vm.status.limit_rows {
+                    break 'stop_parse;
+                }
+                vm.status.consume_rows += 1;
+                for col_index in &valid_cols {
+                    let col = &cols[*col_index];
                     match col.name().as_str() {
                         "seq" => {
                             let seq = col.get(i).unwrap();
@@ -98,10 +133,6 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
                             break;
                         }
                     }
-                }
-                vm.status.cosumer_rows += 1;
-                if vm.status.cosumer_rows >= vm.status.limit {
-                    break 'stop_parse;
                 }
             }
         }

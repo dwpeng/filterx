@@ -77,5 +77,7 @@ builtin_function! {
     is_null,
     is_na,
     nr,
-    drop_null
+    drop_null,
+    to_fasta,
+    to_fastq,
 }
