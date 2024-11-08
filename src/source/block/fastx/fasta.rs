@@ -3,6 +3,7 @@ use std::io::BufRead;
 
 use super::FastaRecordType;
 use crate::error::FilterxResult;
+use crate::hint::Hint;
 use crate::source::block::reader::TableLikeReader;
 use crate::source::block::table_like::TableLike;
 use crate::util;
@@ -234,6 +235,24 @@ impl<'a> TableLike<'a> for Fasta {
                 self.read_end = true;
                 return Ok(None);
             }
+        }
+
+        if record.buffer[0] != b'>' {
+            let mut h = Hint::new();
+            h.white("Invalid FASTA format. Expecting ")
+                .cyan(">")
+                .bold()
+                .white(" at the beginning of the line, but got: ")
+                .cyan(unsafe { std::str::from_utf8_unchecked(&record.buffer[0..1]) })
+                .bold()
+                .white(". ");
+            if record.buffer[0] == b'@' {
+                h.white("This looks like a FASTQ file. Plaease try ")
+                    .green("filterx fastq")
+                    .bold()
+                    .white(" command instead.");
+            }
+            h.print_and_exit();
         }
 
         // fill name and comment

@@ -2,8 +2,10 @@ use polars::prelude::*;
 use std::io::BufRead;
 
 use crate::error::FilterxResult;
+use crate::hint::Hint;
 use crate::source::block::reader::TableLikeReader;
 use crate::source::block::table_like::TableLike;
+use crate::util;
 
 pub struct FastqSource {
     pub fastq: Fastq,
@@ -64,6 +66,7 @@ pub struct Fastq {
     pub path: String,
     pub parser_option: FastqParserOption,
     record: FastqRecord,
+    pub line_buffer: Vec<u8>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -212,99 +215,226 @@ impl<'a> TableLike<'a> for Fastq {
             parser_option: FastqParserOption::default(),
             path: path.to_string(),
             record: FastqRecord::default(),
+            line_buffer: Vec::with_capacity(512),
         })
     }
 
+    // fn parse_next(&'a mut self) -> FilterxResult<Option<&'a mut Self::Record>> {
+    //     if self.read_end {
+    //         return Ok(None);
+    //     }
+    //     let record = &mut self.record;
+    //     let parser_option = &self.parser_option;
+    //     loop {
+    //         record.clear();
+    //         let bytes = self.reader.read_until(b'@', &mut record.buffer)?;
+    //         if bytes == 0 {
+    //             self.read_end = true;
+    //             return Ok(None);
+    //         }
+    //         if bytes == 1 {
+    //             // first one is @, skip it
+    //             continue;
+    //         }
+    //         // record buff have store name and comment and sequence and qual, as follow:
+    //         // \r\n|\n means the end of line is \r\n or \n
+    //         // name comment\r\n|\n
+    //         // sequence\r\n|\n
+    //         // +\r\n|\n
+    //         // qual\r\n|\n
+    //         // @
+
+    //         // find the end of name and comment
+    //         let mut i = 1;
+    //         let mut line_end = 0;
+    //         let mut space = 0;
+    //         let mut have_r = false;
+    //         while i < bytes {
+    //             if record.buffer[i] == b'\n' {
+    //                 line_end = i;
+    //                 if record.buffer[i - 1] == b'\r' {
+    //                     line_end -= 1;
+    //                     have_r = true;
+    //                 }
+    //                 break;
+    //             }
+    //             if record.buffer[i] == b' ' {
+    //                 space = i;
+    //             }
+    //             i += 1;
+    //         }
+    //         if space == 0 {
+    //             space = line_end;
+    //         }
+    //         if i == bytes {
+    //             return Err(crate::FilterxError::FastqError(
+    //                 "Invalid fastq format: name and comment".to_string(),
+    //             ));
+    //         }
+
+    //         record._name = (0, space);
+    //         if space != line_end {
+    //             if parser_option.include_comment {
+    //                 record._name = (0, space);
+    //                 record._comment = (space + 1, line_end);
+    //             }
+    //         }
+
+    //         // find the end of sequence
+    //         let mut j = line_end + if have_r { 2 } else { 1 };
+    //         record._sequence.0 = j;
+    //         while j < bytes {
+    //             if record.buffer[j] == b'+' {
+    //                 break;
+    //             }
+    //             j += 1;
+    //         }
+    //         if j == bytes {
+    //             return Err(crate::FilterxError::FastqError(
+    //                 "Invalid fastq format: sequence".to_string(),
+    //             ));
+    //         }
+    //         record._sequence.1 = j - if have_r { 2 } else { 1 };
+    //         if parser_option.include_qual {
+    //             let seq_len = record.len();
+    //             j = j + if have_r { 2 } else { 1 };
+    //             // find the end of qual
+    //             // check if qual is equal to sequence
+    //             if j + seq_len > bytes {
+    //                 return Err(crate::FilterxError::FastqError(
+    //                     "Invalid fastq format: qual".to_string(),
+    //                 ));
+    //             }
+    //             record._qual = (j + 1, j + seq_len);
+    //         }
+    //         return Ok(Some(record));
+    //     }
+    // }
+
+    /// parse fastq format based paper: https://academic.oup.com/nar/article/38/6/1767/3112533
     fn parse_next(&'a mut self) -> FilterxResult<Option<&'a mut Self::Record>> {
         if self.read_end {
             return Ok(None);
         }
         let record = &mut self.record;
-        let parser_option = &self.parser_option;
-        loop {
-            record.clear();
-            let bytes = self.reader.read_until(b'@', &mut record.buffer)?;
+        let mut line_buff = &mut self.line_buffer;
+        record.clear();
+        if !line_buff.is_empty() {
+            util::append_vec(&mut record.buffer, line_buff);
+        } else {
+            let bytes = self.reader.read_until(b'\n', &mut record.buffer)?;
             if bytes == 0 {
                 self.read_end = true;
                 return Ok(None);
             }
-            if bytes == 1 {
-                // first one is @, skip it
-                continue;
-            }
-            // record buff have store name and comment and sequence and qual, as follow:
-            // \r\n|\n means the end of line is \r\n or \n
-            // name comment\r\n|\n
-            // sequence\r\n|\n
-            // +\r\n|\n
-            // qual\r\n|\n
-            // @
+        }
 
-            // find the end of name and comment
-            let mut i = 1;
-            let mut line_end = 0;
-            let mut space = 0;
-            let mut have_r = false;
-            while i < bytes {
-                if record.buffer[i] == b'\n' {
-                    line_end = i;
-                    if record.buffer[i - 1] == b'\r' {
-                        line_end -= 1;
-                        have_r = true;
-                    }
-                    break;
-                }
-                if record.buffer[i] == b' ' {
-                    space = i;
-                }
-                i += 1;
+        if record.buffer[0] != b'@' {
+            let mut h = Hint::new();
+            h.white("Invalid FASTQ format. Expecting ")
+                .cyan("@")
+                .bold()
+                .white(" at the beginning of the line, but got: ")
+                .cyan(unsafe { std::str::from_utf8_unchecked(&record.buffer[0..1]) })
+                .bold()
+                .white(". ");
+            if record.buffer[0] == b'>' {
+                h.white("This looks like a FASTA file. Plaease try ")
+                    .green("filterx fasta")
+                    .bold()
+                    .white(" command instead.");
             }
-            if space == 0 {
-                space = line_end;
-            }
-            if i == bytes {
-                return Err(crate::FilterxError::FastqError(
-                    "Invalid fastq format: name and comment".to_string(),
-                ));
-            }
+            h.print_and_exit();
+        }
 
-            record._name = (0, space);
-            if space != line_end {
-                if parser_option.include_comment {
-                    record._name = (0, space);
-                    record._comment = (space + 1, line_end);
-                }
-            }
+        // fill name and comment
+        record._name.0 = 1;
+        record._name.1 = record.buffer.len();
 
-            // find the end of sequence
-            let mut j = line_end + if have_r { 2 } else { 1 };
-            record._sequence.0 = j;
-            while j < bytes {
-                if record.buffer[j] == b'+' {
-                    break;
-                }
-                j += 1;
+        // remove \n or \r\n
+        let mut end = record.buffer.len();
+        let name = &record.buffer[..];
+        if name.ends_with(&[b'\n', b'\r']) {
+            end -= 2;
+        } else if name.ends_with(&[b'\n']) {
+            end -= 1;
+        }
+        record.buffer.truncate(end);
+        record._name.1 = end;
+
+        if let Some(start) = record.buffer.iter().position(|&x| x == b' ') {
+            record._name.1 = start;
+            if self.parser_option.include_comment {
+                record._comment.0 = start + 1;
+                record._comment.1 = record.buffer.len();
+            } else {
+                record.buffer.truncate(start);
+                record._comment.0 = 0;
+                record._comment.1 = 0;
             }
-            if j == bytes {
+        }
+
+        // fill sequence
+        record._sequence.0 = record.buffer.len();
+        loop {
+            line_buff.clear();
+            let bytes = self.reader.read_until(b'\n', &mut line_buff)?;
+            if bytes == 0 {
                 return Err(crate::FilterxError::FastqError(
                     "Invalid fastq format: sequence".to_string(),
                 ));
             }
-            record._sequence.1 = j - if have_r { 2 } else { 1 };
-            if parser_option.include_qual {
-                let seq_len = record.len();
-                j = j + if have_r { 2 } else { 1 };
-                // find the end of qual
-                // check if qual is equal to sequence
-                if j + seq_len > bytes {
-                    return Err(crate::FilterxError::FastqError(
-                        "Invalid fastq format: qual".to_string(),
-                    ));
-                }
-                record._qual = (j + 1, j + seq_len);
+            if line_buff[0] == b'+' {
+                break;
             }
-            return Ok(Some(record));
+            // remove \n or \r\n
+            let mut line = line_buff.as_slice();
+            if line.ends_with(&[b'\r', b'\n']) {
+                line = &line[..line.len() - 2];
+            } else {
+                line = &line[..line.len() - 1];
+            }
+            util::append_vec(&mut record.buffer, line);
         }
+        record._sequence.1 = record.buffer.len();
+
+        if self.parser_option.include_qual {
+            record._qual.0 = record.buffer.len();
+        }
+        let mut nqual = 0;
+        loop {
+            line_buff.clear();
+            let bytes = self.reader.read_until(b'\n', &mut line_buff)?;
+            if bytes == 0 && nqual == 0 {
+                return Err(crate::FilterxError::FastqError(
+                    "Invalid fastq format: qual".to_string(),
+                ));
+            }
+            if bytes == 0 {
+                break;
+            }
+            nqual += 1;
+            if line_buff[0] == b'@' {
+                break;
+            } else {
+                if !self.parser_option.include_qual {
+                    continue;
+                }
+                // remove \n or \r\n
+                let mut line = line_buff.as_slice();
+                if line.ends_with(&[b'\r', b'\n']) {
+                    line = &line[..line.len() - 2];
+                } else {
+                    line = &line[..line.len() - 1];
+                }
+                util::append_vec(&mut record.buffer, line);
+            }
+        }
+
+        if self.parser_option.include_qual {
+            record._qual.1 = record.buffer.len();
+        }
+        return Ok(Some(record));
     }
 
     fn set_parser_options(self, parser_options: Self::ParserOptions) -> Self {
