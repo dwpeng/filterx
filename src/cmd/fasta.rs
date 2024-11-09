@@ -96,9 +96,9 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
             let seq_col = seq_col.unwrap();
             let name_col = name_col.unwrap();
 
-            let comm_col = match no_comment{
+            let comm_col = match no_comment {
                 Some(true) => None,
-                _ => cols.iter().position(|x| x.name() == "comm")
+                _ => cols.iter().position(|x| x.name() == "comm"),
             };
 
             let valid_cols;
