@@ -35,9 +35,10 @@ impl FastqSource {
         let records = &mut self.records;
 
         if records.capacity() < n {
-            for _ in records.capacity()..=n {
-                records.push(FastqRecord::default());
+            unsafe {
+                records.set_len(0);
             }
+            records.reserve(n);
         }
 
         unsafe {

@@ -46,10 +46,10 @@ impl FastaSource {
     pub fn into_dataframe(&mut self, n: usize) -> FilterxResult<Option<DataFrame>> {
         let records = &mut self.records;
         if records.capacity() < n {
-            // push new record
-            for _ in records.capacity()..=n {
-                records.push(FastaRecord::default());
+            unsafe {
+                records.set_len(0);
             }
+            records.reserve(n);
         }
         unsafe {
             records.set_len(n);
