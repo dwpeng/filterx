@@ -5,7 +5,7 @@ build-backend = "maturin"
 
 [project]
 name = "filterx"
-version = "0.2.4"
+version = "0.2.5"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.8"
