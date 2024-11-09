@@ -9,6 +9,15 @@ use crate::util;
 
 pub struct FastqSource {
     pub fastq: Fastq,
+    pub records: Vec<FastqRecord>,
+}
+
+impl Drop for FastqSource {
+    fn drop(&mut self) {
+        unsafe {
+            self.records.set_len(self.records.capacity());
+        }
+    }
 }
 
 impl FastqSource {
@@ -18,24 +27,43 @@ impl FastqSource {
             include_qual,
         };
         let fastq = Fastq::from_path(path)?.set_parser_options(parser_option);
-        Ok(FastqSource { fastq })
+        let records = vec![FastqRecord::default(); 4096];
+        Ok(FastqSource { fastq, records })
     }
 
     pub fn into_dataframe(&mut self, n: usize) -> FilterxResult<Option<DataFrame>> {
-        let mut records = Vec::with_capacity(n);
+        let records = &mut self.records;
+
+        if records.capacity() < n {
+            for _ in records.capacity()..=n {
+                records.push(FastqRecord::default());
+            }
+        }
+
+        unsafe {
+            records.set_len(n);
+        }
         let mut count = 0;
         while let Some(record) = self.fastq.parse_next()? {
-            let r = record.clone();
-            records.push(r);
+            let r = unsafe { records.get_unchecked_mut(count) };
+            r.clear();
+            r.buffer.extend_from_slice(&record.buffer);
+            r._name = record._name;
+            r._comment = record._comment;
+            r._sequence = record._sequence;
+            r._qual = record._qual;
             count += 1;
             if count >= n {
                 break;
             }
         }
+        unsafe {
+            records.set_len(count);
+        }
         if records.is_empty() {
             Ok(None)
         } else {
-            let df = Fastq::as_dataframe(records, &self.fastq.parser_option)?;
+            let df = Fastq::as_dataframe(&records, &self.fastq.parser_option)?;
             Ok(Some(df))
         }
     }
@@ -69,13 +97,25 @@ pub struct Fastq {
     pub line_buffer: Vec<u8>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct FastqRecord {
     buffer: Vec<u8>,
     _name: (usize, usize),
     _sequence: (usize, usize),
     _qual: (usize, usize),
     _comment: (usize, usize),
+}
+
+impl Default for FastqRecord {
+    fn default() -> Self {
+        FastqRecord {
+            buffer: Vec::with_capacity(256),
+            _name: (0, 0),
+            _sequence: (0, 0),
+            _qual: (0, 0),
+            _comment: (0, 0),
+        }
+    }
 }
 
 impl std::fmt::Display for FastqRecord {
@@ -203,7 +243,7 @@ impl IntoIterator for Fastq {
     }
 }
 
-impl<'a> TableLike<'a> for Fastq {
+impl TableLike for Fastq {
     type ParserOptions = FastqParserOption;
     type Record = FastqRecord;
     type Table = Fastq;
@@ -312,7 +352,7 @@ impl<'a> TableLike<'a> for Fastq {
     // }
 
     /// parse fastq format based paper: https://academic.oup.com/nar/article/38/6/1767/3112533
-    fn parse_next(&'a mut self) -> FilterxResult<Option<&'a mut Self::Record>> {
+    fn parse_next(&mut self) -> FilterxResult<Option<&mut Self::Record>> {
         if self.read_end {
             return Ok(None);
         }
@@ -480,13 +520,21 @@ impl<'a> TableLike<'a> for Fastq {
     }
 
     fn as_dataframe(
-        records: Vec<Self::Record>,
+        records: &Vec<Self::Record>,
         parser_options: &Self::ParserOptions,
     ) -> FilterxResult<DataFrame> {
-        let mut names: Vec<String> = Vec::new();
-        let mut sequences: Vec<String> = Vec::new();
-        let mut quals: Vec<String> = Vec::new();
-        let mut comments: Vec<String> = Vec::new();
+        let mut names: Vec<String> = Vec::with_capacity(records.len());
+        let mut sequences: Vec<String> = Vec::with_capacity(records.len());
+        let mut quals: Vec<String> = if parser_options.include_qual {
+            Vec::with_capacity(records.len())
+        } else {
+            Vec::with_capacity(0)
+        };
+        let mut comments: Vec<String> = if parser_options.include_comment {
+            Vec::with_capacity(records.len())
+        } else {
+            Vec::with_capacity(0)
+        };
         for record in records {
             names.push(record.name().to_string());
             sequences.push(record.seq().to_string());
@@ -506,7 +554,7 @@ impl<'a> TableLike<'a> for Fastq {
             }
         }
 
-        let mut cols = Vec::new();
+        let mut cols = Vec::with_capacity(4);
         cols.push(Column::new("name".into(), &names));
         if !comments.is_empty() {
             cols.push(Column::new("comm".into(), &comments));

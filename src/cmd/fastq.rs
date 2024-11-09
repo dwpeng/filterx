@@ -89,13 +89,59 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
             let writer = vm.writer.as_mut().unwrap();
             let df = vm.source.into_df()?;
             let cols = df.get_columns();
+            let name_col = cols.iter().position(|x| x.name() == "name");
+            let seq_col = cols.iter().position(|x| x.name() == "seq");
+            let qual_col = cols.iter().position(|x| x.name() == "qual");
+
+            if name_col.is_none() {
+                let h = &mut vm.hint;
+                h.white("Lost ")
+                    .cyan("'name'")
+                    .white(" column.")
+                    .print_and_exit();
+            }
+
+            if seq_col.is_none() {
+                let h = &mut vm.hint;
+                h.white("Lost ")
+                    .cyan("'seq'")
+                    .white(" column.")
+                    .print_and_exit();
+            }
+
+            if qual_col.is_none() {
+                let h = &mut vm.hint;
+                h.white("Lost ")
+                    .cyan("'qual'")
+                    .white(" column.")
+                    .print_and_exit();
+            }
+
+            let valid_cols;
+            let comm_col = match no_comment {
+                Some(true) => None,
+                _ => cols.iter().position(|x| x.name() == "comm"),
+            };
+
+            if comm_col.is_some() {
+                valid_cols = vec![
+                    name_col.unwrap(),
+                    comm_col.unwrap(),
+                    seq_col.unwrap(),
+                    qual_col.unwrap(),
+                ]
+            } else {
+                valid_cols = vec![name_col.unwrap(), seq_col.unwrap(), qual_col.unwrap()]
+            }
+
             let rows = df.height();
             for i in 0..rows {
-                for col in cols.iter() {
-                    if vm.status.consume_rows >= vm.status.limit_rows {
-                        break 'stop_parse;
-                    }
-                    vm.status.consume_rows += 1;
+                if vm.status.consume_rows >= vm.status.limit_rows {
+                    break 'stop_parse;
+                }
+                vm.status.consume_rows += 1;
+                for col_index in &valid_cols {
+                    let col = &cols[*col_index];
                     match col.name().as_str() {
                         "name" => {
                             let name = col.get(i).unwrap();
@@ -114,7 +160,7 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
                         }
                         "qual" => {
                             let qual = col.get(i).unwrap();
-                            let qual = qual.get_str().unwrap_or("");
+                            let qual = qual.get_str().unwrap_or("space");
                             write!(writer, "+\n{}\n", qual)?;
                         }
                         _ => {
@@ -123,6 +169,7 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
                     }
                 }
             }
+            writer.flush()?;
         }
     }
     Ok(())

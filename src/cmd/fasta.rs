@@ -77,6 +77,7 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
             let df = vm.source.into_df()?;
             let cols = df.get_columns();
             let seq_col = cols.iter().position(|x| x.name() == "seq");
+            let name_col = cols.iter().position(|x| x.name() == "name");
             if seq_col.is_none() {
                 let h = &mut vm.hint;
                 h.white("Lost ")
@@ -84,7 +85,6 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
                     .white(" column.")
                     .print_and_exit();
             }
-            let name_col = cols.iter().position(|x| x.name() == "name");
             if name_col.is_none() {
                 let h = &mut vm.hint;
                 h.white("Lost ")
@@ -92,11 +92,14 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
                     .white(" column.")
                     .print_and_exit();
             }
-
-            let comm_col = cols.iter().position(|x| x.name() == "comm");
             let cols = df.get_columns();
             let seq_col = seq_col.unwrap();
             let name_col = name_col.unwrap();
+
+            let comm_col = match no_comment{
+                Some(true) => None,
+                _ => cols.iter().position(|x| x.name() == "comm")
+            };
 
             let valid_cols;
             if comm_col.is_some() {

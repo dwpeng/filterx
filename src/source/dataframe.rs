@@ -47,7 +47,7 @@ impl Source {
     pub fn index2column(&self, index: usize) -> String {
         if self.has_header {
             if self.init_column_names.len() > index {
-                return self.init_column_names[index-1].clone();
+                return self.init_column_names[index - 1].clone();
             }
             let mut h = Hint::new();
             h.white("Have ")

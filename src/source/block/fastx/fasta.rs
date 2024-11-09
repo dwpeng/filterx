@@ -23,6 +23,15 @@ impl Default for FastaRecordParserOptions {
 
 pub struct FastaSource {
     pub fasta: Fasta,
+    pub records: Vec<FastaRecord>,
+}
+
+impl Drop for FastaSource {
+    fn drop(&mut self) {
+        unsafe {
+            self.records.set_len(self.records.capacity());
+        }
+    }
 }
 
 impl FastaSource {
@@ -30,26 +39,42 @@ impl FastaSource {
         let fasta = Fasta::from_path(path)?;
         let opt = FastaRecordParserOptions { include_comment };
         let fasta = fasta.set_parser_options(opt);
-        Ok(FastaSource { fasta })
+        let records = vec![FastaRecord::default(); 4096];
+        Ok(FastaSource { fasta, records })
     }
 
     pub fn into_dataframe(&mut self, n: usize) -> FilterxResult<Option<DataFrame>> {
-        let mut records = Vec::with_capacity(n);
+        let records = &mut self.records;
+        if records.capacity() < n {
+            // push new record
+            for _ in records.capacity()..=n {
+                records.push(FastaRecord::default());
+            }
+        }
+        unsafe {
+            records.set_len(n);
+        }
         let mut count = 0;
         while let Some(record) = self.fasta.parse_next()? {
-            let r = record.clone();
-            records.push(r);
+            let r = unsafe { records.get_unchecked_mut(count) };
+            r.clear();
+            r.buffer.extend_from_slice(&record.buffer);
+            r._name = record._name;
+            r._sequence = record._sequence;
+            r._comment = record._comment;
             count += 1;
-
             if count >= n {
                 break;
             }
+        }
+        unsafe {
+            records.set_len(count);
         }
         if records.is_empty() {
             return Ok(None);
         }
 
-        let df = Fasta::as_dataframe(records, &self.fasta.parser_options)?;
+        let df = Fasta::as_dataframe(&records, &self.fasta.parser_options)?;
         Ok(Some(df))
     }
 
@@ -68,12 +93,23 @@ pub struct Fasta {
     pub record_type: FastaRecordType,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct FastaRecord {
     buffer: Vec<u8>,
     _name: (usize, usize),
     _comment: (usize, usize),
     _sequence: (usize, usize),
+}
+
+impl Default for FastaRecord {
+    fn default() -> Self {
+        FastaRecord {
+            buffer: Vec::with_capacity(128),
+            _name: (0, 0),
+            _comment: (0, 0),
+            _sequence: (0, 0),
+        }
+    }
 }
 
 impl FastaRecord {
@@ -190,7 +226,7 @@ impl Clone for Fasta {
     }
 }
 
-impl<'a> TableLike<'a> for Fasta {
+impl TableLike for Fasta {
     type Table = Fasta;
     type Record = FastaRecord;
     type ParserOptions = FastaRecordParserOptions;
@@ -219,7 +255,7 @@ impl<'a> TableLike<'a> for Fasta {
         Ok(())
     }
 
-    fn parse_next(&'a mut self) -> FilterxResult<Option<&'a mut FastaRecord>> {
+    fn parse_next(&mut self) -> FilterxResult<Option<&mut FastaRecord>> {
         if self.read_end {
             return Ok(None);
         }
@@ -337,7 +373,7 @@ impl<'a> TableLike<'a> for Fasta {
             polars::prelude::Column::new("seq".into(), sequences),
         ]);
         if !comments.is_empty() {
-            cols.push(polars::prelude::Column::new("comment".into(), comments));
+            cols.push(polars::prelude::Column::new("comm".into(), comments));
         }
         let df = polars::prelude::DataFrame::new(cols)?;
 
@@ -345,12 +381,17 @@ impl<'a> TableLike<'a> for Fasta {
     }
 
     fn as_dataframe(
-        records: Vec<FastaRecord>,
+        records: &Vec<FastaRecord>,
         parser_options: &Self::ParserOptions,
     ) -> crate::error::FilterxResult<polars::prelude::DataFrame> {
-        let mut headers: Vec<String> = Vec::new();
-        let mut sequences: Vec<String> = Vec::new();
-        let mut comments: Vec<String> = Vec::new();
+        let mut headers: Vec<String> = Vec::with_capacity(records.len());
+        let mut sequences: Vec<String> = Vec::with_capacity(records.len());
+        let mut comments: Vec<String> = if parser_options.include_comment {
+            Vec::with_capacity(records.len())
+        } else {
+            Vec::with_capacity(0)
+        };
+
         for record in records {
             headers.push(record.name().into());
             sequences.push(record.seq().into());
@@ -362,14 +403,14 @@ impl<'a> TableLike<'a> for Fasta {
                 }
             }
         }
-        let mut cols = vec![
-            polars::prelude::Column::new("name".into(), headers),
-            polars::prelude::Column::new("seq".into(), sequences),
-        ];
+
+        let mut cols = Vec::with_capacity(3);
+        cols.push(polars::prelude::Column::new("name".into(), headers));
         if comments.len() > 0 {
-            cols.push(polars::prelude::Column::new("comment".into(), comments));
+            cols.push(polars::prelude::Column::new("comm".into(), comments));
         }
-        let df = polars::prelude::DataFrame::new(cols)?;
+        cols.push(polars::prelude::Column::new("seq".into(), sequences));
+        let df = DataFrame::new(cols)?;
         Ok(df)
     }
 }

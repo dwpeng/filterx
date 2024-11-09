@@ -128,7 +128,6 @@ pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
     let fmt = df.column("fmt").unwrap();
     let writer = vm.writer.as_mut().unwrap();
     let writer = writer.as_mut();
-    println!("limit: {}, consume: {}", vm.status.limit_rows, vm.status.consume_rows);
     if vm.status.consume_rows >= vm.status.limit_rows {
         return Ok(value::Value::None);
     }
