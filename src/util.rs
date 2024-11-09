@@ -128,11 +128,18 @@ pub fn mock_lazy_df() -> LazyFrame {
 pub fn create_buffer_writer(path: Option<String>) -> FilterxResult<BufWriter<Box<dyn Write>>> {
     let writer: Box<dyn Write>;
     if let Some(path) = path {
-        writer = Box::new(File::create(path)?);
+        if path.ends_with(".gz") {
+            writer = Box::new(flate2::write::GzEncoder::new(
+                File::create(path)?,
+                flate2::Compression::default(),
+            ));
+        } else {
+            writer = Box::new(File::create(path)?);
+        }
     } else {
         writer = Box::new(std::io::stdout());
     }
-    Ok(BufWriter::new(writer))
+    Ok(BufWriter::with_capacity(8192 * 16, writer))
 }
 
 #[inline]
@@ -206,12 +213,7 @@ pub fn write_df(
     headers: Option<Vec<String>>,
     null_value: Option<&str>,
 ) -> FilterxResult<()> {
-    let mut writer: Box<dyn Write>;
-    if let Some(output) = output {
-        writer = Box::new(File::create(output)?);
-    } else {
-        writer = Box::new(std::io::stdout());
-    }
+    let mut writer = create_buffer_writer(output.map(|x| x.to_string()))?;
     if headers.is_some() {
         let headers = headers.unwrap();
         for line in headers {

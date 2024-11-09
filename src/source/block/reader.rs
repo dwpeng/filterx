@@ -60,12 +60,12 @@ impl TableLikeReader {
 
         if gzip {
             Ok(TableLikeReader::GZIP(TableLikeReaderInner {
-                _reader: BufReader::new(GzDecoder::new(f)),
+                _reader: BufReader::with_capacity(8192 * 16, GzDecoder::new(f)),
                 _path: path.into(),
             }))
         } else {
             Ok(TableLikeReader::PLAIN(TableLikeReaderInner {
-                _reader: BufReader::new(f),
+                _reader: BufReader::with_capacity(8192 * 16, f),
                 _path: path.into(),
             }))
         }
