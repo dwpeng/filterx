@@ -451,12 +451,11 @@ fn str_in_col<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Filt
         _ => unreachable!(),
     };
 
+    let e = col(right_col).str().contains(left_str.lit(), true);
+
     let e = match op {
-        CmpOp::In => col(right_col).str().contains(left_str.lit(), true),
-        CmpOp::NotIn => col(right_col)
-            .str()
-            .contains(left_str.lit(), true)
-            .eq(false),
+        CmpOp::In => e.eq(true.lit()),
+        CmpOp::NotIn => e.eq(false.lit()),
         _ => {
             let h = &mut vm.hint;
             h.white("Only support in/not in for string")
