@@ -2,6 +2,7 @@ use polars::prelude::*;
 
 use crate::hint::Hint;
 use crate::FilterxResult;
+use regex::Regex;
 
 pub struct Source {
     pub lazy: LazyFrame,
@@ -45,6 +46,10 @@ impl Source {
     }
 
     pub fn index2column(&self, index: usize) -> String {
+        if index == 0 {
+            let mut h = Hint::new();
+            h.white("while using `col` function, column index should be positive integer and start from 1.").print_and_exit();
+        }
         if self.has_header {
             if self.init_column_names.len() > index {
                 return self.init_column_names[index - 1].clone();
@@ -176,7 +181,22 @@ impl Source {
         self.update(lazy);
     }
 
-    pub fn has_column(&self, name: &str) -> bool {
-        self.ret_column_names.contains(&name.to_string())
+    pub fn has_column(&self, name: &str) -> () {
+        let ret = self.ret_column_names.contains(&name.to_string());
+        if !ret {
+            let re = Regex::new(name).unwrap();
+            for c in &self.ret_column_names {
+                if re.is_match(c) {
+                    return;
+                }
+            }
+            let mut h = Hint::new();
+            h.white("Column ")
+                .cyan(name)
+                .white(" not found. Valid columns: ")
+                .green(&self.ret_column_names.join(", "))
+                .print_and_exit();
+        }
+        ()
     }
 }
