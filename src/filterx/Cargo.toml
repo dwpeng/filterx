@@ -1,0 +1,15 @@
+[package]
+name = "filterx"
+version = { workspace = true }
+authors = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+clap = { workspace = true }
+polars = { workspace = true }
+filterx_core = { workspace = true }
+filterx_source = { workspace = true }
+filterx_engine = { workspace = true }

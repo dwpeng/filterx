@@ -1,17 +1,27 @@
-[package]
-name = "filterx"
+[workspace]
+resolver = "2"
+members = [
+    "src/filterx",
+    "src/filterx_core",
+    "src/filterx_engine",
+    "src/filterx_source",
+]
+
+[workspace.package]
+authors = ["dwpeng"]
 version = "0.2.5"
 edition = "2021"
 description = "A simple command line tool to filter data using a python-like syntax"
 license = "MIT"
 repository = "https://github.com/dwpeng/filterx"
 homepage = "https://github.com/dwpeng/filterx"
-exclude = [
-    "spec/",
-    "docs/",
-]
+exclude = ["spec/", "docs/"]
 
-[dependencies]
+[workspace.dependencies]
+filterx = { path = "src/filterx" }
+filterx_core = { path = "src/filterx_core" }
+filterx_engine = { path = "src/filterx_engine" }
+filterx_source = { path = "src/filterx_source" }
 anyhow = "1.0.89"
 clap = { version = "4.5.17", features = ["derive"] }
 polars = { version = "0.44.2", default-features = false, features = [
@@ -33,7 +43,7 @@ polars = { version = "0.44.2", default-features = false, features = [
     "decompress",
     "describe",
     "fmt",
-    "fmt_no_tty"
+    "fmt_no_tty",
 ] }
 rustpython-parser = "0.4.0"
 thiserror = "2.0.0"

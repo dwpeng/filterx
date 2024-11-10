@@ -734,15 +734,46 @@ checksum = "95765f67b4b18863968b4a1bd5bb576f732b29a4a28c7cd84c09fa3e2875f33c"
 name = "filterx"
 version = "0.2.5"
 dependencies = [
- "anyhow",
  "clap",
+ "filterx_core",
+ "filterx_engine",
+ "filterx_source",
+ "polars",
+]
+
+[[package]]
+name = "filterx_core"
+version = "0.2.5"
+dependencies = [
+ "anyhow",
  "colored",
  "flate2",
+ "polars",
+ "rustpython-parser",
+ "thiserror 2.0.0",
+]
+
+[[package]]
+name = "filterx_engine"
+version = "0.2.5"
+dependencies = [
+ "clap",
+ "filterx_core",
+ "filterx_source",
  "lazy_static",
  "polars",
  "regex",
  "rustpython-parser",
- "thiserror 2.0.0",
+]
+
+[[package]]
+name = "filterx_source"
+version = "0.2.5"
+dependencies = [
+ "filterx_core",
+ "flate2",
+ "polars",
+ "regex",
 ]
 
 [[package]]
