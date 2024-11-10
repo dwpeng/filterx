@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::str::FromStr;
 
 use crate::hint::Hint;
 use crate::source::Source;
@@ -63,23 +62,34 @@ pub enum VmSourceType {
     Gxf,
 }
 
-impl FromStr for VmSourceType {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "csv" => Ok(VmSourceType::Csv),
-            "fasta" => Ok(VmSourceType::Fasta),
-            "fastq" => Ok(VmSourceType::Fastq),
-            "vcf" => Ok(VmSourceType::Vcf),
-            "sam" => Ok(VmSourceType::Sam),
-            "gtf" => Ok(VmSourceType::Gxf),
-            "gff" => Ok(VmSourceType::Gxf),
-            "gff3" => Ok(VmSourceType::Gxf),
-            _ => Err(()),
+impl Into<&str> for VmSourceType {
+    fn into(self) -> &'static str {
+        match self {
+            VmSourceType::Csv => "csv",
+            VmSourceType::Fasta => "fasta",
+            VmSourceType::Fastq => "fastq",
+            VmSourceType::Vcf => "vcf",
+            VmSourceType::Sam => "sam",
+            VmSourceType::Gxf => "gxf",
         }
     }
 }
+
+impl From<&str> for VmSourceType 
+{
+    fn from(s: &str) -> Self {
+        match s {
+            "csv" => VmSourceType::Csv,
+            "fasta" => VmSourceType::Fasta,
+            "fastq" => VmSourceType::Fastq,
+            "vcf" => VmSourceType::Vcf,
+            "sam" => VmSourceType::Sam,
+            "gxf" => VmSourceType::Gxf,
+            _ => panic!("Invalid source type"),
+        }
+    }
+}
+
 
 pub struct Vm {
     /// eval_expr
@@ -151,14 +161,8 @@ impl Vm {
         Ok(asts)
     }
 
-    pub fn eval_once(&mut self, expr: &str) -> FilterxResult<()> {
-        // split the expr by ;
-        if expr.is_empty() {
-            return Ok(());
-        }
-        // check ast process
+    pub fn valid_exprs(&mut self, expr: &str) -> FilterxResult<bool> {
         let exprs: Vec<&str> = expr.split(";").collect();
-
         for expr in exprs.clone() {
             if expr.is_empty() {
                 continue;
@@ -188,6 +192,16 @@ impl Vm {
                 }
             }
         }
+        Ok(true)
+    }
+
+    pub fn eval_once(&mut self, expr: &str) -> FilterxResult<()> {
+        // split the expr by ;
+        if expr.is_empty() {
+            return Ok(());
+        }
+        // check ast process
+        let exprs: Vec<&str> = expr.split(";").collect();
 
         for expr in exprs {
             if expr.is_empty() {
