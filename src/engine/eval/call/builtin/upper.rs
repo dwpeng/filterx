@@ -9,28 +9,16 @@ pub fn upper<'a>(
 ) -> FilterxResult<value::Value> {
     expect_args_len(args, 1)?;
 
-    let pass = check_types!(&args[0], Name, Call);
-    if !pass {
-        let h = &mut vm.hint;
-        h.white("upper: expected a column name as first argument")
-            .print_and_exit();
-    }
-
-    let col_name = eval!(vm, &args[0], Name, Call, UnaryOp);
-
-    let col_name = match col_name {
-        value::Value::Item(c) => c.col_name,
-        value::Value::Name(n) => n.name,
-        _ => {
-            let h = &mut vm.hint;
-            h.white("upper: expected a column name as first argument")
-                .print_and_exit();
-        }
-    };
-
+    let col_name = eval_col!(
+        vm,
+        &args[0],
+        "upper: expected a column name as first argument"
+    );
+    let col_name = col_name.column()?;
+    vm.source.has_column(col_name);
     if inplace {
         vm.source
-            .with_column(col(&col_name).str().to_uppercase().alias(&col_name), None);
+            .with_column(col(col_name).str().to_uppercase().alias(col_name), None);
         return Ok(value::Value::None);
     }
 

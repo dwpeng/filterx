@@ -39,26 +39,16 @@ pub fn revcomp<'a>(
 ) -> FilterxResult<value::Value> {
     expect_args_len(args, 1)?;
 
-    let pass = check_types!(&args[0], Name, Call);
-    if !pass {
-        let h = &mut vm.hint;
-        h.white("revcomp: expected a column name as first argument")
-            .print_and_exit();
-    }
-
-    let col_name = eval!(vm, &args[0], Name, Call);
-    let col_name = match col_name {
-        value::Value::Item(c) => c.col_name,
-        value::Value::Name(n) => n.name,
-        _ => {
-            let h = &mut vm.hint;
-            h.white("revcomp: expected a column name as first argument")
-                .print_and_exit();
-        }
-    };
-    let e = col(&col_name).map(compute_revcomp, GetOutput::same_type());
+    let col_name = eval_col!(
+        vm,
+        &args[0],
+        "revcomp: expected a column name as first argument"
+    );
+    let col_name = col_name.column()?;
+    vm.source.has_column(col_name);
+    let e = col(col_name).map(compute_revcomp, GetOutput::same_type());
     if inplace {
-        vm.source.with_column(e.clone().alias(&col_name), None);
+        vm.source.with_column(e.clone().alias(col_name), None);
         return Ok(value::Value::None);
     }
     return Ok(value::Value::Expr(e));

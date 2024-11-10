@@ -5,38 +5,10 @@ pub fn sort(vm: &mut Vm, args: &Vec<ast::Expr>, incr: bool) -> FilterxResult<val
     let mut cols = Vec::new();
 
     for arg in args {
-        let pass = check_types!(arg, Name, Call);
-        if !pass {
-            let h = &mut vm.hint;
-            h.white("sort: expected column(s) name as argument(s)")
-                .print_and_exit();
-        }
-    }
-
-    for arg in args {
-        let v = eval!(vm, arg, Name, Call);
-        let col = match v {
-            value::Value::Int(i) => {
-                if i >= 0 {
-                    vm.source.index2column(i as usize)
-                } else {
-                    let h = &mut vm.hint;
-                    h.white(
-                        "while using number index, column index should be positive integer and start from 1."
-                    )
-                    .print_and_exit();
-                }
-            }
-            value::Value::Str(s) => s,
-            value::Value::Item(c) => c.col_name,
-            value::Value::Name(c) => c.name,
-            _ => {
-                let h = &mut vm.hint;
-                h.white("sort: expected a column(s) name as argument(s)")
-                    .print_and_exit();
-            }
-        };
-        cols.push(col);
+        let v = eval_col!(vm, arg, "sort: expected column(s) name as argument(s)");
+        let col = v.column()?;
+        vm.source.has_column(col);
+        cols.push(col.to_string());
     }
 
     let lazy = vm.source.lazy();

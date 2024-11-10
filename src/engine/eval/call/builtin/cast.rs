@@ -1,6 +1,5 @@
-use polars::prelude::DataType;
-
 use super::*;
+use polars::prelude::{col, DataType};
 
 pub fn cast<'a>(
     vm: &'a mut Vm,
@@ -9,16 +8,13 @@ pub fn cast<'a>(
     inplace: bool,
 ) -> FilterxResult<value::Value> {
     expect_args_len(args, 1)?;
-
-    let pass = check_types!(&args[0], Name, Call);
-    if !pass {
-        let h = &mut vm.hint;
-        h.white("cast: expected a column name as first argument")
-            .print_and_exit();
-    }
-
-    let col_name = eval!(vm, &args[0], Name, Call);
-    let col_name = col_name.expr()?;
+    let col_name = eval_col!(
+        vm,
+        &args[0],
+        "cast: expected a column name as first argument",
+    );
+    let col_name = col_name.column()?;
+    vm.source.has_column(col_name);
     let new_type = match new_type.to_lowercase().as_str() {
         "int" => DataType::Int32,
         "float" => DataType::Float32,
@@ -43,10 +39,9 @@ pub fn cast<'a>(
         }
     };
 
-    let e = col_name.cast(new_type);
-
+    let e = col(col_name).cast(new_type);
     if inplace {
-        vm.source.with_column(e, None);
+        vm.source.with_column(e.alias(col_name), None);
         return Ok(value::Value::None);
     }
 

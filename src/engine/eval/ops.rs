@@ -10,15 +10,17 @@ use crate::util;
 
 use crate::engine::eval::Eval;
 use crate::engine::vm::Vm;
-use crate::{check_types, eval};
+use crate::eval;
 use crate::{FilterxError, FilterxResult};
 
 impl<'a> Eval<'a> for ast::ExprUnaryOp {
     type Output = Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
-        if !check_types!(self.operand.deref(), Constant, Call, UnaryOp, Name, BinOp) {
-            let h = &mut vm.hint;
-            h.white("only support constant, call, unaryop, name, BinOp, ")
+        let v = eval!(
+            vm,
+            self.operand.deref(),
+            vm.hint
+                .white("only support constant, call, unaryop, name, BinOp, ")
                 .white("example: ")
                 .cyan("-1")
                 .white(", ")
@@ -29,11 +31,13 @@ impl<'a> Eval<'a> for ast::ExprUnaryOp {
                 .cyan("-gc(seq)")
                 .next_line()
                 .white("Got: ")
-                .red(&format!("{:?}", self.operand.deref()))
-                .print_and_exit();
-        }
+                .red(&format!("{:?}", self.operand.deref())),
+            Constant,
+            Call,
+            UnaryOp,
+            Name
+        );
 
-        let v = eval!(vm, self.operand.deref(), Constant, Call, UnaryOp, Name);
         match self.op {
             ast::UnaryOp::Invert | ast::UnaryOp::Not | ast::UnaryOp::UAdd => {
                 let h = &mut vm.hint;
@@ -96,17 +100,26 @@ fn unary(v: Value, _op: ast::UnaryOp) -> FilterxResult<Value> {
 impl<'a> Eval<'a> for ast::ExprBinOp {
     type Output = Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
-        let pass = check_types!(self.left.deref(), Constant, Call, UnaryOp, Name, BinOp)
-            && check_types!(self.right.deref(), Constant, Call, UnaryOp, Name, BinOp);
-
-        if !pass {
-            let h = &mut vm.hint;
-            h.white("Only support constant and constant, column and constant, column and column")
-                .print_and_exit();
-        }
-
-        let l = eval!(vm, self.left.deref(), Constant, Call, UnaryOp, Name, BinOp);
-        let r = eval!(vm, self.right.deref(), Constant, Call, UnaryOp, Name, BinOp);
+        let l = eval!(
+            vm,
+            self.left.deref(),
+            "Only support constant and constant, column and constant, column and column",
+            Constant,
+            Call,
+            UnaryOp,
+            Name,
+            BinOp
+        );
+        let r = eval!(
+            vm,
+            self.right.deref(),
+            "Only support constant and constant, column and constant, column and column",
+            Constant,
+            Call,
+            UnaryOp,
+            Name,
+            BinOp
+        );
 
         match self.op {
             ast::Operator::Add
@@ -284,15 +297,21 @@ impl<'a> Eval<'a> for ast::ExprBoolOp {
         let vm_apply_lazy = vm.status.apply_lazy;
         vm.status.update_apply_lazy(false);
 
-        let pass = check_types!(left, Compare, BoolOp) && check_types!(self.values[1], Compare);
-        if !pass {
-            let h = &mut vm.hint;
-            h.white("Only support chain compare, like a > 1 and a < 2")
-                .print_and_exit();
-        }
-        let left = eval!(vm, left, Compare, BoolOp);
+        let left = eval!(
+            vm,
+            left,
+            "Only support chain compare, like a > 1 and a < 2",
+            Compare,
+            BoolOp
+        );
         let right = &self.values[1];
-        let right = eval!(vm, right, Compare, BoolOp);
+        let right = eval!(
+            vm,
+            right,
+            "Only support chain compare, like a > 1 and a < 2",
+            Compare,
+            BoolOp
+        );
         vm.status.update_apply_lazy(vm_apply_lazy);
 
         boolop_in_dataframe(vm, &left, &right, self.op.clone())
@@ -352,46 +371,17 @@ impl<'a> Eval<'a> for ast::ExprCompare {
                 .print_and_exit();
         }
 
-        let pass = check_types!(
-            self.left.deref(),
-            Constant,
-            Call,
-            UnaryOp,
-            BinOp,
-            BoolOp,
-            Name
-        );
-
-        if !pass {
-            let h = &mut vm.hint;
-            h.white("In `in` compare, left must be column, or string constant, ")
-                .white("example: ")
-                .cyan("'a' in a")
-                .white(", ")
-                .cyan("a in (1, 2, 3)")
-                // .white(", ")
-                // .cyan("a in file('path')")
-                .print_and_exit();
-        }
-
         let right = &self.comparators[0];
-        let pass = check_types!(right, Constant, Call, UnaryOp, BinOp, BoolOp, Name, Tuple);
-
-        if !pass {
-            let h = &mut vm.hint;
-            h.white("In `in` compare, right must be column, or constant, ")
-                .white("example: ")
-                .cyan("'a' in a")
-                .white(", ")
-                .cyan("a in (1, 2, 3)")
-                // .white(", ")
-                // .cyan("a in file('path')")
-                .print_and_exit();
-        }
 
         let left = eval!(
             vm,
             self.left.deref(),
+            vm.hint
+                .white("In `in` compare, left must be column, or string constant, ")
+                .white("example: ")
+                .cyan("'a' in a")
+                .white(", ")
+                .cyan("a in (1, 2, 3)"),
             Constant,
             Call,
             UnaryOp,
@@ -400,7 +390,23 @@ impl<'a> Eval<'a> for ast::ExprCompare {
             Name
         );
         let op = &self.ops[0];
-        let right = eval!(vm, right, Constant, Call, UnaryOp, BinOp, BoolOp, Name, Tuple);
+        let right = eval!(
+            vm,
+            right,
+            vm.hint
+                .white("In `in` compare, right must be column, or constant, ")
+                .white("example: ")
+                .cyan("'a' in a")
+                .white(", ")
+                .cyan("a in (1, 2, 3)"),
+            Constant,
+            Call,
+            UnaryOp,
+            BinOp,
+            BoolOp,
+            Name,
+            Tuple
+        );
         compare_in_datarame(vm, left, right, op)
     }
 }

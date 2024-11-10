@@ -1,5 +1,5 @@
 use super::*;
-use polars::prelude::Expr;
+use polars::prelude::{col, Literal};
 use value::Value;
 
 pub fn fill<'a>(
@@ -9,36 +9,23 @@ pub fn fill<'a>(
 ) -> FilterxResult<value::Value> {
     expect_args_len(args, 2)?;
 
-    let pass = check_types!(&args[0], Name, Call);
-    if !pass {
-        let h = &mut vm.hint;
-        h.white("fill: expected a column name as first argument")
-            .print_and_exit();
-    }
-
-    let pass = check_types!(&args[1], Constant);
-    if !pass {
-        let h = &mut vm.hint;
-        h.white("fill: expected a constant value as second argument")
-            .print_and_exit();
-    }
-
-    let col_name = eval!(vm, &args[0], Name, Call);
-    let col_name = col_name.expr()?;
-    let const_value = eval!(vm, &args[1], Constant).expr()?;
-    match const_value {
-        Expr::Literal(_) => {}
-        _ => {
-            let h = &mut vm.hint;
-            h.white("fill: expected a constant value as second argument")
-                .print_and_exit();
-        }
-    }
-    let e = col_name.fill_null(const_value);
-
+    let col_name = eval_col!(
+        vm,
+        &args[0],
+        "fill: expected a column name as first argument"
+    );
+    let const_value = eval!(
+        vm,
+        &args[1],
+        "fill: expected a constant value as second argument",
+        Constant
+    );
+    let col_name = col_name.column()?;
+    vm.source.has_column(col_name);
+    let e = col(col_name).fill_null(const_value.lit());
     if inplace {
         let lazy = &mut vm.source;
-        lazy.with_column(e, None);
+        lazy.with_column(e.alias(col_name), None);
         return Ok(Value::None);
     }
     Ok(Value::Expr(e))

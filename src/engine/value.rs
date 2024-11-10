@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use crate::{FilterxError, FilterxResult};
+use crate::{hint::Hint, FilterxError, FilterxResult};
 use polars::prelude::*;
 use rustpython_parser::ast::bigint::{BigInt, Sign};
 
@@ -157,6 +157,22 @@ impl Value {
             _ => Err(FilterxError::RuntimeError(
                 "Only Int can convert to u32".into(),
             )),
+        }
+    }
+
+    pub fn column<'a>(&'a self) -> FilterxResult<&'a str> {
+        match self {
+            Value::Item(c) => Ok(c.col_name.as_str()),
+            Value::Name(n) => Ok(n.name.as_str()),
+            Value::Str(s) => Ok(s.as_str()),
+            _ => {
+                let mut h = Hint::new();
+                h.white("Expected the following types as a column name: ")
+                    .cyan("name, string")
+                    .white(" or ")
+                    .cyan("function which returns a column name")
+                    .print_and_exit();
+            }
         }
     }
 

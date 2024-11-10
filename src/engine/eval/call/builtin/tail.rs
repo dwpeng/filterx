@@ -3,14 +3,12 @@ use super::*;
 pub fn tail(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     expect_args_len(args, 1)?;
 
-    let pass = check_types!(&args[0], Constant);
-    if !pass {
-        let h = &mut vm.hint;
-        h.white("tail: expected a non-negative number as first argument")
-            .print_and_exit();
-    }
-
-    let n = eval!(vm, &args[0], Constant, UnaryOp);
+    let n = eval!(
+        vm,
+        &args[0],
+        "tail: expected a non-negative number as first argument",
+        Constant
+    );
 
     let nrow = match n {
         value::Value::Int(i) => {

@@ -16,7 +16,10 @@ lazy_static! {
     static ref REGEX_VARNAME: Regex = Regex::new(r"^[_a-zA-Z]+[a-zA-Z_0-9]*$").unwrap();
 }
 
-fn parse_format_string(s: &str) -> FilterxResult<(String, Option<Vec<Expr>>)> {
+fn parse_format_string(
+    valid_names: Option<&Vec<String>>,
+    s: &str,
+) -> FilterxResult<(String, Option<Vec<Expr>>)> {
     // value: "xxxxx"  ->  "xxxxx"
     // value: "xxx_{seq}" ->  "xxx_{}" and col("seq")
     // value: "xxx_{seq}_{seq}" -> "xxx_{}_{}" and col("seq"), col("seq")
@@ -36,6 +39,9 @@ fn parse_format_string(s: &str) -> FilterxResult<(String, Option<Vec<Expr>>)> {
     let fmt = re.replace_all(s, "{}").to_string();
     let mut cols = Vec::new();
     let mut vm = Vm::from_dataframe(Source::new(DataFrame::empty().lazy()));
+    if let Some(valid_names) = valid_names {
+        vm.source.set_init_column_names(valid_names);
+    }
     for cap in re.captures_iter(s) {
         let item = cap.get(1).unwrap().as_str();
         if item.is_empty() {
@@ -44,6 +50,8 @@ fn parse_format_string(s: &str) -> FilterxResult<(String, Option<Vec<Expr>>)> {
             ));
         }
         if REGEX_VARNAME.is_match(item) {
+            // recheck columns name
+            vm.source.has_column(item);
             cols.push(col(item));
             continue;
         }
@@ -66,7 +74,7 @@ fn test_parse_format_string() {
     use polars::prelude::col;
 
     let s = "xxx_{seq}";
-    let (fmt, cols) = parse_format_string(s).unwrap();
+    let (fmt, cols) = parse_format_string(None, s).unwrap();
     assert_eq!(fmt, "xxx_{}");
     assert!(cols.is_some());
     let cols = cols.unwrap();
@@ -74,7 +82,7 @@ fn test_parse_format_string() {
     assert_eq!(cols[0], col("seq"));
 
     let s = "xxx_{seq}_{seq}";
-    let (fmt, cols) = parse_format_string(s).unwrap();
+    let (fmt, cols) = parse_format_string(None, s).unwrap();
     assert_eq!(fmt, "xxx_{}_{}");
     assert!(cols.is_some());
     let cols = cols.unwrap();
@@ -83,12 +91,12 @@ fn test_parse_format_string() {
     assert_eq!(cols[1], col("seq"));
 
     let s = "xxx";
-    let (fmt, cols) = parse_format_string(s).unwrap();
+    let (fmt, cols) = parse_format_string(None, s).unwrap();
     assert_eq!(fmt, "xxx");
     assert!(cols.is_none());
 
     let s = "xxx{len(seq)}";
-    let (fmt, cols) = parse_format_string(s).unwrap();
+    let (fmt, cols) = parse_format_string(None, s).unwrap();
     assert_eq!(fmt, "xxx{}");
     assert!(cols.is_some());
     let cols = cols.unwrap();
@@ -96,17 +104,19 @@ fn test_parse_format_string() {
     assert_eq!(cols[0], col("seq").str().len_chars());
 }
 
+const FORMAT_COLUMN_NAME: &str = "__@#$fmt__";
+
 pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     expect_args_len(args, 1)?;
-
-    let pass = check_types!(&args[0], Constant);
-    if !pass {
-        let h = &mut vm.hint;
-        h.white("print: expected a string literal or format string expression as first argument")
-            .print_and_exit();
+    if vm.status.consume_rows >= vm.status.limit_rows {
+        return Ok(value::Value::None);
     }
-    let value = eval!(vm, &args[0], Constant);
-
+    let value = eval!(
+        vm,
+        &args[0],
+        "print: expected a string literal or format string expression as first argument",
+        Constant
+    );
     let value = value.text()?;
     // get from cache
     let fmt;
@@ -115,7 +125,7 @@ pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
         fmt = &value.0;
         cols = &value.1;
     } else {
-        let (fmt_, cols_) = parse_format_string(&value)?;
+        let (fmt_, cols_) = parse_format_string(Some(&vm.source.ret_column_names), &value)?;
         let cols_ = cols_.unwrap_or(vec![]);
         vm.expr_cache
             .insert(value.clone(), (fmt_.clone(), cols_.clone()));
@@ -123,27 +133,19 @@ pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
         fmt = &value.0;
         cols = &value.1;
     }
-    vm.source.with_column(format_str(&fmt, &cols)?.alias("fmt"), None);
+    vm.source
+        .with_column(format_str(&fmt, &cols)?.alias(FORMAT_COLUMN_NAME), None);
     let df = vm.source.lazy().collect()?;
-    let fmt = df.column("fmt").unwrap();
-    let writer = vm.writer.as_mut().unwrap();
-    let writer = writer.as_mut();
-    if vm.status.consume_rows >= vm.status.limit_rows {
-        return Ok(value::Value::None);
-    }
+    let fmt = df.column(FORMAT_COLUMN_NAME).unwrap();
+    let writer = vm.writer.as_mut().unwrap().as_mut();
+    let need = vm.status.limit_rows - vm.status.consume_rows;
+    let fmt = fmt.slice(0, usize::min(need, fmt.len()));
     for i in 0..fmt.len() {
         let value = fmt.get(i)?;
-        let s = value.get_str();
-        if s.is_none() {
-            continue;
-        }
-        let s = s.unwrap();
+        let s = value.get_str().unwrap_or("");
         writeln!(writer, "{}", s)?;
-        vm.status.consume_rows += 1;
-        if vm.status.consume_rows >= vm.status.limit_rows {
-            break;
-        }
     }
+    vm.status.consume_rows += fmt.len();
     vm.status.printed = true;
     Ok(value::Value::None)
 }

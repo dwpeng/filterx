@@ -75,8 +75,7 @@ impl Into<&str> for VmSourceType {
     }
 }
 
-impl From<&str> for VmSourceType 
-{
+impl From<&str> for VmSourceType {
     fn from(s: &str) -> Self {
         match s {
             "csv" => VmSourceType::Csv,
@@ -89,7 +88,6 @@ impl From<&str> for VmSourceType
         }
     }
 }
-
 
 pub struct Vm {
     /// eval_expr

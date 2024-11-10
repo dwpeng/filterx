@@ -3,8 +3,8 @@ use std::ops::Deref;
 use super::super::ast;
 use super::super::value::Value;
 
-use crate::check_types;
 use crate::engine::eval::Eval;
+use crate::engine::value;
 use crate::engine::vm::Vm;
 use crate::eval;
 use crate::FilterxResult;
@@ -27,7 +27,19 @@ impl<'a> Eval<'a> for ast::StmtAssign {
         let target = self.targets.first().unwrap();
 
         let pass = match target {
-            ast::Expr::Call(_) => true,
+            ast::Expr::Call(c) => {
+                let function_name = match c.func.as_ref() {
+                    ast::Expr::Name(n) => n.eval(vm)?,
+                    _ => unreachable!(),
+                };
+                match function_name {
+                    value::Value::Name(n) => match n.name.as_str() {
+                        "alias" => true,
+                        _ => false,
+                    },
+                    _ => false,
+                }
+            }
             _ => false,
         };
         if !pass {
@@ -40,27 +52,16 @@ impl<'a> Eval<'a> for ast::StmtAssign {
                 .print_and_exit();
         }
 
-        let new_col = eval!(vm, target, Call);
-
-        let new_col = match new_col {
-            Value::Item(col) => col.col_name,
-            Value::Name(n) => n.name,
-            _ => {
-                let h = &mut vm.hint;
-                h.white("Use")
-                    .cyan(" `alias` ")
-                    .bold()
-                    .white("to create a new column.")
-                    .green(" alias(new_col) = col1 + col2")
-                    .print_and_exit();
-            }
-        };
+        let new_col = eval!(vm, target, "", Call);
+        let new_col_name = new_col.column().unwrap();
 
         let right = self.value.deref();
 
-        if !check_types!(right, Constant, Name, Call, UnaryOp, BinOp) {
-            let h = &mut vm.hint;
-            h.white("While using `alias` to create a new column, valid values are:")
+        let value = eval!(
+            vm,
+            right,
+            vm.hint
+                .white("While using `alias` to create a new column, valid values are:")
                 .next_line()
                 .cyan("1. Constant, like 1 or 'a'")
                 .next_line()
@@ -72,15 +73,23 @@ impl<'a> Eval<'a> for ast::StmtAssign {
                 .next_line()
                 .cyan("5. BinOp, like col1 + col2")
                 .next_line()
-                .next_line()
-                .print_and_exit();
-        }
-
-        let value = eval!(vm, right, Constant, Name, Call, UnaryOp, BinOp);
-
+                .next_line(),
+            Constant,
+            Name,
+            Call,
+            UnaryOp,
+            BinOp
+        );
+        let exist = vm
+            .source
+            .ret_column_names
+            .contains(&new_col_name.to_string());
+        let if_append = match exist {
+            true => Some(new_col_name.into()),
+            false => None,
+        };
         vm.source
-            .with_column(value.expr()?.alias(new_col.clone()), Some(new_col.clone()));
-
+            .with_column(value.expr()?.alias(new_col_name), if_append);
         Ok(Value::None)
     }
 }

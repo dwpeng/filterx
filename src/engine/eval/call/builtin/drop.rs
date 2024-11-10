@@ -4,17 +4,10 @@ pub fn drop<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::V
     let mut drop_columns = vec![];
 
     for arg in args {
-        let pass = check_types!(arg, Name, Call);
-        if !pass {
-            let h = &mut vm.hint;
-            h.white("drop: expected a column name as argument")
-                .print_and_exit();
-        }
-    }
-
-    for arg in args {
-        let col = eval!(vm, arg, Name, Call, UnaryOp);
-        drop_columns.push(col.text()?);
+        let col = eval_col!(vm, arg, "drop: expected a column name as argument");
+        let col = col.column()?;
+        vm.source.has_column(col);
+        drop_columns.push(col.to_string());
     }
 
     vm.source.drop(drop_columns);

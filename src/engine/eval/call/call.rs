@@ -28,10 +28,6 @@ impl<'a> Eval<'a> for ast::ExprCall {
                 let v = a.eval(vm)?;
                 return Ok(v);
             }
-            ast::Expr::Call(c) => {
-                let v = c.eval(vm)?;
-                return Ok(v);
-            }
             _ => unreachable!(),
         };
 

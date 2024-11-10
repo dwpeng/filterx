@@ -6,27 +6,10 @@ pub fn select<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value:
     let mut select_dolumns = vec![];
 
     for arg in args {
-        let pass = check_types!(arg, Name, Call);
-        if !pass {
-            let h = &mut vm.hint;
-            h.white("select: expected a column name as first argument")
-                .print_and_exit();
-        }
-    }
-
-    for arg in args {
-        let col = eval!(vm, arg, Name, Call);
-        let col = match col {
-            value::Value::Item(c) => c.col_name,
-            value::Value::Name(c) => c.name,
-            _ => {
-                let h = &mut vm.hint;
-                h.white("select: expected a column name as first argument")
-                    .print_and_exit();
-            }
-        };
-
-        select_dolumns.push(col);
+        let col = eval_col!(vm, arg, "select: expected a column name as first argument");
+        let col = col.column()?;
+        vm.source.has_column(col);
+        select_dolumns.push(col.into());
     }
 
     if check_repeat(&select_dolumns) {

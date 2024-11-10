@@ -3,13 +3,12 @@ use polars::prelude::{col, lit};
 use super::*;
 
 fn check_number<'a>(vm: &'a mut Vm, n: &ast::Expr) -> FilterxResult<u32> {
-    let pass = check_types!(n, Constant);
-    if !pass {
-        let h = &mut vm.hint;
-        h.white("head: expected a non-negative number as argument")
-            .print_and_exit();
-    }
-    let n = eval!(vm, n, Constant);
+    let n = eval!(
+        vm,
+        n,
+        "head: expected a non-negative number as argument",
+        Constant
+    );
 
     match n {
         value::Value::Int(i) => {
@@ -35,22 +34,13 @@ pub fn slice<'a>(
     args: &Vec<ast::Expr>,
     inplace: bool,
 ) -> FilterxResult<value::Value> {
-    let pass = check_types!(&args[0], Name, Call, UnaryOp);
-    if !pass {
-        let h = &mut vm.hint;
-        h.white("slice: expected a column name as first argument")
-            .print_and_exit();
-    }
-    let col_name = eval!(vm, &args[0], Name, Call, UnaryOp);
-    let col_name = match col_name {
-        value::Value::Name(n) => n.name,
-        value::Value::Item(c) => c.col_name,
-        _ => {
-            let h = &mut vm.hint;
-            h.white("slice: expected a column name as first argument")
-                .print_and_exit();
-        }
-    };
+    let col_name = eval_col!(
+        vm,
+        &args[0],
+        "slice: expected a column name as first argument"
+    );
+    let col_name = col_name.column()?;
+    vm.source.has_column(col_name);
     let length;
     let mut start = 0;
     if args.len() == 2 {
@@ -60,10 +50,10 @@ pub fn slice<'a>(
         length = check_number(vm, &args[2])?;
     }
 
-    let e = col(&col_name).str().slice(lit(start), lit(length));
+    let e = col(col_name).str().slice(lit(start), lit(length));
 
     if inplace {
-        vm.source.with_column(e.alias(&col_name), None);
+        vm.source.with_column(e.alias(col_name), None);
         return Ok(value::Value::None);
     }
 

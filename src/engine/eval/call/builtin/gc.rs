@@ -40,22 +40,9 @@ fn compute_gc(s: Column) -> PolarsResult<Option<Column>> {
 
 pub fn gc<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     expect_args_len(args, 1)?;
-    let pass = check_types!(&args[0], Name, Call);
-    if !pass {
-        let h = &mut vm.hint;
-        h.white("gc: expected a column name as first argument")
-            .print_and_exit();
-    }
-    let col_name = eval!(vm, &args[0], Name, Call);
-    let col_name = match col_name {
-        value::Value::Item(c) => c.col_name,
-        value::Value::Name(n) => n.name,
-        _ => {
-            let h = &mut vm.hint;
-            h.white("gc: expected a column name as first argument")
-                .print_and_exit();
-        }
-    };
+    let col_name = eval_col!(vm, &args[0], "gc: expected a column name as first argument");
+    let col_name = col_name.column()?;
+    vm.source.has_column(col_name);
     let e = col(col_name).map(compute_gc, GetOutput::float_type());
     return Ok(value::Value::Expr(e));
 }
