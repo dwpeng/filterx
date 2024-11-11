@@ -9,9 +9,9 @@ members = [
 
 [workspace.package]
 authors = ["dwpeng"]
-version = "0.2.5"
+version = "0.2.6"
 edition = "2021"
-description = "A simple command line tool to filter data using a python-like syntax"
+description = "A simple command line tool to filter data by using python-like syntax"
 license = "MIT"
 repository = "https://github.com/dwpeng/filterx"
 homepage = "https://github.com/dwpeng/filterx"

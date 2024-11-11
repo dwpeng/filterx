@@ -5,8 +5,8 @@ build-backend = "maturin"
 
 [project]
 name = "filterx"
-version = "0.2.5"
-description = "Add your description here"
+version = "0.2.6"
+description = "A simple command line tool to filter data by using python-like syntax"
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = []
