@@ -86,8 +86,8 @@ impl<'a> Eval<'a> for ast::StmtAssign {
             .ret_column_names
             .contains(&new_col_name.to_string());
         let if_append = match exist {
-            true => Some(new_col_name.into()),
-            false => None,
+            true => None,
+            false => Some(new_col_name.into()),
         };
         vm.source
             .with_column(value.expr()?.alias(new_col_name), if_append);

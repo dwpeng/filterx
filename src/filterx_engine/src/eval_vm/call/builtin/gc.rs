@@ -14,27 +14,31 @@ fn compute_gc(s: Column) -> PolarsResult<Option<Column>> {
             .into(),
         ));
     }
-
-    let s = s.as_series().unwrap();
-
-    let v = s
-        .iter()
-        .map(|seq| {
-            let seq = seq.get_str().unwrap();
-            let mut gc_base = 0;
-            for base in seq.chars() {
-                match base {
-                    'G' | 'C' | 'g' | 'c' => gc_base += 1,
-                    _ => {}
+    let s = s.apply_unary_elementwise(|s| {
+        let v = s
+            .iter()
+            .map(|seq| {
+                let seq = seq.get_str().expect(&format!(
+                    "Cannot compute GC content of this sequence: {}",
+                    s.name()
+                ));
+                let length = seq.len();
+                if length == 0 {
+                    return 0.0;
                 }
-            }
-            if gc_base == 0 {
-                return 0.0;
-            }
-            return gc_base as f32 / seq.len() as f32;
-        })
-        .collect::<Vec<f32>>();
-    Ok(Some(Column::new("gc".into(), v)))
+                let gc = seq
+                    .bytes()
+                    .filter(|c| *c == b'G' || *c == b'C' || *c == b'c' || *c == b'g')
+                    .count();
+                if gc == 0 {
+                    return 0.0;
+                }
+                (gc as f32) / (length as f32)
+            })
+            .collect::<Vec<_>>();
+        Series::new("gc".into(), v)
+    });
+    Ok(Some(s))
 }
 
 pub fn gc<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {

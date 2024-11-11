@@ -8,10 +8,8 @@ use polars::prelude::*;
 fn compute_revcomp(s: Column) -> PolarsResult<Option<Column>> {
     let ca = s.str()?;
     let ca = ca.apply_values(|s| {
-        let s = s.chars().rev().collect::<String>();
-        let s = s
-            .chars()
-            .map(|c| match c {
+        let s: String = s.chars().rev().map(|b| {
+            match b {
                 'A' => 'T',
                 'T' => 'A',
                 'C' => 'G',
@@ -20,9 +18,9 @@ fn compute_revcomp(s: Column) -> PolarsResult<Option<Column>> {
                 't' => 'a',
                 'c' => 'g',
                 'g' => 'c',
-                _ => c,
-            })
-            .collect::<String>();
+                _ => b,
+            }
+        }).collect();
         Cow::Owned(s)
     });
     Ok(Some(ca.into_column()))

@@ -24,7 +24,6 @@ fn parse_format_string(
     // value: "xxx_{seq}" ->  "xxx_{}" and col("seq")
     // value: "xxx_{seq}_{seq}" -> "xxx_{}_{}" and col("seq"), col("seq")
     // value: "xxx{len(seq)} -> "xxx{}" and len(col("seq"))
-
     if s.is_empty() {
         return Err(FilterxError::RuntimeError(
             "Error format string, empty format string".to_string(),
