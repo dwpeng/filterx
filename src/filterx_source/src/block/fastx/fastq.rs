@@ -427,7 +427,11 @@ impl TableLike for Fastq {
             let line = &line_buff[..bytes - break_line_len];
             record.buffer.extend_from_slice(line);
         }
-        record._sequence.1 = record.buffer.len();
+        if self.parser_option.include_qual{
+            record._sequence.1 = record.buffer.len() - 3;
+        }else{
+            record._sequence.1 = record.buffer.len();
+        }
 
         if self.parser_option.include_qual {
             record._qual.0 = record.buffer.len();
