@@ -9,7 +9,7 @@ members = [
 
 [workspace.package]
 authors = ["dwpeng"]
-version = "0.2.6"
+version = "0.2.7"
 edition = "2021"
 description = "A simple command line tool to filter data by using python-like syntax"
 license = "MIT"
@@ -21,7 +21,7 @@ exclude = ["spec/", "docs/"]
 filterx = { path = "src/filterx", version = "0.2.6" }
 filterx_core = { path = "src/filterx_core", version = "0.2.6" }
 filterx_engine = { path = "src/filterx_engine", version = "0.2.6" }
-filterx_source = { path = "src/filterx_source", version = "0.2.6" }
+filterx_source = { path = "src/filterx_source", version = "0.2.7" }
 anyhow = "1.0.89"
 clap = { version = "4.5.17", features = ["derive"] }
 polars = { version = "0.44.2", default-features = false, features = [
