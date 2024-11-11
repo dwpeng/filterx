@@ -6,6 +6,8 @@ homepage = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 edition = { workspace = true }
+description = "The source library for filterx"
+
 
 [dependencies]
 flate2 = { workspace = true }

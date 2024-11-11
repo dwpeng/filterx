@@ -6,6 +6,7 @@ homepage = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 edition = { workspace = true }
+description = "The core library for filterx"
 
 [dependencies]
 polars = { workspace = true }
