@@ -45,6 +45,7 @@ polars = { version = "0.44.2", default-features = false, features = [
     "fmt",
     "fmt_no_tty",
 ] }
+polars-arrow = { version = "0.44.2" }
 rustpython-parser = "0.4.0"
 thiserror = "2.0.0"
 flate2 = { version = "1.0.34", features = ["zlib-rs"] }

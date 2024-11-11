@@ -2,6 +2,34 @@ use super::*;
 use polars::prelude::*;
 
 use polars::prelude::col;
+use polars_arrow::{
+    array::{ArrayRef, Float32Array, Utf8ViewArray},
+    buffer::Buffer,
+    datatypes::ArrowDataType,
+};
+
+fn compute_gc_kernel(array: &Utf8ViewArray) -> ArrayRef {
+    let array = array
+        .values_iter()
+        .map(|seq| {
+            let length = seq.len();
+            if length == 0 {
+                return 0.0;
+            }
+            let gc = seq
+                .bytes()
+                .filter(|c| *c == b'G' || *c == b'C' || *c == b'c' || *c == b'g')
+                .count();
+            if gc == 0 {
+                return 0.0;
+            }
+            (gc as f32) / (length as f32)
+        })
+        .collect::<Vec<_>>();
+    let values: Buffer<_> = array.into();
+    let array = Float32Array::new(ArrowDataType::Float32, values, None);
+    Box::new(array)
+}
 
 fn compute_gc(s: Column) -> PolarsResult<Option<Column>> {
     if !s.dtype().is_string() {
@@ -14,31 +42,12 @@ fn compute_gc(s: Column) -> PolarsResult<Option<Column>> {
             .into(),
         ));
     }
-    let s = s.apply_unary_elementwise(|s| {
-        let v = s
-            .iter()
-            .map(|seq| {
-                let seq = seq.get_str().expect(&format!(
-                    "Cannot compute GC content of this sequence: {}",
-                    s.name()
-                ));
-                let length = seq.len();
-                if length == 0 {
-                    return 0.0;
-                }
-                let gc = seq
-                    .bytes()
-                    .filter(|c| *c == b'G' || *c == b'C' || *c == b'c' || *c == b'g')
-                    .count();
-                if gc == 0 {
-                    return 0.0;
-                }
-                (gc as f32) / (length as f32)
-            })
-            .collect::<Vec<_>>();
-        Series::new("gc".into(), v)
-    });
-    Ok(Some(s))
+    let s = s.as_materialized_series();
+    let s = s.str()?.as_string();
+    let c = s
+        .apply_kernel_cast::<Float32Type>(&compute_gc_kernel)
+        .into_column();
+    Ok(Some(c))
 }
 
 pub fn gc<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {

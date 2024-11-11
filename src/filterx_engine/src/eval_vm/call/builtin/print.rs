@@ -132,8 +132,8 @@ pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
         fmt = &value.0;
         cols = &value.1;
     }
-    vm.source
-        .with_column(format_str(&fmt, &cols)?.alias(FORMAT_COLUMN_NAME), None);
+    let lazy = vm.source.lazy().select([format_str(&fmt, &cols)?.alias(FORMAT_COLUMN_NAME)]);
+    vm.source.update(lazy);
     let df = vm.source.lazy().collect()?;
     let fmt = df.column(FORMAT_COLUMN_NAME).unwrap();
     let writer = vm.writer.as_mut().unwrap().as_mut();

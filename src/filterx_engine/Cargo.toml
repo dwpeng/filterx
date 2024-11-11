@@ -9,6 +9,7 @@ edition = { workspace = true }
 
 [dependencies]
 polars = { workspace = true }
+polars-arrow = { workspace = true }
 rustpython-parser = { workspace = true }
 lazy_static = { workspace = true }
 regex = { workspace = true }
