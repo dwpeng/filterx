@@ -4,7 +4,7 @@ use std::io::BufRead;
 use crate::block::reader::TableLikeReader;
 use crate::block::table_like::TableLike;
 
-use filterx_core::{util, FilterxError, FilterxResult, Hint};
+use filterx_core::{FilterxError, FilterxResult, Hint};
 
 pub struct FastqSource {
     pub fastq: Fastq,
@@ -96,6 +96,7 @@ pub struct Fastq {
     pub parser_option: FastqParserOption,
     record: FastqRecord,
     pub line_buffer: Vec<u8>,
+    break_line_len: Option<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -154,22 +155,8 @@ impl FastqRecord {
     }
 
     #[inline(always)]
-    pub fn format<'a>(&self, b: &'a mut Vec<u8>) -> &'a str {
-        b.clear();
-        b.extend_from_slice(b"@");
-        b.extend_from_slice(&self.buffer[self._name.0..self._name.1]);
-        if self._comment.0 != self._comment.1 {
-            b.extend_from_slice(b" ");
-            b.extend_from_slice(&self.buffer[self._comment.0..self._comment.1]);
-        }
-        b.extend_from_slice(b"\n");
-        b.extend_from_slice(&self.buffer[self._sequence.0..self._sequence.1]);
-        b.extend_from_slice(b"\n");
-        if self._qual.0 != self._qual.1 {
-            b.extend_from_slice(b"+\n");
-            b.extend_from_slice(&self.buffer[self._qual.0..self._qual.1]);
-        }
-        unsafe { std::str::from_utf8_unchecked(b) }
+    pub fn format<'a>(&'a self) -> &'a str {
+        unsafe { std::str::from_utf8_unchecked(&self.buffer) }
     }
 }
 
@@ -257,6 +244,7 @@ impl TableLike for Fastq {
             path: path.to_string(),
             record: FastqRecord::default(),
             line_buffer: Vec::with_capacity(512),
+            break_line_len: None,
         })
     }
 
@@ -361,7 +349,7 @@ impl TableLike for Fastq {
         let mut line_buff = &mut self.line_buffer;
         record.clear();
         if !line_buff.is_empty() {
-            util::append_vec(&mut record.buffer, line_buff);
+            record.buffer.extend_from_slice(line_buff);
         } else {
             let bytes = self.reader.read_until(b'\n', &mut record.buffer)?;
             if bytes == 0 {
@@ -393,15 +381,19 @@ impl TableLike for Fastq {
         record._name.1 = record.buffer.len();
 
         // remove \n or \r\n
-        let mut end = record.buffer.len();
-        let name = &record.buffer[..];
-        if name.ends_with(&[b'\n', b'\r']) {
-            end -= 2;
-        } else if name.ends_with(&[b'\n']) {
-            end -= 1;
+        let end = record.buffer.len();
+        let break_line_len;
+        if self.break_line_len.is_some() {
+            break_line_len = self.break_line_len.unwrap();
+        } else {
+            if record.buffer.ends_with(&[b'\r', b'\n']) {
+                break_line_len = 2;
+            } else {
+                break_line_len = 1;
+            }
+            self.break_line_len = Some(break_line_len);
         }
-        record.buffer.truncate(end);
-        record._name.1 = end;
+        record._name.1 = end - break_line_len;
 
         if let Some(start) = record.buffer.iter().position(|&x| x == b' ') {
             record._name.1 = start;
@@ -409,7 +401,8 @@ impl TableLike for Fastq {
                 record._comment.0 = start + 1;
                 record._comment.1 = record.buffer.len();
             } else {
-                record.buffer.truncate(start);
+                record.buffer[start] = b'\n';
+                record.buffer.truncate(start + 1);
                 record._comment.0 = 0;
                 record._comment.1 = 0;
             }
@@ -426,16 +419,13 @@ impl TableLike for Fastq {
                 ));
             }
             if line_buff[0] == b'+' {
+                if self.parser_option.include_qual {
+                    record.buffer.extend_from_slice(&[b'\n', b'+', b'\n']);
+                }
                 break;
             }
-            // remove \n or \r\n
-            let mut line = line_buff.as_slice();
-            if line.ends_with(&[b'\r', b'\n']) {
-                line = &line[..line.len() - 2];
-            } else {
-                line = &line[..line.len() - 1];
-            }
-            util::append_vec(&mut record.buffer, line);
+            let line = &line_buff[..bytes - break_line_len];
+            record.buffer.extend_from_slice(line);
         }
         record._sequence.1 = record.buffer.len();
 
@@ -461,19 +451,15 @@ impl TableLike for Fastq {
                 if !self.parser_option.include_qual {
                     continue;
                 }
-                // remove \n or \r\n
-                let mut line = line_buff.as_slice();
-                if line.ends_with(&[b'\r', b'\n']) {
-                    line = &line[..line.len() - 2];
-                } else {
-                    line = &line[..line.len() - 1];
-                }
-                util::append_vec(&mut record.buffer, line);
+                let line = &line_buff[..bytes - break_line_len];
+                record.buffer.extend_from_slice(line);
             }
         }
 
         if self.parser_option.include_qual {
             record._qual.1 = record.buffer.len();
+        } else {
+            record.buffer[0] = b'>';
         }
         return Ok(Some(record));
     }
@@ -484,73 +470,37 @@ impl TableLike for Fastq {
         fastq
     }
 
-    fn into_dataframe(self) -> FilterxResult<DataFrame> {
-        let mut names: Vec<String> = Vec::new();
-        let mut sequences: Vec<String> = Vec::new();
-        let mut quals: Vec<String> = Vec::new();
-        let mut comments: Vec<String> = Vec::new();
-        let mut fastq = self;
-
-        loop {
-            match fastq.parse_next()? {
-                Some(record) => {
-                    names.push(record.name().to_string());
-                    sequences.push(record.seq().to_string());
-                    if let Some(qual) = record.qual() {
-                        quals.push(qual.to_string());
-                    }
-                    if let Some(comment) = record.comment() {
-                        comments.push(comment.to_string());
-                    }
-                }
-                None => break,
-            }
-        }
-
-        let mut cols = Vec::new();
-        cols.push(Column::new("name".into(), &names));
-        cols.push(Column::new("seq".into(), &sequences));
-        if !quals.is_empty() {
-            cols.push(Column::new("qual".into(), &quals));
-        }
-        if !comments.is_empty() {
-            cols.push(Column::new("comm".into(), &comments));
-        }
-        let df = DataFrame::new(cols)?;
-        Ok(df)
-    }
-
     fn as_dataframe(
         records: &Vec<Self::Record>,
         parser_options: &Self::ParserOptions,
     ) -> FilterxResult<DataFrame> {
-        let mut names: Vec<String> = Vec::with_capacity(records.len());
-        let mut sequences: Vec<String> = Vec::with_capacity(records.len());
-        let mut quals: Vec<String> = if parser_options.include_qual {
+        let mut names: Vec<&str> = Vec::with_capacity(records.len());
+        let mut sequences: Vec<&str> = Vec::with_capacity(records.len());
+        let mut quals: Vec<&str> = if parser_options.include_qual {
             Vec::with_capacity(records.len())
         } else {
             Vec::with_capacity(0)
         };
-        let mut comments: Vec<String> = if parser_options.include_comment {
+        let mut comments: Vec<&str> = if parser_options.include_comment {
             Vec::with_capacity(records.len())
         } else {
             Vec::with_capacity(0)
         };
         for record in records {
-            names.push(record.name().to_string());
-            sequences.push(record.seq().to_string());
+            names.push(record.name());
+            sequences.push(record.seq());
             if let Some(qual) = record.qual() {
-                quals.push(qual.to_string());
+                quals.push(qual);
             } else {
                 if parser_options.include_qual {
-                    quals.push("".to_string());
+                    quals.push("");
                 }
             }
             if let Some(comment) = record.comment() {
-                comments.push(comment.to_string());
+                comments.push(comment);
             } else {
                 if parser_options.include_comment {
-                    comments.push("".to_string());
+                    comments.push("");
                 }
             }
         }

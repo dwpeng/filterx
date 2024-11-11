@@ -8,7 +8,6 @@ pub trait TableLike {
     type ParserOptions;
 
     fn from_path(path: &str) -> FilterxResult<Self::Table>;
-    fn into_dataframe(self) -> FilterxResult<DataFrame>;
     fn as_dataframe(
         records: &Vec<Self::Record>,
         parser_options: &Self::ParserOptions,

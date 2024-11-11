@@ -46,9 +46,8 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
     let output = util::create_buffer_writer(output)?;
     let mut output = Box::new(output);
     if expr.is_empty() {
-        let mut buffer: Vec<u8> = Vec::new();
         while let Some(record) = &mut source.fasta.parse_next()? {
-            writeln!(output, "{}", record.format(&mut buffer))?;
+            writeln!(output, "{}", record.format())?;
         }
         return Ok(());
     }

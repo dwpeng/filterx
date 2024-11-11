@@ -43,6 +43,8 @@ pub enum TableLikeReader {
     GZIP(TableLikeReaderInner<BufReader<GzDecoder<std::fs::File>>>),
 }
 
+const BUFF_SIZE: usize = 1024 * 16;
+
 impl TableLikeReader {
     pub fn new(path: &str) -> FilterxResult<Self> {
         // test if is gzip
@@ -60,12 +62,12 @@ impl TableLikeReader {
 
         if gzip {
             Ok(TableLikeReader::GZIP(TableLikeReaderInner {
-                _reader: BufReader::with_capacity(8192 * 16, GzDecoder::new(f)),
+                _reader: BufReader::with_capacity(BUFF_SIZE, GzDecoder::new(f)),
                 _path: path.into(),
             }))
         } else {
             Ok(TableLikeReader::PLAIN(TableLikeReaderInner {
-                _reader: BufReader::with_capacity(8192 * 16, f),
+                _reader: BufReader::with_capacity(BUFF_SIZE, f),
                 _path: path.into(),
             }))
         }

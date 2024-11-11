@@ -5,7 +5,7 @@ use super::FastaRecordType;
 use crate::block::reader::TableLikeReader;
 use crate::block::table_like::TableLike;
 
-use filterx_core::{util, FilterxResult, Hint};
+use filterx_core::{FilterxResult, Hint};
 
 #[derive(Debug, Clone, Copy)]
 pub struct FastaRecordParserOptions {
@@ -92,6 +92,7 @@ pub struct Fasta {
     pub parser_options: FastaRecordParserOptions,
     record: FastaRecord,
     pub record_type: FastaRecordType,
+    break_line_len: Option<usize>,
 }
 
 #[derive(Clone, Debug)]
@@ -132,17 +133,8 @@ impl FastaRecord {
     }
 
     #[inline(always)]
-    pub fn format<'a>(&self, s: &'a mut Vec<u8>) -> &'a str {
-        s.clear();
-        s.extend_from_slice(b">");
-        s.extend_from_slice(&self.buffer[self._name.0..self._name.1]);
-        if self._comment.0 != self._comment.1 {
-            s.extend_from_slice(b" ");
-            s.extend_from_slice(&self.buffer[self._comment.0..self._comment.1]);
-        }
-        s.extend_from_slice(b"\n");
-        s.extend_from_slice(&self.buffer[self._sequence.0..self._sequence.1]);
-        unsafe { std::str::from_utf8_unchecked(s) }
+    pub fn format<'a>(&'a self) -> &'a str {
+        unsafe { std::str::from_utf8_unchecked(&self.buffer) }
     }
 }
 
@@ -223,6 +215,7 @@ impl Clone for Fasta {
             read_end: false,
             record: self.record.clone(),
             record_type: self.record_type.clone(),
+            break_line_len: self.break_line_len.clone(),
         }
     }
 }
@@ -241,6 +234,7 @@ impl TableLike for Fasta {
             parser_options: FastaRecordParserOptions::default(),
             record: FastaRecord::default(),
             record_type: FastaRecordType::DNA,
+            break_line_len: None,
         })
     }
 
@@ -265,7 +259,7 @@ impl TableLike for Fasta {
 
         // read name and comment
         if !self.prev_line.is_empty() {
-            util::append_vec(&mut record.buffer, &self.prev_line);
+            record.buffer.extend_from_slice(&self.prev_line);
         } else {
             let bytes = self.reader.read_until(b'\n', &mut record.buffer)?;
             if bytes == 0 {
@@ -297,16 +291,20 @@ impl TableLike for Fasta {
         record._name.1 = record.buffer.len();
 
         // remove \n or \r\n
-        let mut end = record.buffer.len();
-        let name = &record.buffer[..];
-        if name[name.len() - 1] == b'\n' {
-            end -= 1;
-            if name[name.len() - 2] == b'\r' {
-                end -= 1;
+        let end = record.buffer.len();
+        let break_line_len;
+        if self.break_line_len.is_some() {
+            break_line_len = self.break_line_len.unwrap();
+        } else {
+            let name = &record.buffer[..];
+            if name.ends_with(&[b'\n', b'\r']) {
+                break_line_len = 2;
+            } else {
+                break_line_len = 1;
             }
+            self.break_line_len = Some(break_line_len);
         }
-        record.buffer.truncate(end);
-        record._name.1 = end;
+        record._name.1 = end - break_line_len;
 
         if let Some(start) = record.buffer.iter().position(|&x| x == b' ') {
             record._name.1 = start;
@@ -314,7 +312,8 @@ impl TableLike for Fasta {
                 record._comment.0 = start + 1;
                 record._comment.1 = record.buffer.len();
             } else {
-                record.buffer.truncate(start);
+                record.buffer[start] = b'\n';
+                record.buffer.truncate(start + 1);
                 record._comment.0 = 0;
                 record._comment.1 = 0;
             }
@@ -332,15 +331,8 @@ impl TableLike for Fasta {
             if self.prev_line[0] == b'>' {
                 break;
             }
-            // remove \n or \r\n
-            let mut line = self.prev_line.as_slice();
-            if line[line.len() - 1] == b'\n' {
-                line = &line[..line.len() - 1];
-                if line[line.len() - 1] == b'\r' {
-                    line = &line[..line.len() - 1];
-                }
-            }
-            util::append_vec(&mut record.buffer, line);
+            let line = &self.prev_line[..bytes - break_line_len];
+            record.buffer.extend_from_slice(line);
             self.prev_line.clear();
         }
         if record.buffer.is_empty() {
@@ -350,57 +342,26 @@ impl TableLike for Fasta {
         Ok(Some(record))
     }
 
-    fn into_dataframe(self) -> FilterxResult<polars::prelude::DataFrame> {
-        let mut names: Vec<String> = Vec::new();
-        let mut sequences: Vec<String> = Vec::new();
-        let mut comments: Vec<String> = Vec::new();
-        let mut fasta = self;
-
-        loop {
-            match fasta.parse_next()? {
-                Some(record) => {
-                    names.push(record.name().into());
-                    sequences.push(record.seq().into());
-                    if let Some(comment) = record.comment() {
-                        comments.push(comment.into());
-                    }
-                }
-                None => break,
-            }
-        }
-        let mut cols = Vec::with_capacity(3);
-        cols.append(&mut vec![
-            polars::prelude::Column::new("name".into(), names),
-            polars::prelude::Column::new("seq".into(), sequences),
-        ]);
-        if !comments.is_empty() {
-            cols.push(polars::prelude::Column::new("comm".into(), comments));
-        }
-        let df = polars::prelude::DataFrame::new(cols)?;
-
-        Ok(df)
-    }
-
     fn as_dataframe(
         records: &Vec<FastaRecord>,
         parser_options: &Self::ParserOptions,
     ) -> FilterxResult<polars::prelude::DataFrame> {
-        let mut headers: Vec<String> = Vec::with_capacity(records.len());
-        let mut sequences: Vec<String> = Vec::with_capacity(records.len());
-        let mut comments: Vec<String> = if parser_options.include_comment {
+        let mut headers: Vec<&str> = Vec::with_capacity(records.len());
+        let mut sequences: Vec<&str> = Vec::with_capacity(records.len());
+        let mut comments: Vec<&str> = if parser_options.include_comment {
             Vec::with_capacity(records.len())
         } else {
             Vec::with_capacity(0)
         };
 
         for record in records {
-            headers.push(record.name().into());
-            sequences.push(record.seq().into());
+            headers.push(record.name());
+            sequences.push(record.seq());
             if let Some(comment) = record.comment() {
-                comments.push(comment.into());
+                comments.push(comment);
             } else {
                 if parser_options.include_comment {
-                    comments.push("".into());
+                    comments.push("");
                 }
             }
         }

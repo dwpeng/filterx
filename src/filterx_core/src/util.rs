@@ -151,14 +151,6 @@ pub fn merge_expr(expr: Option<Vec<String>>) -> String {
     }
 }
 
-#[inline(always)]
-pub fn append_vec<T: Copy>(dst: &mut Vec<T>, src: &[T]) {
-    if src.len() + dst.len() > dst.capacity() {
-        dst.reserve(src.len());
-    }
-    dst.extend_from_slice(src);
-}
-
 pub fn create_schemas(fileds: Vec<(String, DataType)>) -> Option<SchemaRef> {
     let mut schema = Schema::with_capacity(fileds.len());
     for (name, dtype) in fileds {
