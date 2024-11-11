@@ -35,11 +35,12 @@ impl FastqSource {
 
         if records.capacity() < n {
             unsafe {
-                records.set_len(0);
+                records.set_len(records.capacity());
             }
-            records.reserve(n);
+            for _ in records.capacity()..=n {
+                records.push(FastqRecord::default());
+            }
         }
-
         unsafe {
             records.set_len(n);
         }

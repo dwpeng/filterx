@@ -46,9 +46,11 @@ impl FastaSource {
         let records = &mut self.records;
         if records.capacity() < n {
             unsafe {
-                records.set_len(0);
+                records.set_len(records.capacity());
             }
-            records.reserve(n);
+            for _ in records.capacity()..=n {
+                records.push(FastaRecord::default());
+            }
         }
         unsafe {
             records.set_len(n);
