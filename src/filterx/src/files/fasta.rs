@@ -5,7 +5,7 @@ use crate::args::{FastaCommand, ShareArgs};
 use std::io::Write;
 
 use filterx_engine::vm::{Vm, VmSourceType};
-use filterx_source::{FastaSource, Source, TableLike};
+use filterx_source::{FastaSource, Source};
 
 use filterx_core::{util, FilterxResult};
 

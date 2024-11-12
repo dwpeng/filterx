@@ -2,7 +2,6 @@ use polars::prelude::*;
 use std::io::BufRead;
 
 use crate::block::reader::TableLikeReader;
-use crate::block::table_like::TableLike;
 
 use filterx_core::{FilterxError, FilterxResult, Hint};
 
@@ -231,12 +230,8 @@ impl IntoIterator for Fastq {
     }
 }
 
-impl TableLike for Fastq {
-    type ParserOptions = FastqParserOption;
-    type Record = FastqRecord;
-    type Table = Fastq;
-
-    fn from_path(path: &str) -> FilterxResult<Self::Table> {
+impl Fastq {
+    pub fn from_path(path: &str) -> FilterxResult<Fastq> {
         Ok(Fastq {
             reader: TableLikeReader::new(path)?,
             read_end: false,
@@ -248,100 +243,8 @@ impl TableLike for Fastq {
         })
     }
 
-    // fn parse_next(&'a mut self) -> FilterxResult<Option<&'a mut Self::Record>> {
-    //     if self.read_end {
-    //         return Ok(None);
-    //     }
-    //     let record = &mut self.record;
-    //     let parser_option = &self.parser_option;
-    //     loop {
-    //         record.clear();
-    //         let bytes = self.reader.read_until(b'@', &mut record.buffer)?;
-    //         if bytes == 0 {
-    //             self.read_end = true;
-    //             return Ok(None);
-    //         }
-    //         if bytes == 1 {
-    //             // first one is @, skip it
-    //             continue;
-    //         }
-    //         // record buff have store name and comment and sequence and qual, as follow:
-    //         // \r\n|\n means the end of line is \r\n or \n
-    //         // name comment\r\n|\n
-    //         // sequence\r\n|\n
-    //         // +\r\n|\n
-    //         // qual\r\n|\n
-    //         // @
-
-    //         // find the end of name and comment
-    //         let mut i = 1;
-    //         let mut line_end = 0;
-    //         let mut space = 0;
-    //         let mut have_r = false;
-    //         while i < bytes {
-    //             if record.buffer[i] == b'\n' {
-    //                 line_end = i;
-    //                 if record.buffer[i - 1] == b'\r' {
-    //                     line_end -= 1;
-    //                     have_r = true;
-    //                 }
-    //                 break;
-    //             }
-    //             if record.buffer[i] == b' ' {
-    //                 space = i;
-    //             }
-    //             i += 1;
-    //         }
-    //         if space == 0 {
-    //             space = line_end;
-    //         }
-    //         if i == bytes {
-    //             return Err(crate::FilterxError::FastqError(
-    //                 "Invalid fastq format: name and comment".to_string(),
-    //             ));
-    //         }
-
-    //         record._name = (0, space);
-    //         if space != line_end {
-    //             if parser_option.include_comment {
-    //                 record._name = (0, space);
-    //                 record._comment = (space + 1, line_end);
-    //             }
-    //         }
-
-    //         // find the end of sequence
-    //         let mut j = line_end + if have_r { 2 } else { 1 };
-    //         record._sequence.0 = j;
-    //         while j < bytes {
-    //             if record.buffer[j] == b'+' {
-    //                 break;
-    //             }
-    //             j += 1;
-    //         }
-    //         if j == bytes {
-    //             return Err(crate::FilterxError::FastqError(
-    //                 "Invalid fastq format: sequence".to_string(),
-    //             ));
-    //         }
-    //         record._sequence.1 = j - if have_r { 2 } else { 1 };
-    //         if parser_option.include_qual {
-    //             let seq_len = record.len();
-    //             j = j + if have_r { 2 } else { 1 };
-    //             // find the end of qual
-    //             // check if qual is equal to sequence
-    //             if j + seq_len > bytes {
-    //                 return Err(crate::FilterxError::FastqError(
-    //                     "Invalid fastq format: qual".to_string(),
-    //                 ));
-    //             }
-    //             record._qual = (j + 1, j + seq_len);
-    //         }
-    //         return Ok(Some(record));
-    //     }
-    // }
-
     /// parse fastq format based paper: https://academic.oup.com/nar/article/38/6/1767/3112533
-    fn parse_next(&mut self) -> FilterxResult<Option<&mut Self::Record>> {
+    pub fn parse_next(&mut self) -> FilterxResult<Option<&mut FastqRecord>> {
         if self.read_end {
             return Ok(None);
         }
@@ -394,12 +297,18 @@ impl TableLike for Fastq {
             self.break_line_len = Some(break_line_len);
         }
         record._name.1 = end - break_line_len;
-
-        if let Some(start) = record.buffer.iter().position(|&x| x == b' ') {
+        let mut start = None;
+        for i in 0..record._name.1 {
+            if record.buffer[i] == b' ' {
+                start = Some(i);
+                break;
+            }
+        }
+        if let Some(start) = start {
             record._name.1 = start;
             if self.parser_option.include_comment {
                 record._comment.0 = start + 1;
-                record._comment.1 = record.buffer.len();
+                record._comment.1 = record.buffer.len() - break_line_len;
             } else {
                 record.buffer[start] = b'\n';
                 record.buffer.truncate(start + 1);
@@ -407,7 +316,6 @@ impl TableLike for Fastq {
                 record._comment.1 = 0;
             }
         }
-
         // fill sequence
         record._sequence.0 = record.buffer.len();
         loop {
@@ -429,10 +337,7 @@ impl TableLike for Fastq {
         }
         if self.parser_option.include_qual{
             record._sequence.1 = record.buffer.len() - 3;
-        }else{
-            record._sequence.1 = record.buffer.len();
         }
-
         if self.parser_option.include_qual {
             record._qual.0 = record.buffer.len();
         }
@@ -468,15 +373,15 @@ impl TableLike for Fastq {
         return Ok(Some(record));
     }
 
-    fn set_parser_options(self, parser_options: Self::ParserOptions) -> Self {
+    pub fn set_parser_options(self, parser_options: FastqParserOption) -> Self {
         let mut fastq = self;
         fastq.parser_option = parser_options;
         fastq
     }
 
-    fn as_dataframe(
-        records: &Vec<Self::Record>,
-        parser_options: &Self::ParserOptions,
+    pub fn as_dataframe(
+        records: &Vec<FastqRecord>,
+        parser_options: &FastqParserOption,
     ) -> FilterxResult<DataFrame> {
         let mut names: Vec<&str> = Vec::with_capacity(records.len());
         let mut sequences: Vec<&str> = Vec::with_capacity(records.len());
@@ -523,7 +428,7 @@ impl TableLike for Fastq {
         Ok(df)
     }
 
-    fn reset(&mut self) -> FilterxResult<()> {
+    pub fn reset(&mut self) -> FilterxResult<()> {
         self.reader.reset()?;
         self.read_end = false;
         Ok(())

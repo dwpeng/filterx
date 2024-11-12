@@ -3,18 +3,17 @@ use std::io::BufRead;
 
 use super::FastaRecordType;
 use crate::block::reader::TableLikeReader;
-use crate::block::table_like::TableLike;
 
 use filterx_core::{FilterxResult, Hint};
 
 #[derive(Debug, Clone, Copy)]
-pub struct FastaRecordParserOptions {
+pub struct FastaParserOptions {
     pub include_comment: bool,
 }
 
-impl Default for FastaRecordParserOptions {
+impl Default for FastaParserOptions {
     fn default() -> Self {
-        FastaRecordParserOptions {
+        FastaParserOptions {
             include_comment: true,
         }
     }
@@ -36,7 +35,7 @@ impl Drop for FastaSource {
 impl FastaSource {
     pub fn new(path: &str, include_comment: bool) -> FilterxResult<Self> {
         let fasta = Fasta::from_path(path)?;
-        let opt = FastaRecordParserOptions { include_comment };
+        let opt = FastaParserOptions { include_comment };
         let fasta = fasta.set_parser_options(opt);
         let records = vec![FastaRecord::default(); 4096];
         Ok(FastaSource { fasta, records })
@@ -89,7 +88,7 @@ pub struct Fasta {
     prev_line: Vec<u8>,
     read_end: bool,
     pub path: String,
-    pub parser_options: FastaRecordParserOptions,
+    pub parser_options: FastaParserOptions,
     record: FastaRecord,
     pub record_type: FastaRecordType,
     break_line_len: Option<usize>,
@@ -220,43 +219,39 @@ impl Clone for Fasta {
     }
 }
 
-impl TableLike for Fasta {
-    type Table = Fasta;
-    type Record = FastaRecord;
-    type ParserOptions = FastaRecordParserOptions;
+impl Fasta {
 
-    fn from_path(path: &str) -> FilterxResult<Self::Table> {
+    pub fn from_path(path: &str) -> FilterxResult<Fasta> {
         Ok(Fasta {
             reader: TableLikeReader::new(path)?,
             prev_line: Vec::new(),
             read_end: false,
             path: path.to_string(),
-            parser_options: FastaRecordParserOptions::default(),
+            parser_options: FastaParserOptions::default(),
             record: FastaRecord::default(),
             record_type: FastaRecordType::DNA,
             break_line_len: None,
         })
     }
 
-    fn set_parser_options(mut self, parser_options: Self::ParserOptions) -> Self {
+    pub fn set_parser_options(mut self, parser_options: FastaParserOptions) -> Self {
         self.parser_options = parser_options;
         self
     }
 
-    fn reset(&mut self) -> FilterxResult<()> {
+    pub fn reset(&mut self) -> FilterxResult<()> {
         self.reader.reset()?;
         self.prev_line.clear();
         self.read_end = false;
         Ok(())
     }
 
-    fn parse_next(&mut self) -> FilterxResult<Option<&mut FastaRecord>> {
+    pub fn parse_next(&mut self) -> FilterxResult<Option<&mut FastaRecord>> {
         if self.read_end {
             return Ok(None);
         }
         let record: &mut FastaRecord = &mut self.record;
         record.clear();
-
         // read name and comment
         if !self.prev_line.is_empty() {
             record.buffer.extend_from_slice(&self.prev_line);
@@ -306,11 +301,20 @@ impl TableLike for Fasta {
         }
         record._name.1 = end - break_line_len;
 
-        if let Some(start) = record.buffer.iter().position(|&x| x == b' ') {
+        let mut start = None;
+
+        for i in 0..record._name.1 {
+            if record.buffer[i] == b' ' {
+                start = Some(i);
+                break;
+            }
+        }
+
+        if let Some(start) = start {
             record._name.1 = start;
             if self.parser_options.include_comment {
                 record._comment.0 = start + 1;
-                record._comment.1 = record.buffer.len();
+                record._comment.1 = record.buffer.len() - break_line_len;
             } else {
                 record.buffer[start] = b'\n';
                 record.buffer.truncate(start + 1);
@@ -342,9 +346,9 @@ impl TableLike for Fasta {
         Ok(Some(record))
     }
 
-    fn as_dataframe(
+    pub fn as_dataframe(
         records: &Vec<FastaRecord>,
-        parser_options: &Self::ParserOptions,
+        parser_options: &FastaParserOptions
     ) -> FilterxResult<polars::prelude::DataFrame> {
         let mut headers: Vec<&str> = Vec::with_capacity(records.len());
         let mut sequences: Vec<&str> = Vec::with_capacity(records.len());

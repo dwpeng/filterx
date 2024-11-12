@@ -5,7 +5,7 @@ use crate::args::{FastqCommand, ShareArgs};
 use std::io::Write;
 
 use filterx_engine::vm::{Vm, VmSourceType};
-use filterx_source::{FastqSource, Source, TableLike};
+use filterx_source::{FastqSource, Source};
 
 use filterx_core::{util, FilterxResult};
 pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
