@@ -243,7 +243,7 @@ filterx csv test.csv -H --oH -e 'cast_i32(age)'
 # Charlie,40
 ```
 
-## fill
+## fill_null
 
 fill missing values with a specific value. it is useful when you want to fill missing values with a specific value.
 
@@ -258,7 +258,7 @@ chr1	600	.	C	A	.	.	.	GT	0	0	1	.
 ```
 
 ```bash
-filterx vcf test.vcf -e 'fill_(cast_int(col("^ind\d+$")), 0)'
+filterx vcf test.vcf -e 'fill_null_(cast_int(col("^ind\d+$")), 0)'
 
 # output
 # CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	ind1	ind2	ind3	ind4
@@ -274,4 +274,83 @@ This is a more complex example, let's talk about it.
 
 - `col("^ind\d+$")` will get all columns start with `ind` and followed by numbers.
 - `cast_int` will cast all these columns to i32. 
-- `fill_` will fill missing values with 0 inplace.
+- `fill_null_` will fill missing values with 0 inplace.
+
+
+## drop_null
+
+drop rows with missing values.
+
+```txt title="test.csv"
+name,age
+Alice,20
+Bob,
+Charlie,40
+```
+
+```bash
+filterx csv test.csv -H --oH -e 'drop_null_(age)'
+
+# output
+# name,age
+# Alice,20
+# Charlie,40
+```
+
+## is_null & is_not_null
+check if a column is null or not.
+
+```
+is_null(col("age")) will filter out all rows with missing values.
+```
+
+
+## is_na & is_not_na
+check if a column is Na(not a number) or not.
+
+
+## dup
+
+dup has 4 types:
+
+- dup: dup all rows but keep the first one.
+- dup_none: dup all rows and keep none of duplicated rows.
+- dup_any: dup all rows and keep random one of duplicated rows.
+- dup_last: dup all rows and keep last one of duplicated rows.
+
+
+```txt title="test.csv"
+name,age
+Alice,15
+Bob,30
+Charlie,40
+Alice,20
+```
+
+```bash
+filterx csv test.csv -H --oH -e 'dup(name)'
+# output
+# name,age
+# Alice,15
+# Bob,30
+# Charlie,40
+```
+
+## abs
+
+get the absolute value of a column.
+
+```txt title="test.csv"
+name,age
+Alice,-15
+Bob,30
+```
+
+```bash
+filterx csv test.csv -H --oH -e 'abs_(age)'
+
+# output
+# name,age
+# Alice,15
+# Bob,30
+```
