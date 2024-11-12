@@ -13,12 +13,12 @@ pub fn drop_null<'a>(
         &args[0],
         "len: expected a column name as first argument"
     );
-    let col_name = col_name.column()?;
-    vm.source.has_column(col_name);
-    let e = col(col_name).drop_nulls();
+    let name = col_name.column()?;
+    vm.source.has_column(name);
+    let e = col(name).drop_nulls();
     if inplace {
-        vm.source.with_column(e.alias(col_name), None);
+        vm.source.with_column(e.alias(name), None);
         return Ok(value::Value::None);
     }
-    Ok(value::Value::Expr(e))
+    Ok(value::Value::named_expr(None, e))
 }

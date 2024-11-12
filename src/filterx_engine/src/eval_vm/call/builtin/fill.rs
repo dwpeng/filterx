@@ -1,5 +1,5 @@
 use super::*;
-use polars::prelude::{col, Literal};
+use polars::prelude::Literal;
 use value::Value;
 
 pub fn fill<'a>(
@@ -20,13 +20,14 @@ pub fn fill<'a>(
         "fill: expected a constant value as second argument",
         Constant
     );
-    let col_name = col_name.column()?;
-    vm.source.has_column(col_name);
-    let e = col(col_name).fill_null(const_value.lit());
+    let name = col_name.column()?;
+    let e = col_name.expr()?;
+    vm.source.has_column(name);
+    let e = e.fill_null(const_value.lit());
     if inplace {
         let lazy = &mut vm.source;
-        lazy.with_column(e.alias(col_name), None);
+        lazy.with_column(e.alias(name), None);
         return Ok(Value::None);
     }
-    Ok(Value::Expr(e))
+    Ok(Value::named_expr(Some(name.to_string()), e))
 }

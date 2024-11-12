@@ -1,4 +1,4 @@
-use polars::prelude::{col, lit};
+use polars::prelude::lit;
 
 use super::*;
 
@@ -15,8 +15,9 @@ pub fn replace<'a>(
         &args[0],
         "replace: expected a column name as first argument"
     );
-    let col_name = col_name.column()?;
-    vm.source.has_column(col_name);
+    let name = col_name.column()?;
+    let e = col_name.expr()?;
+    vm.source.has_column(name);
 
     let patt = eval!(
         vm,
@@ -39,28 +40,19 @@ pub fn replace<'a>(
     if inplace {
         vm.source.with_column(
             match many {
-                true => col(col_name)
-                    .str()
-                    .replace_all(patt, repl, true)
-                    .alias(col_name),
-                false => col(col_name)
-                    .str()
-                    .replace(patt, repl, true)
-                    .alias(col_name),
+                true => e.str().replace_all(patt, repl, true).alias(name),
+                false => e.str().replace(patt, repl, true).alias(name),
             },
             None,
         );
         return Ok(value::Value::None);
     }
 
-    Ok(value::Value::Expr(match many {
-        true => col(col_name)
-            .str()
-            .replace_all(patt, repl, true)
-            .alias(col_name),
-        false => col(col_name)
-            .str()
-            .replace(patt, repl, true)
-            .alias(col_name),
-    }))
+    Ok(value::Value::named_expr(
+        Some(name.to_string()),
+        match many {
+            true => e.str().replace_all(patt, repl, true).alias(name),
+            false => e.str().replace(patt, repl, true).alias(name),
+        },
+    ))
 }

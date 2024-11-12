@@ -2,14 +2,15 @@ use std::borrow::Cow;
 
 use super::*;
 
-use polars::prelude::col;
 use polars::prelude::*;
 
 fn compute_revcomp(s: Column) -> PolarsResult<Option<Column>> {
     let ca = s.str()?;
     let ca = ca.apply_values(|s| {
-        let s: String = s.chars().rev().map(|b| {
-            match b {
+        let s: String = s
+            .chars()
+            .rev()
+            .map(|b| match b {
                 'A' => 'T',
                 'T' => 'A',
                 'C' => 'G',
@@ -19,8 +20,8 @@ fn compute_revcomp(s: Column) -> PolarsResult<Option<Column>> {
                 'c' => 'g',
                 'g' => 'c',
                 _ => b,
-            }
-        }).collect();
+            })
+            .collect();
         Cow::Owned(s)
     });
     Ok(Some(ca.into_column()))
@@ -38,12 +39,13 @@ pub fn revcomp<'a>(
         &args[0],
         "revcomp: expected a column name as first argument"
     );
-    let col_name = col_name.column()?;
-    vm.source.has_column(col_name);
-    let e = col(col_name).map(compute_revcomp, GetOutput::same_type());
+    let name = col_name.column()?;
+    let e = col_name.expr()?;
+    vm.source.has_column(name);
+    let e = e.map(compute_revcomp, GetOutput::same_type());
     if inplace {
-        vm.source.with_column(e.clone().alias(col_name), None);
+        vm.source.with_column(e.clone().alias(name), None);
         return Ok(value::Value::None);
     }
-    return Ok(value::Value::Expr(e));
+    return Ok(value::Value::named_expr(Some(name.to_string()), e));
 }

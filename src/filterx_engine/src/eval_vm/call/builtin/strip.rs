@@ -1,4 +1,4 @@
-use polars::prelude::{col, lit};
+use polars::prelude::Literal;
 
 use super::*;
 
@@ -17,8 +17,9 @@ pub fn strip<'a>(
         "strip: expected a column name as first argument"
     );
 
-    let col_name = col_name.column()?;
-    vm.source.has_column(&col_name);
+    let name = col_name.column()?;
+    let e = col_name.expr()?;
+    vm.source.has_column(&name);
 
     let patt = eval!(
         vm,
@@ -27,19 +28,19 @@ pub fn strip<'a>(
         Constant
     );
     let patt = patt.string()?;
-    let patt = lit(patt.as_str());
+    let patt = patt.as_str().lit();
 
     let e = match (right, left) {
-        (true, true) => col(col_name).str().strip_chars(patt),
-        (true, false) => col(col_name).str().strip_suffix(patt),
-        (false, true) => col(col_name).str().strip_prefix(patt),
+        (true, true) => e.str().strip_chars(patt),
+        (true, false) => e.str().strip_suffix(patt),
+        (false, true) => e.str().strip_prefix(patt),
         (false, false) => unreachable!(),
     };
 
     if inplace {
-        vm.source.with_column(e.alias(col_name), None);
+        vm.source.with_column(e.alias(name), None);
         return Ok(value::Value::None);
     }
 
-    Ok(value::Value::Expr(e))
+    Ok(value::Value::named_expr(Some(name.to_string()), e))
 }

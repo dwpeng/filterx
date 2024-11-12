@@ -1,4 +1,4 @@
-use polars::prelude::{col, lit};
+use polars::prelude::lit;
 
 use super::*;
 
@@ -39,8 +39,9 @@ pub fn slice<'a>(
         &args[0],
         "slice: expected a column name as first argument"
     );
-    let col_name = col_name.column()?;
-    vm.source.has_column(col_name);
+    let name = col_name.column()?;
+    let e = col_name.expr()?;
+    vm.source.has_column(name);
     let length;
     let mut start = 0;
     if args.len() == 2 {
@@ -50,12 +51,12 @@ pub fn slice<'a>(
         length = check_number(vm, &args[2])?;
     }
 
-    let e = col(col_name).str().slice(lit(start), lit(length));
+    let e = e.str().slice(lit(start), lit(length));
 
     if inplace {
-        vm.source.with_column(e.alias(col_name), None);
+        vm.source.with_column(e.alias(name), None);
         return Ok(value::Value::None);
     }
 
-    Ok(value::Value::Expr(e))
+    Ok(value::Value::named_expr(Some(name.to_string()), e))
 }

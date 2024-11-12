@@ -58,10 +58,10 @@ impl<'a> Eval<'a> for ast::ExprUnaryOp {
                 return Ok(r);
             }
             Value::Name(_) | Value::Item(_) => {
-                return Ok(Value::Expr(-(v.expr()?)));
+                return Ok(Value::named_expr(None, -(v.expr()?)));
             }
-            Value::Expr(e) => {
-                return Ok(Value::Expr(-e.clone()));
+            Value::NamedExpr(e) => {
+                return Ok(Value::named_expr(e.name.clone(), -e.expr.clone()));
             }
             _ => {
                 unreachable!();
@@ -147,7 +147,7 @@ impl<'a> Eval<'a> for ast::ExprBinOp {
                     unreachable!();
                 }
             };
-            return Ok(Value::Expr(ret.expr()?));
+            return Ok(Value::named_expr(None, ret.expr()?));
         }
 
         if l.is_expr() || r.is_expr() {
@@ -165,7 +165,7 @@ impl<'a> Eval<'a> for ast::ExprBinOp {
                     unreachable!();
                 }
             };
-            return Ok(Value::Expr(ret));
+            return Ok(Value::named_expr(None, ret));
         }
         binop_for_dataframe(l, r, self.op)
     }
@@ -283,7 +283,7 @@ fn binop_for_dataframe(left: Value, right: Value, op: ast::Operator) -> FilterxR
         ast::Operator::BitOr => left.expr()?.or(right.expr()?),
         _ => unreachable!(),
     };
-    Ok(Value::Expr(ret))
+    Ok(Value::named_expr(None, ret))
 }
 
 /// and, or
@@ -324,8 +324,8 @@ fn boolop_in_dataframe<'a>(
     let vm_apply_lazy = vm.status.apply_lazy;
     if !vm_apply_lazy {
         let e = match op {
-            ast::BoolOp::And => Ok(Value::Expr(l.expr()?.and(r.clone().expr()?))),
-            ast::BoolOp::Or => Ok(Value::Expr(l.expr()?.or(r.clone().expr()?))),
+            ast::BoolOp::And => Ok(Value::named_expr(None, l.expr()?.and(r.clone().expr()?))),
+            ast::BoolOp::Or => Ok(Value::named_expr(None, l.expr()?.or(r.clone().expr()?))),
         };
         return e;
     }

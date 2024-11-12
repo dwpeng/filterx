@@ -1,5 +1,5 @@
 use super::*;
-use polars::prelude::{col, DataType};
+use polars::prelude::DataType;
 
 pub fn cast<'a>(
     vm: &'a mut Vm,
@@ -13,8 +13,9 @@ pub fn cast<'a>(
         &args[0],
         "cast: expected a column name as first argument",
     );
-    let col_name = col_name.column()?;
-    vm.source.has_column(col_name);
+    let name = col_name.column()?;
+    let e = col_name.expr()?;
+    vm.source.has_column(name);
     let new_type = match new_type.to_lowercase().as_str() {
         "int" => DataType::Int32,
         "float" => DataType::Float32,
@@ -39,11 +40,11 @@ pub fn cast<'a>(
         }
     };
 
-    let e = col(col_name).cast(new_type);
+    let e = e.cast(new_type);
     if inplace {
-        vm.source.with_column(e.alias(col_name), None);
+        vm.source.with_column(e.alias(name), None);
         return Ok(value::Value::None);
     }
 
-    Ok(value::Value::Expr(e))
+    Ok(value::Value::named_expr(Some(name.to_string()), e))
 }

@@ -1,5 +1,3 @@
-use polars::prelude::Literal;
-
 use super::super::ast;
 use crate::eval_vm::Eval;
 use crate::vm::Vm;
@@ -88,9 +86,6 @@ impl<'a> Eval<'a> for ast::ExprName {
 
         // impl keywords
         let keywords = match name.name.as_str() {
-            "NR" => Value::Expr(1.lit().cum_sum(false)),
-            "True" => Value::Expr(true.lit()),
-            "False" => Value::Expr(false.lit()),
             _ => Value::None,
         };
 

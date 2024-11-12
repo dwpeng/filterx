@@ -56,5 +56,5 @@ pub fn gc<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Val
     let col_name = col_name.column()?;
     vm.source.has_column(col_name);
     let e = col(col_name).map(compute_gc, GetOutput::float_type());
-    return Ok(value::Value::Expr(e));
+    return Ok(value::Value::named_expr(None, e));
 }

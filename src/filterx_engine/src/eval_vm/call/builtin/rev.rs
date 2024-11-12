@@ -1,7 +1,5 @@
 use super::*;
 
-use polars::prelude::col;
-
 pub fn rev<'a>(
     vm: &'a mut Vm,
     args: &Vec<ast::Expr>,
@@ -14,12 +12,13 @@ pub fn rev<'a>(
         &args[0],
         "rev: expected a column name as first argument"
     );
-    let col_name = col_name.column()?;
-    vm.source.has_column(col_name);
-    let e = col(col_name).str().reverse();
+    let name = col_name.column()?;
+    let e = col_name.expr()?;
+    vm.source.has_column(name);
+    let e = e.str().reverse();
     if inplace {
-        vm.source.with_column(e.clone().alias(col_name), None);
+        vm.source.with_column(e.clone().alias(name), None);
         return Ok(value::Value::None);
     }
-    return Ok(value::Value::Expr(e));
+    return Ok(value::Value::named_expr(Some(name.to_string()), e));
 }

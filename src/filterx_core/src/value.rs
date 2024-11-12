@@ -16,11 +16,23 @@ pub enum Value {
     Ident((String, Box<Value>)),
     AttrMethod(AttrMethod),
     File(File),
-    Expr(Expr),
+    NamedExpr(NamedExpr),
     // Slice(Slice),
     Null,
     Na,
     None,
+}
+
+impl Value {
+    pub fn named_expr(name: Option<String>, expr: Expr) -> Self {
+        Value::NamedExpr(NamedExpr { name, expr })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NamedExpr {
+    pub name: Option<String>,
+    pub expr: Expr,
 }
 
 impl Literal for Value {
@@ -120,7 +132,7 @@ impl Value {
             Value::Str(s) => s.clone().lit(),
             Value::Item(c) => col(c.col_name.clone()),
             Value::Name(n) => col(n.name.clone()),
-            Value::Expr(e) => e.clone(),
+            Value::NamedExpr(e) => e.expr.clone(),
             Value::Null => Expr::Literal(LiteralValue::Null),
             Value::Na => Expr::Literal(LiteralValue::Null),
             Value::None => return Err(FilterxError::RuntimeError("function return None".into())),
@@ -143,12 +155,14 @@ impl Value {
     }
 
     pub fn string(&self) -> FilterxResult<String> {
-        let s = match self {
-            Value::Str(s) => s.clone(),
-            Value::Expr(Expr::Literal(LiteralValue::String(s))) => s.to_string(),
-            _ => panic!("not a string"),
-        };
-        Ok(s)
+        match self {
+            Value::Str(s) => Ok(s.to_owned()),
+            _ => {
+                return Err(FilterxError::RuntimeError(
+                    "Only Str can convert to string".into(),
+                ))
+            }
+        }
     }
 
     pub fn u32(&self) -> FilterxResult<u32> {
@@ -165,6 +179,10 @@ impl Value {
             Value::Item(c) => Ok(c.col_name.as_str()),
             Value::Name(n) => Ok(n.name.as_str()),
             Value::Str(s) => Ok(s.as_str()),
+            Value::NamedExpr(e) => match e.name {
+                Some(ref name) => Ok(name.as_str()),
+                None => return Err(FilterxError::RuntimeError("Can't find column name.".into())),
+            },
             _ => {
                 let mut h = Hint::new();
                 h.white("Expected the following types as a column name: ")
@@ -200,7 +218,7 @@ impl Value {
 
     pub fn is_expr(&self) -> bool {
         match self {
-            Value::Expr(_) => true,
+            Value::NamedExpr(_) => true,
             _ => false,
         }
     }
@@ -321,7 +339,10 @@ impl Value {
             Value::Float(f) => f.to_string(),
             Value::Bool(b) => b.to_string(),
             Value::Str(s) => format!("'{}'", s),
-            Value::Expr(e) => e.to_string(),
+            Value::NamedExpr(e) => {
+                let s = format!("NamedExpr(name={:?}, expr={:?})", e.name, e.expr);
+                s
+            }
             Value::List(l) => {
                 let mut s = String::from("[");
                 for (i, v) in l.iter().enumerate() {
