@@ -171,7 +171,7 @@ filterx use `print` function to format output. The `print` function supports pyt
 
 ```shell
 filterx csv example.csv -H \
-     -e 'age > 25' 
+     -e 'age > 25' \
      -e 'print("this is {name}")'
 
 # Output
@@ -181,7 +181,7 @@ filterx csv example.csv -H \
 
 ```shell
 filterx csv example.csv -H \
-     -e 'age > 25' 
+     -e 'age > 25' \
      -e 'print("this is {name}, age is {age}")'
 
 # Output
@@ -193,7 +193,7 @@ filterx also supports functions in the `print` function.
 
 ```shell
 filterx csv example.csv -H \
-     -e 'age > 25' 
+     -e 'age > 25' \
      -e 'print("{name}: length is {len(name)}")'
 
 # Output
