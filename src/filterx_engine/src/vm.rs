@@ -4,7 +4,7 @@ use filterx_core::{FilterxError, FilterxResult, Hint};
 
 use filterx_source::Source;
 
-use super::eval_vm::Eval;
+use super::eval::Eval;
 
 use std::io::BufWriter;
 use std::io::Write;
@@ -212,6 +212,8 @@ impl Vm {
                 eval_expr = self.ast(expr)?;
                 self.parse_cache.insert(expr.to_string(), eval_expr.clone());
             }
+            self.eval_expr.clear();
+            self.eval_expr.push_str(expr);
             if eval_expr.is_expression() {
                 let expr = eval_expr.as_expression().unwrap();
                 expr.eval(self)?;
