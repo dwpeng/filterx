@@ -335,7 +335,7 @@ impl Fastq {
             let line = &line_buff[..bytes - break_line_len];
             record.buffer.extend_from_slice(line);
         }
-        if self.parser_option.include_qual{
+        if self.parser_option.include_qual {
             record._sequence.1 = record.buffer.len() - 3;
         }
         if self.parser_option.include_qual {

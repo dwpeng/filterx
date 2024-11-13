@@ -220,7 +220,6 @@ impl Clone for Fasta {
 }
 
 impl Fasta {
-
     pub fn from_path(path: &str) -> FilterxResult<Fasta> {
         Ok(Fasta {
             reader: TableLikeReader::new(path)?,
@@ -348,7 +347,7 @@ impl Fasta {
 
     pub fn as_dataframe(
         records: &Vec<FastaRecord>,
-        parser_options: &FastaParserOptions
+        parser_options: &FastaParserOptions,
     ) -> FilterxResult<polars::prelude::DataFrame> {
         let mut headers: Vec<&str> = Vec::with_capacity(records.len());
         let mut sequences: Vec<&str> = Vec::with_capacity(records.len());
