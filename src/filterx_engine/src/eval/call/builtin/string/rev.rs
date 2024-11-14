@@ -14,10 +14,10 @@ pub fn rev<'a>(
     );
     let name = col_name.column()?;
     let e = col_name.expr()?;
-    vm.source.has_column(name);
+    vm.source_mut().has_column(name);
     let e = e.str().reverse();
     if inplace {
-        vm.source.with_column(e.clone().alias(name), None);
+        vm.source_mut().with_column(e.clone().alias(name), None);
         return Ok(value::Value::None);
     }
     return Ok(value::Value::named_expr(Some(name.to_string()), e));

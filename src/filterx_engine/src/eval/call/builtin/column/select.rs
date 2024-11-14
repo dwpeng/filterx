@@ -8,7 +8,7 @@ pub fn select<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value:
     for arg in args {
         let col = eval_col!(vm, arg, "select: expected a column name as first argument");
         let col = col.column()?;
-        vm.source.has_column(col);
+        vm.source_mut().has_column(col);
         select_dolumns.push(col.into());
     }
 
@@ -19,6 +19,6 @@ pub fn select<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value:
             .print_and_exit();
     }
 
-    vm.source.select(select_dolumns);
+    vm.source_mut().select(select_dolumns);
     Ok(value::Value::None)
 }

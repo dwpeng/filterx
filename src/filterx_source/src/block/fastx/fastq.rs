@@ -2,12 +2,14 @@ use polars::prelude::*;
 use std::io::BufRead;
 
 use crate::block::reader::TableLikeReader;
+use crate::dataframe::DataframeSource;
 
 use filterx_core::{FilterxError, FilterxResult, Hint};
 
 pub struct FastqSource {
     pub fastq: Fastq,
     pub records: Vec<FastqRecord>,
+    pub dataframe: DataframeSource,
 }
 
 impl Drop for FastqSource {
@@ -26,10 +28,15 @@ impl FastqSource {
         };
         let fastq = Fastq::from_path(path)?.set_parser_options(parser_option);
         let records = vec![FastqRecord::default(); 4096];
-        Ok(FastqSource { fastq, records })
+        let dataframe = DataframeSource::new(DataFrame::empty().lazy());
+        Ok(FastqSource {
+            fastq,
+            records,
+            dataframe,
+        })
     }
 
-    pub fn into_dataframe(&mut self, n: usize) -> FilterxResult<Option<DataFrame>> {
+    pub fn into_dataframe(&mut self, n: usize) -> FilterxResult<Option<()>> {
         let records = &mut self.records;
 
         if records.capacity() < n {
@@ -64,7 +71,8 @@ impl FastqSource {
             Ok(None)
         } else {
             let df = Fastq::as_dataframe(&records, &self.fastq.parser_option)?;
-            Ok(Some(df))
+            self.dataframe.update(df.lazy());
+            Ok(Some(()))
         }
     }
 
@@ -88,6 +96,19 @@ impl Default for FastqParserOption {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum QulityType {
+    Phred33,
+    Phred64,
+    Unknown,
+}
+
+impl Default for QulityType {
+    fn default() -> Self {
+        QulityType::Unknown
+    }
+}
+
 pub struct Fastq {
     reader: TableLikeReader,
     read_end: bool,
@@ -96,6 +117,7 @@ pub struct Fastq {
     record: FastqRecord,
     pub line_buffer: Vec<u8>,
     break_line_len: Option<usize>,
+    pub quality_type: QulityType,
 }
 
 #[derive(Debug, Clone)]
@@ -232,7 +254,7 @@ impl IntoIterator for Fastq {
 
 impl Fastq {
     pub fn from_path(path: &str) -> FilterxResult<Fastq> {
-        Ok(Fastq {
+        let mut fq = Fastq {
             reader: TableLikeReader::new(path)?,
             read_end: false,
             parser_option: FastqParserOption::default(),
@@ -240,7 +262,53 @@ impl Fastq {
             record: FastqRecord::default(),
             line_buffer: Vec::with_capacity(512),
             break_line_len: None,
-        })
+            quality_type: QulityType::default(),
+        };
+        fq.guess_quality_type()?;
+        Ok(fq)
+    }
+
+    fn guess_quality_type(&mut self) -> FilterxResult<()> {
+        if !self.parser_option.include_qual {
+            return Ok(());
+        }
+        let mut qualitys: [QulityType; 100] = [QulityType::Unknown; 100];
+        let mut count = 0;
+        for _ in 0..100 {
+            let record = self.parse_next()?;
+            if let Some(record) = record {
+                let qual = record.qual();
+                if let Some(qual) = qual {
+                    let qual_u8 = qual.as_bytes();
+                    let max = qual_u8.iter().max().unwrap();
+                    let min = qual_u8.iter().min().unwrap();
+                    let new_quality_type = if *max >= 64 && *min >= 33 {
+                        QulityType::Phred64
+                    } else if *max <= 64 && *min <= 33 {
+                        QulityType::Phred33
+                    } else {
+                        QulityType::Unknown
+                    };
+                    qualitys[count] = new_quality_type;
+                    count += 1;
+                }
+            }
+        }
+        let t = if count == 0 {
+            QulityType::Unknown
+        } else {
+            let mut t = qualitys[0];
+            for i in 1..count {
+                if qualitys[i] != t {
+                    t = QulityType::Unknown;
+                    break;
+                }
+            }
+            t
+        };
+        self.quality_type = t;
+        self.reset()?;
+        Ok(())
     }
 
     /// parse fastq format based paper: https://academic.oup.com/nar/article/38/6/1767/3112533

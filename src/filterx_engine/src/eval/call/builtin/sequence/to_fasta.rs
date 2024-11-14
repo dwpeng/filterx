@@ -1,11 +1,10 @@
 use super::super::*;
-use crate::vm::VmSourceType;
 use std::io::Write;
 
 fn print_fasta(vm: &mut Vm) -> FilterxResult<value::Value> {
     vm.status.printed = true;
-    let name_index = vm.source.ret_column_names.iter().position(|x| x == "name");
-    let seq_index = vm.source.ret_column_names.iter().position(|x| x == "seq");
+    let name_index = vm.source_mut().ret_column_names.iter().position(|x| x == "name");
+    let seq_index = vm.source_mut().ret_column_names.iter().position(|x| x == "seq");
 
     if name_index.is_none() {
         let h = &mut vm.hint;
@@ -24,7 +23,7 @@ fn print_fasta(vm: &mut Vm) -> FilterxResult<value::Value> {
     }
     let name_index = name_index.unwrap();
     let seq_index = seq_index.unwrap();
-    let df = vm.source.lazy().collect()?;
+    let df = vm.source_mut().lazy().collect()?;
     let columns = df.get_columns();
     let name_col = &columns[name_index];
     let seq_col = &columns[seq_index];
@@ -53,7 +52,7 @@ fn print_fasta(vm: &mut Vm) -> FilterxResult<value::Value> {
 }
 
 pub fn to_fasta(vm: &mut Vm) -> FilterxResult<value::Value> {
-    if vm.source_type == VmSourceType::Fasta || vm.source_type == VmSourceType::Fastq {
+    if vm.source_type() == SourceType::Fasta || vm.source_type() == SourceType::Fastq {
         return print_fasta(vm);
     }
     let h = &mut vm.hint;

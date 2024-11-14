@@ -1,7 +1,7 @@
 use super::super::*;
 
 pub fn header(vm: &mut Vm) -> FilterxResult<value::Value> {
-    let source = &vm.source;
+    let source = &vm.source_mut();
     let schema = source.columns()?;
     println!("index\tname\ttype");
     for (index, (name, t)) in schema.iter().enumerate() {

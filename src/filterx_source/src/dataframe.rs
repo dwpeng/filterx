@@ -3,7 +3,7 @@ use polars::prelude::*;
 use filterx_core::{FilterxResult, Hint};
 use regex::Regex;
 
-pub struct Source {
+pub struct DataframeSource {
     pub lazy: LazyFrame,
     pub has_header: bool,
     pub init_column_names: Vec<String>,
@@ -16,7 +16,7 @@ pub fn detect_columns(df: LazyFrame) -> FilterxResult<Vec<String>> {
     Ok(schema.iter().map(|x| x.to_string()).collect())
 }
 
-impl Source {
+impl DataframeSource {
     pub fn new(lazy: LazyFrame) -> Self {
         let lazy = lazy.with_streaming(true);
         Self {
@@ -28,7 +28,7 @@ impl Source {
     }
 }
 
-impl Source {
+impl DataframeSource {
     pub fn reset(&mut self) {
         self.has_header = true;
         self.init_column_names.clear();

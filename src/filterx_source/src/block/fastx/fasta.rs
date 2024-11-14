@@ -3,6 +3,7 @@ use std::io::BufRead;
 
 use super::FastaRecordType;
 use crate::block::reader::TableLikeReader;
+use crate::dataframe::DataframeSource;
 
 use filterx_core::{FilterxResult, Hint};
 
@@ -22,6 +23,7 @@ impl Default for FastaParserOptions {
 pub struct FastaSource {
     pub fasta: Fasta,
     pub records: Vec<FastaRecord>,
+    pub dataframe: DataframeSource,
 }
 
 impl Drop for FastaSource {
@@ -38,10 +40,15 @@ impl FastaSource {
         let opt = FastaParserOptions { include_comment };
         let fasta = fasta.set_parser_options(opt);
         let records = vec![FastaRecord::default(); 4096];
-        Ok(FastaSource { fasta, records })
+        let dataframe = DataframeSource::new(DataFrame::empty().lazy());
+        Ok(FastaSource {
+            fasta,
+            records,
+            dataframe,
+        })
     }
 
-    pub fn into_dataframe(&mut self, n: usize) -> FilterxResult<Option<DataFrame>> {
+    pub fn into_dataframe(&mut self, n: usize) -> FilterxResult<Option<()>> {
         let records = &mut self.records;
         if records.capacity() < n {
             unsafe {
@@ -75,7 +82,8 @@ impl FastaSource {
         }
 
         let df = Fasta::as_dataframe(&records, &self.fasta.parser_options)?;
-        Ok(Some(df))
+        self.dataframe.update(df.lazy());
+        Ok(Some(()))
     }
 
     pub fn reset(&mut self) -> FilterxResult<()> {

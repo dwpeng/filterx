@@ -8,7 +8,7 @@ pub fn col(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
         "col only support column index, column name, or function which return a column name."
     );
     let c = match col_value {
-        value::Value::Int(i) => vm.source.index2column(i as usize),
+        value::Value::Int(i) => vm.source_mut().index2column(i as usize),
         value::Value::Str(s) => s,
         value::Value::Name(c) => c.name,
         value::Value::Item(c) => c.col_name,
@@ -17,7 +17,7 @@ pub fn col(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
             h.white("col only support column index, column name, or function which return a column name.").print_and_exit();
         }
     };
-    vm.source.has_column(&c);
+    vm.source_mut().has_column(&c);
     Ok(value::Value::Item(value::Item {
         col_name: c,
         data_type: None,

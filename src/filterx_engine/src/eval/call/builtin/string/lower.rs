@@ -15,9 +15,9 @@ pub fn lower<'a>(
     );
     let name = col_name.column()?;
     let e = col_name.expr()?;
-    vm.source.has_column(name);
+    vm.source_mut().has_column(name);
     if inplace {
-        vm.source
+        vm.source_mut()
             .with_column(e.str().to_lowercase().alias(name), None);
         return Ok(value::Value::None);
     }

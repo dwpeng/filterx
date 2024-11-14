@@ -1,4 +1,5 @@
 use super::super::*;
+use filterx_source::source::SourceType;
 
 pub fn len<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     expect_args_len(args, 1)?;
@@ -9,12 +10,15 @@ pub fn len<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Va
     );
     let name = col_name.column()?;
     let mut e = col_name.expr()?;
-    vm.source.has_column(name);
+    vm.source_mut().has_column(name);
     // !Note: Only csv has a character length.
-    if vm.source_type == "csv".into() {
-        e = e.str().len_chars();
-    } else {
-        e = e.str().len_bytes();
+    match vm.source_type() {
+        SourceType::Csv => {
+            e = e.str().len_chars();
+        }
+        _ => {
+            e = e.str().len_bytes();
+        }
     }
     Ok(value::Value::named_expr(None, e))
 }

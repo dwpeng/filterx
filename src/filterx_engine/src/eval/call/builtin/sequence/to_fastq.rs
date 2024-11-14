@@ -3,9 +3,9 @@ use std::io::Write;
 
 fn print_fastq(vm: &mut Vm) -> FilterxResult<value::Value> {
     vm.status.printed = true;
-    let name_index = vm.source.ret_column_names.iter().position(|x| x == "name");
-    let seq_index = vm.source.ret_column_names.iter().position(|x| x == "seq");
-    let qual_index = vm.source.ret_column_names.iter().position(|x| x == "qual");
+    let name_index = vm.source_mut().ret_column_names.iter().position(|x| x == "name");
+    let seq_index = vm.source_mut().ret_column_names.iter().position(|x| x == "seq");
+    let qual_index = vm.source_mut().ret_column_names.iter().position(|x| x == "qual");
     if name_index.is_none() {
         let h = &mut vm.hint;
         h.white("Lost ")
@@ -22,7 +22,7 @@ fn print_fastq(vm: &mut Vm) -> FilterxResult<value::Value> {
     }
     let name_index = name_index.unwrap();
     let seq_index = seq_index.unwrap();
-    let df = vm.source.lazy().collect()?;
+    let df = vm.source_mut().lazy().collect()?;
     let columns = df.get_columns();
     let name_col = &columns[name_index];
     let seq_col = &columns[seq_index];
@@ -82,7 +82,7 @@ fn print_fastq(vm: &mut Vm) -> FilterxResult<value::Value> {
 }
 
 pub fn to_fastq(vm: &mut Vm) -> FilterxResult<value::Value> {
-    if vm.source_type == VmSourceType::Fasta || vm.source_type == VmSourceType::Fastq {
+    if vm.source_type() == SourceType::Fasta || vm.source_type() == SourceType::Fastq {
         return print_fastq(vm);
     }
     let h = &mut vm.hint;

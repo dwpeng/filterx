@@ -17,7 +17,7 @@ pub fn replace<'a>(
     );
     let name = col_name.column()?;
     let e = col_name.expr()?;
-    vm.source.has_column(name);
+    vm.source_mut().has_column(name);
 
     let patt = eval!(
         vm,
@@ -38,7 +38,7 @@ pub fn replace<'a>(
     let repl = lit(repl.as_str());
 
     if inplace {
-        vm.source.with_column(
+        vm.source_mut().with_column(
             match many {
                 true => e.str().replace_all(patt, repl, true).alias(name),
                 false => e.str().replace(patt, repl, true).alias(name),

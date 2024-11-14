@@ -19,7 +19,7 @@ pub fn strip<'a>(
 
     let name = col_name.column()?;
     let e = col_name.expr()?;
-    vm.source.has_column(&name);
+    vm.source_mut().has_column(&name);
 
     let patt = eval!(
         vm,
@@ -38,7 +38,7 @@ pub fn strip<'a>(
     };
 
     if inplace {
-        vm.source.with_column(e.alias(name), None);
+        vm.source_mut().with_column(e.alias(name), None);
         return Ok(value::Value::None);
     }
 

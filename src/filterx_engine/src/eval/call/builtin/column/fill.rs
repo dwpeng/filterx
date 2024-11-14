@@ -1,6 +1,6 @@
 use super::super::*;
-use polars::prelude::Literal;
 use filterx_core::value::Value;
+use polars::prelude::Literal;
 
 pub fn fill<'a>(
     vm: &'a mut Vm,
@@ -22,10 +22,10 @@ pub fn fill<'a>(
     );
     let name = col_name.column()?;
     let e = col_name.expr()?;
-    vm.source.has_column(name);
+    vm.source_mut().has_column(name);
     let e = e.fill_null(const_value.lit());
     if inplace {
-        let lazy = &mut vm.source;
+        let lazy = vm.source_mut();
         lazy.with_column(e.alias(name), None);
         return Ok(Value::None);
     }

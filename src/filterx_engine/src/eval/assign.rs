@@ -82,14 +82,14 @@ impl<'a> Eval<'a> for ast::StmtAssign {
             BinOp
         );
         let exist = vm
-            .source
+            .source_mut()
             .ret_column_names
             .contains(&new_col_name.to_string());
         let if_append = match exist {
             true => None,
             false => Some(new_col_name.into()),
         };
-        vm.source
+        vm.source_mut()
             .with_column(value.expr()?.alias(new_col_name), if_append);
         Ok(Value::None)
     }

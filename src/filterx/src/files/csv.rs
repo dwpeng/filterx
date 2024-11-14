@@ -1,6 +1,6 @@
 use crate::args::{CsvCommand, ShareArgs};
-use filterx_engine::vm::{Vm, VmSourceType};
-use filterx_source::{detect_columns, Source};
+use filterx_engine::vm::Vm;
+use filterx_source::{detect_columns, DataframeSource, Source, SourceType};
 
 use filterx_core::{util, FilterxResult};
 
@@ -48,12 +48,11 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         true,
     )?;
     let columns = detect_columns(lazy_df.clone())?;
-    let mut s = Source::new(lazy_df.clone());
+    let mut s = DataframeSource::new(lazy_df.clone());
     s.set_has_header(header.unwrap());
     s.set_init_column_names(&columns);
-    let mut vm = Vm::from_dataframe(s);
-    vm.source.set_has_header(header.unwrap());
-    vm.set_scope(VmSourceType::Csv);
+    let mut vm = Vm::from_source(Source::new(s.into(), SourceType::Csv));
+    vm.source_mut().set_has_header(header.unwrap());
     let expr = util::merge_expr(expr);
     let writer = Box::new(writer);
     vm.set_writer(writer);
@@ -62,7 +61,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
     if vm.status.printed {
         return Ok(());
     }
-    let mut df = vm.source.into_df()?;
+    let mut df = vm.into_df()?;
     if output.is_none() && table.unwrap_or(false) {
         println!("{}", df);
         return Ok(());

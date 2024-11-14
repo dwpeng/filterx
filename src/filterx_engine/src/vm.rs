@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
-use filterx_core::{FilterxError, FilterxResult, Hint};
+use polars::prelude::*;
 
-use filterx_source::Source;
+use filterx_core::{FilterxError, FilterxResult, Hint};
+use filterx_source::source::SourceType;
+use filterx_source::{DataframeSource, Source, SourceInner};
 
 use super::eval::Eval;
 
@@ -23,6 +25,7 @@ pub struct VmStatus {
     pub offset: usize,
     pub printed: bool,
     pub consume_rows: usize,
+    pub chunk_size: usize,
 }
 
 impl VmStatus {
@@ -35,6 +38,7 @@ impl VmStatus {
             offset: 0,
             printed: false,
             consume_rows: 0,
+            chunk_size: 10000,
         }
     }
 }
@@ -43,48 +47,18 @@ impl VmStatus {
     pub fn update_apply_lazy(&mut self, apply_lazy: bool) {
         self.apply_lazy = apply_lazy;
     }
+
+    pub fn set_limit_rows(&mut self, limit_rows: usize) {
+        self.limit_rows = limit_rows;
+    }
+    pub fn set_chunk_size(&mut self, chunk_size: usize) {
+        self.chunk_size = chunk_size;
+    }
 }
 
 impl Default for VmStatus {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[derive(Debug, Clone, Copy, clap::ValueEnum, PartialEq)]
-pub enum VmSourceType {
-    Csv,
-    Fasta,
-    Fastq,
-    Vcf,
-    Sam,
-    Gxf,
-}
-
-impl Into<&str> for VmSourceType {
-    fn into(self) -> &'static str {
-        match self {
-            VmSourceType::Csv => "csv",
-            VmSourceType::Fasta => "fasta",
-            VmSourceType::Fastq => "fastq",
-            VmSourceType::Vcf => "vcf",
-            VmSourceType::Sam => "sam",
-            VmSourceType::Gxf => "gxf",
-        }
-    }
-}
-
-impl From<&str> for VmSourceType {
-    fn from(s: &str) -> Self {
-        match s {
-            "csv" => VmSourceType::Csv,
-            "fasta" => VmSourceType::Fasta,
-            "fastq" => VmSourceType::Fastq,
-            "vcf" => VmSourceType::Vcf,
-            "sam" => VmSourceType::Sam,
-            "gxf" => VmSourceType::Gxf,
-            _ => panic!("Invalid source type"),
-        }
     }
 }
 
@@ -97,21 +71,19 @@ pub struct Vm {
     /// source
     pub source: Source,
     pub status: VmStatus,
-    pub source_type: VmSourceType,
     pub writer: Option<Box<BufWriter<Box<dyn Write>>>>,
     pub expr_cache: HashMap<String, (String, Vec<polars::prelude::Expr>)>,
     pub hint: Hint,
 }
 
 impl Vm {
-    pub fn from_dataframe(dataframe: Source) -> Self {
+    pub fn from_source(source: Source) -> Self {
         Self {
             eval_expr: String::new(),
             parse_cache: HashMap::new(),
             mode: VmMode::Expression,
-            source: dataframe,
+            source,
             status: VmStatus::default(),
-            source_type: VmSourceType::Csv,
             writer: None,
             expr_cache: HashMap::new(),
             hint: Hint::new(),
@@ -120,10 +92,6 @@ impl Vm {
 
     pub fn set_mode(&mut self, mode: VmMode) {
         self.mode = mode;
-    }
-
-    pub fn set_scope(&mut self, scope: VmSourceType) {
-        self.source_type = scope;
     }
 
     pub fn set_writer(&mut self, writer: Box<BufWriter<Box<dyn Write>>>) {
@@ -231,13 +199,51 @@ impl Vm {
         Ok(())
     }
 
-    pub fn next_batch(&mut self) -> FilterxResult<()> {
+    pub fn next_batch(&mut self) -> FilterxResult<Option<()>> {
         self.status.printed = false;
-        Ok(())
+        match self.source_type() {
+            SourceType::Fasta | SourceType::Fastq => {
+                let left = self.status.limit_rows - self.status.consume_rows;
+                let left = left.min(self.status.chunk_size);
+                if left > 0 {
+                    match self.source.inner {
+                        SourceInner::Fasta(ref mut fasta) => {
+                            fasta.into_dataframe(left)?;
+                        }
+                        SourceInner::Fastq(ref mut fastq) => {
+                            fastq.into_dataframe(left)?;
+                        }
+                        _ => {
+                            unreachable!();
+                        }
+                    }
+                    return Ok(Some(()));
+                }
+                Ok(None)
+            }
+            _ => Ok(Some(())),
+        }
+    }
+
+    pub fn source_mut(&mut self) -> &mut DataframeSource {
+        self.source.df_source_mut()
+    }
+
+    pub fn source(&self) -> &DataframeSource {
+        self.source.df_source()
+    }
+
+    pub fn into_df(&self) -> FilterxResult<DataFrame> {
+        self.source.into_df()
+    }
+
+    pub fn source_type(&self) -> SourceType {
+        self.source.source_type
     }
 
     pub fn finish(&mut self) -> FilterxResult<()> {
-        self.source.finish()
+        let s = self.source.df_source_mut();
+        s.finish()
     }
 }
 
@@ -245,11 +251,14 @@ impl Vm {
 mod test {
     use super::*;
     use filterx_core::util;
+    use filterx_source::source::{SourceInner, SourceType};
+    use filterx_source::DataframeSource;
 
     #[test]
     fn test_vm() {
-        let frame = Source::new(util::mock_lazy_df());
-        let mut vm = Vm::from_dataframe(frame);
+        let frame = DataframeSource::new(util::mock_lazy_df());
+        let source = Source::new(frame.into(), SourceType::Csv);
+        let mut vm = Vm::from_source(source);
         let expr = "alias(c) = a + b";
         let ret = vm.eval_once(expr);
         println!("{:?}", ret);

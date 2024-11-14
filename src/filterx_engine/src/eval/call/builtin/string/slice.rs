@@ -41,7 +41,7 @@ pub fn slice<'a>(
     );
     let name = col_name.column()?;
     let e = col_name.expr()?;
-    vm.source.has_column(name);
+    vm.source_mut().has_column(name);
     let length;
     let mut start = 0;
     if args.len() == 2 {
@@ -54,7 +54,7 @@ pub fn slice<'a>(
     let e = e.str().slice(lit(start), lit(length));
 
     if inplace {
-        vm.source.with_column(e.alias(name), None);
+        vm.source_mut().with_column(e.alias(name), None);
         return Ok(value::Value::None);
     }
 

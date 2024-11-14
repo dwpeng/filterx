@@ -1,11 +1,8 @@
-use polars::frame::DataFrame;
-use polars::prelude::IntoLazy;
-
 use crate::args::{FastqCommand, ShareArgs};
 use std::io::Write;
 
-use filterx_engine::vm::{Vm, VmSourceType};
-use filterx_source::{FastqSource, Source};
+use filterx_engine::vm::Vm;
+use filterx_source::{FastqSource, Source, SourceType};
 
 use filterx_core::{util, FilterxResult};
 pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
@@ -63,28 +60,21 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
         }
         return Ok(());
     }
-    let mut chunk_size = long.unwrap();
-    let mut vm = Vm::from_dataframe(Source::new(DataFrame::empty().lazy()));
-    vm.set_scope(VmSourceType::Fastq);
+    let chunk_size = long.unwrap();
+    let mut vm = Vm::from_source(Source::new(source.into(), SourceType::Fastq));
     vm.set_writer(output);
+    vm.status.set_chunk_size(chunk_size);
+    vm.source_mut().set_init_column_names(&names);
     'stop_parse: loop {
-        if vm.status.consume_rows >= vm.status.limit_rows {
-            break;
+        let left = vm.next_batch()?;
+        if left.is_none() {
+            break 'stop_parse;
         }
-        chunk_size = usize::min(chunk_size, vm.status.limit_rows - vm.status.consume_rows);
-        let df = source.into_dataframe(chunk_size)?;
-        if df.is_none() {
-            break;
-        }
-        let mut dataframe_source = Source::new(df.unwrap().lazy());
-        dataframe_source.set_init_column_names(&names);
-        vm.source = dataframe_source;
-        vm.next_batch()?;
         vm.eval_once(&expr)?;
         vm.finish()?;
         if !vm.status.printed {
+            let df = vm.into_df()?;
             let writer = vm.writer.as_mut().unwrap();
-            let df = vm.source.into_df()?;
             let cols = df.get_columns();
             let name_col = cols.iter().position(|x| x.name() == "name");
             let seq_col = cols.iter().position(|x| x.name() == "seq");

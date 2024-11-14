@@ -1,5 +1,3 @@
-use crate::vm::VmSourceType;
-
 use super::super::*;
 
 pub fn limit<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
@@ -31,15 +29,15 @@ pub fn limit<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
         }
     };
 
-    match vm.source_type {
-        VmSourceType::Fasta | VmSourceType::Fastq => {
+    match vm.source_type() {
+        SourceType::Fasta | SourceType::Fastq => {
             vm.status.limit_rows = nrow;
             return Ok(value::Value::None);
         }
         _ => {}
     }
 
-    vm.source.slice(0, nrow);
+    vm.source_mut().slice(0, nrow);
 
     Ok(value::Value::None)
 }

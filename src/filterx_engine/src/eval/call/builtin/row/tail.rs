@@ -28,7 +28,7 @@ pub fn tail(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
         }
     };
 
-    let lazy = vm.source.lazy().tail(nrow as u32);
-    vm.source.update(lazy);
+    let lazy = vm.source_mut().lazy().tail(nrow as u32);
+    vm.source_mut().update(lazy);
     Ok(value::Value::None)
 }

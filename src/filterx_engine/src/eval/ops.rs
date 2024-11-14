@@ -333,12 +333,12 @@ fn boolop_in_dataframe<'a>(
     match op {
         ast::BoolOp::And => match (l, r) {
             (_, _) => {
-                vm.source.filter(l.expr()?.and(r.clone().expr()?));
+                vm.source_mut().filter(l.expr()?.and(r.clone().expr()?));
             }
         },
         ast::BoolOp::Or => match (l, r) {
             (_, _) => {
-                vm.source.filter(l.expr()?.or(r.expr()?));
+                vm.source_mut().filter(l.expr()?.or(r.expr()?));
             }
         },
     }
@@ -459,7 +459,7 @@ fn str_in_col<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Filt
                 .print_and_exit();
         }
     };
-    vm.source.filter(e);
+    vm.source_mut().filter(e);
     Ok(Value::None)
 }
 
@@ -486,7 +486,7 @@ fn compare_in_and_not_in_dataframe<'a>(
                 .print_and_exit();
         }
     };
-    let df_root = vm.source.lazy();
+    let df_root = vm.source_mut().lazy();
     let left_df = df_root.collect()?;
     let left_col_type = left_df.column(&left.to_string())?.dtype();
     let right_col = match &right {
@@ -563,11 +563,11 @@ fn compare_in_and_not_in_dataframe<'a>(
     match op {
         CmpOp::In => {
             let df = left_df.join(&right_df, left_on, right_on, JoinArgs::new(JoinType::Semi))?;
-            vm.source.update(df.lazy());
+            vm.source_mut().update(df.lazy());
         }
         CmpOp::NotIn => {
             let df = left_df.join(&right_df, left_on, right_on, JoinArgs::new(JoinType::Anti))?;
-            vm.source.update(df.lazy());
+            vm.source_mut().update(df.lazy());
         }
         _ => unreachable!(),
     }
@@ -584,7 +584,7 @@ fn compare_cond_expr_in_dataframe<'a>(
     let left_expr = left.expr()?;
     let right_expr = right.expr()?;
     let e = cond_expr_build(vm, left_expr, right_expr, op.clone())?;
-    vm.source.filter(e);
+    vm.source_mut().filter(e);
     Ok(Value::None)
 }
 

@@ -15,7 +15,7 @@ pub fn cast<'a>(
     );
     let name = col_name.column()?;
     let e = col_name.expr()?;
-    vm.source.has_column(name);
+    vm.source_mut().has_column(name);
     let new_type = match new_type.to_lowercase().as_str() {
         "int" => DataType::Int32,
         "float" => DataType::Float32,
@@ -42,7 +42,7 @@ pub fn cast<'a>(
 
     let e = e.cast(new_type);
     if inplace {
-        vm.source.with_column(e.alias(name), None);
+        vm.source_mut().with_column(e.alias(name), None);
         return Ok(value::Value::None);
     }
 

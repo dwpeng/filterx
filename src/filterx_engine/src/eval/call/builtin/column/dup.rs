@@ -12,7 +12,7 @@ pub fn dup<'a>(
     for arg in args {
         let col = eval_col!(vm, arg, "dup only support column name");
         let col = col.column()?;
-        vm.source.has_column(col);
+        vm.source_mut().has_column(col);
         select_dolumns.push(col.to_string());
     }
 
@@ -23,7 +23,7 @@ pub fn dup<'a>(
             .print_and_exit();
     }
 
-    vm.source.unique(select_dolumns, unique_strategy);
+    vm.source_mut().unique(select_dolumns, unique_strategy);
 
     Ok(value::Value::None)
 }

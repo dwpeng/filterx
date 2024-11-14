@@ -5,8 +5,8 @@ use polars::frame::UniqueKeepStrategy;
 use super::super::ast;
 
 use crate::vm::Vm;
-use crate::vm::VmSourceType;
 use filterx_core::{value, FilterxResult};
+use filterx_source::source::SourceType;
 
 use crate::eval::call::builtin as call;
 use crate::eval::Eval;
@@ -49,10 +49,11 @@ impl<'a> Eval<'a> for ast::ExprCall {
             "select" => call::select(vm, &self.args),
             "col" | "c" => call::col(vm, &self.args),
             "rename" => {
-                if vm.source_type == VmSourceType::Fasta || vm.source_type == VmSourceType::Fastq {
+                if vm.source_type() == SourceType::Fasta || vm.source_type() == SourceType::Fastq {
+                    let source_type = vm.source_type();
                     let h = &mut vm.hint;
                     h.white("Function `rename` does not be supported in source `")
-                        .cyan(&format!("{:?}", vm.source_type))
+                        .cyan(&format!("{:?}", source_type))
                         .white("`.")
                         .print_and_exit();
                 } else {

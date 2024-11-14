@@ -5,8 +5,8 @@ use polars::{
 };
 
 use super::super::*;
+use filterx_source::Source;
 use polars::prelude::{col, Expr};
-
 use regex::Regex;
 
 use lazy_static::lazy_static;
@@ -17,6 +17,7 @@ lazy_static! {
 }
 
 fn parse_format_string(
+    source_type: SourceType,
     valid_names: Option<&Vec<String>>,
     s: &str,
 ) -> FilterxResult<(String, Option<Vec<Expr>>)> {
@@ -37,9 +38,10 @@ fn parse_format_string(
     let re = &REGEX_PATTERN;
     let fmt = re.replace_all(s, "{}").to_string();
     let mut cols = Vec::new();
-    let mut vm = Vm::from_dataframe(Source::new(DataFrame::empty().lazy()));
+    let source = DataframeSource::new(DataFrame::empty().lazy());
+    let mut vm = Vm::from_source(Source::new(source.into(), source_type));
     if let Some(valid_names) = valid_names {
-        vm.source.set_init_column_names(valid_names);
+        vm.source_mut().set_init_column_names(valid_names);
     }
     for cap in re.captures_iter(s) {
         let item = cap.get(1).unwrap().as_str();
@@ -50,7 +52,7 @@ fn parse_format_string(
         }
         if REGEX_VARNAME.is_match(item) {
             // recheck columns name
-            vm.source.has_column(item);
+            vm.source_mut().has_column(item);
             cols.push(col(item));
             continue;
         }
@@ -73,7 +75,7 @@ fn test_parse_format_string() {
     use polars::prelude::col;
 
     let s = "xxx_{seq}";
-    let (fmt, cols) = parse_format_string(None, s).unwrap();
+    let (fmt, cols) = parse_format_string(SourceType::Fasta, None, s).unwrap();
     assert_eq!(fmt, "xxx_{}");
     assert!(cols.is_some());
     let cols = cols.unwrap();
@@ -81,7 +83,7 @@ fn test_parse_format_string() {
     assert_eq!(cols[0], col("seq"));
 
     let s = "xxx_{seq}_{seq}";
-    let (fmt, cols) = parse_format_string(None, s).unwrap();
+    let (fmt, cols) = parse_format_string(SourceType::Fasta, None, s).unwrap();
     assert_eq!(fmt, "xxx_{}_{}");
     assert!(cols.is_some());
     let cols = cols.unwrap();
@@ -90,12 +92,12 @@ fn test_parse_format_string() {
     assert_eq!(cols[1], col("seq"));
 
     let s = "xxx";
-    let (fmt, cols) = parse_format_string(None, s).unwrap();
+    let (fmt, cols) = parse_format_string(SourceType::Fasta, None, s).unwrap();
     assert_eq!(fmt, "xxx");
     assert!(cols.is_none());
 
     let s = "xxx{len(seq)}";
-    let (fmt, cols) = parse_format_string(None, s).unwrap();
+    let (fmt, cols) = parse_format_string(SourceType::Fasta, None, s).unwrap();
     assert_eq!(fmt, "xxx{}");
     assert!(cols.is_some());
     let cols = cols.unwrap();
@@ -118,22 +120,22 @@ pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
     );
     let value = value.text()?;
     // get from cache
-    let fmt;
-    let cols;
-    if let Some(value) = vm.expr_cache.get(&value) {
-        fmt = &value.0;
-        cols = &value.1;
+    let (fmt, cols) = if let Some(value) = vm.expr_cache.get(&value) {
+        (value.0.clone(), value.1.clone())
     } else {
-        let (fmt_, cols_) = parse_format_string(Some(&vm.source.ret_column_names), &value)?;
+        let (fmt_, cols_) = parse_format_string(
+            vm.source_type(),
+            Some(&vm.source().ret_column_names),
+            &value,
+        )?;
         let cols_ = cols_.unwrap_or(vec![]);
         vm.expr_cache
             .insert(value.clone(), (fmt_.clone(), cols_.clone()));
         let value = vm.expr_cache.get(&value).unwrap();
-        fmt = &value.0;
-        cols = &value.1;
-    }
+        (value.0.clone(), value.1.clone())
+    };
     let lazy = vm
-        .source
+        .source_mut()
         .lazy()
         .select([format_str(&fmt, &cols)?.alias(FORMAT_COLUMN_NAME)]);
     let mut df = lazy.collect()?;

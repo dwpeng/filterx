@@ -54,7 +54,7 @@ pub fn gc<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Val
     expect_args_len(args, 1)?;
     let col_name = eval_col!(vm, &args[0], "gc: expected a column name as first argument");
     let col_name = col_name.column()?;
-    vm.source.has_column(col_name);
+    vm.source_mut().has_column(col_name);
     let e = col(col_name).map(compute_gc, GetOutput::float_type());
     return Ok(value::Value::named_expr(None, e));
 }

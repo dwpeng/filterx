@@ -1,9 +1,10 @@
+use filterx_source::Source;
 use polars::prelude::DataType;
 use polars::prelude::SchemaRef;
 
 use crate::args::{ShareArgs, VcfCommand};
-use filterx_engine::vm::{Vm, VmSourceType};
-use filterx_source::Source;
+use filterx_engine::vm::Vm;
+use filterx_source::{DataframeSource, SourceType};
 
 use filterx_core::{util, FilterxResult};
 
@@ -80,10 +81,9 @@ pub fn filterx_vcf(cmd: VcfCommand) -> FilterxResult<()> {
         Some(vec!["."]),
         true,
     )?;
-    let mut s = Source::new(lazy_df.clone());
+    let mut s = DataframeSource::new(lazy_df.clone());
     s.set_init_column_names(&names);
-    let mut vm = Vm::from_dataframe(s);
-    vm.set_scope(VmSourceType::Vcf);
+    let mut vm = Vm::from_source(Source::new(s.into(), SourceType::Vcf));
     let expr = util::merge_expr(expr);
     let writer = Box::new(writer);
     vm.set_writer(writer);
@@ -92,7 +92,7 @@ pub fn filterx_vcf(cmd: VcfCommand) -> FilterxResult<()> {
     if vm.status.printed {
         return Ok(());
     }
-    let mut df = vm.source.into_df()?;
+    let mut df = vm.into_df()?;
     if output.is_none() && table.unwrap_or(false) {
         println!("{}", df);
         return Ok(());
