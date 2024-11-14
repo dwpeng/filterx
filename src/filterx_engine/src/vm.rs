@@ -4,16 +4,19 @@ use polars::prelude::*;
 
 use filterx_core::{FilterxError, FilterxResult, Hint};
 use filterx_source::source::SourceType;
-use filterx_source::{DataframeSource, Source, SourceInner};
+use filterx_source::{
+    DataframeSource, FastaRecordType, FastaSource, FastqSource, QualityType, Source, SourceInner,
+};
 
 use super::eval::Eval;
 
 use std::io::BufWriter;
 use std::io::Write;
 
+#[derive(Debug, PartialEq)]
 pub enum VmMode {
-    Interactive,
     Expression,
+    Printable
 }
 
 #[derive(Debug)]
@@ -77,6 +80,30 @@ pub struct Vm {
 }
 
 impl Vm {
+    pub fn mock(source_type: SourceType) -> Vm {
+        let innser: SourceInner = match source_type {
+            SourceType::Fasta => FastaSource::new("", false, FastaRecordType::Dna, 0)
+                .unwrap()
+                .into(),
+            SourceType::Fastq => FastqSource::new("", false, false, QualityType::Phred33, 0)
+                .unwrap()
+                .into(),
+            _ => DataframeSource::new(DataFrame::empty().lazy()).into(),
+        };
+
+        let vm = Vm {
+            eval_expr: "".to_string(),
+            parse_cache: HashMap::new(),
+            mode: VmMode::Expression,
+            source: Source::new(innser, source_type),
+            status: VmStatus::default(),
+            writer: None,
+            expr_cache: HashMap::new(),
+            hint: Hint::new(),
+        };
+        vm
+    }
+
     pub fn from_source(source: Source) -> Self {
         Self {
             eval_expr: String::new(),
@@ -105,6 +132,7 @@ impl Vm {
             && !s.contains("!=")
             && !s.contains(">=")
             && !s.contains("<=")
+            && !s.contains("print(")
         {
             let expr = rustpython_parser::parse(s, rustpython_parser::Mode::Interactive, "")?;
             return Ok(expr);

@@ -4,5 +4,7 @@ builtin_function! {
     gc,
     revcomp,
     to_fasta,
-    to_fastq
+    to_fastq,
+    qual,
+    phred
 }

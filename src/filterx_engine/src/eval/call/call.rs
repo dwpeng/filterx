@@ -43,6 +43,8 @@ impl<'a> Eval<'a> for ast::ExprCall {
             function_name = "cast".to_string();
         }
 
+        // TODO check if the function can executable in this context
+
         match function_name.as_str() {
             "alias" => call::alias(vm, &self.args),
             "drop" => call::drop(vm, &self.args),
@@ -69,6 +71,8 @@ impl<'a> Eval<'a> for ast::ExprCall {
             "print" | "format" | "fmt" => call::print(vm, &self.args),
             "limit" => call::limit(vm, &self.args),
             "gc" => call::gc(vm, &self.args),
+            "qual" => call::qual(vm, &self.args),
+            "phred" => call::phred(vm),
             "rev" => call::rev(vm, &self.args, false),
             "rev_" => call::rev(vm, &self.args, true),
             "revcomp" => call::revcomp(vm, &self.args, false),

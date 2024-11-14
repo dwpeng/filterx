@@ -1,26 +1,19 @@
-use polars::{
-    frame::DataFrame,
-    io::SerWriter,
-    prelude::{format_str, IntoLazy},
-};
+use polars::{io::SerWriter, prelude::format_str};
+
+use crate::vm::VmMode;
 
 use super::super::*;
-use filterx_source::Source;
 use polars::prelude::{col, Expr};
 use regex::Regex;
 
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref REGEX_PATTERN: Regex = Regex::new(r"\{([\(\)a-zA-Z0-9_\-+*\\ ]*)\}").unwrap();
+    static ref REGEX_PATTERN: Regex = Regex::new(r"\{([\(\)a-zA-Z0-9_\-+/*\\ ]*)\}").unwrap();
     static ref REGEX_VARNAME: Regex = Regex::new(r"^[_a-zA-Z]+[a-zA-Z_0-9]*$").unwrap();
 }
 
-fn parse_format_string(
-    source_type: SourceType,
-    valid_names: Option<&Vec<String>>,
-    s: &str,
-) -> FilterxResult<(String, Option<Vec<Expr>>)> {
+fn parse_format_string(s: &str, vm: &mut Vm) -> FilterxResult<(String, Option<Vec<Expr>>)> {
     // value: "xxxxx"  ->  "xxxxx"
     // value: "xxx_{seq}" ->  "xxx_{}" and col("seq")
     // value: "xxx_{seq}_{seq}" -> "xxx_{}_{}" and col("seq"), col("seq")
@@ -38,11 +31,6 @@ fn parse_format_string(
     let re = &REGEX_PATTERN;
     let fmt = re.replace_all(s, "{}").to_string();
     let mut cols = Vec::new();
-    let source = DataframeSource::new(DataFrame::empty().lazy());
-    let mut vm = Vm::from_source(Source::new(source.into(), source_type));
-    if let Some(valid_names) = valid_names {
-        vm.source_mut().set_init_column_names(valid_names);
-    }
     for cap in re.captures_iter(s) {
         let item = cap.get(1).unwrap().as_str();
         if item.is_empty() {
@@ -58,12 +46,15 @@ fn parse_format_string(
         }
         let ast = vm.ast(item)?;
         if !ast.is_expression() {
-            return Err(FilterxError::RuntimeError(
-                "Error format string, only support expression".to_string(),
-            ));
+            let h = &mut vm.hint;
+            h.white("Only support expression in ")
+            .cyan("print")
+            .white(", but got ")
+            .red(item)
+            .print_and_exit();
         }
         let ast = ast.expression().unwrap();
-        let ast = ast.eval(&mut vm)?;
+        let ast = ast.eval(vm)?;
         let value = ast.expr()?;
         cols.push(value);
     }
@@ -73,9 +64,9 @@ fn parse_format_string(
 #[test]
 fn test_parse_format_string() {
     use polars::prelude::col;
-
+    let mut vm = Vm::mock(SourceType::Fasta);
     let s = "xxx_{seq}";
-    let (fmt, cols) = parse_format_string(SourceType::Fasta, None, s).unwrap();
+    let (fmt, cols) = parse_format_string(s, &mut vm).unwrap();
     assert_eq!(fmt, "xxx_{}");
     assert!(cols.is_some());
     let cols = cols.unwrap();
@@ -83,7 +74,7 @@ fn test_parse_format_string() {
     assert_eq!(cols[0], col("seq"));
 
     let s = "xxx_{seq}_{seq}";
-    let (fmt, cols) = parse_format_string(SourceType::Fasta, None, s).unwrap();
+    let (fmt, cols) = parse_format_string(s, &mut vm).unwrap();
     assert_eq!(fmt, "xxx_{}_{}");
     assert!(cols.is_some());
     let cols = cols.unwrap();
@@ -92,12 +83,12 @@ fn test_parse_format_string() {
     assert_eq!(cols[1], col("seq"));
 
     let s = "xxx";
-    let (fmt, cols) = parse_format_string(SourceType::Fasta, None, s).unwrap();
+    let (fmt, cols) = parse_format_string(s, &mut vm).unwrap();
     assert_eq!(fmt, "xxx");
     assert!(cols.is_none());
 
     let s = "xxx{len(seq)}";
-    let (fmt, cols) = parse_format_string(SourceType::Fasta, None, s).unwrap();
+    let (fmt, cols) = parse_format_string(s, &mut vm).unwrap();
     assert_eq!(fmt, "xxx{}");
     assert!(cols.is_some());
     let cols = cols.unwrap();
@@ -123,11 +114,9 @@ pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
     let (fmt, cols) = if let Some(value) = vm.expr_cache.get(&value) {
         (value.0.clone(), value.1.clone())
     } else {
-        let (fmt_, cols_) = parse_format_string(
-            vm.source_type(),
-            Some(&vm.source().ret_column_names),
-            &value,
-        )?;
+        vm.set_mode(VmMode::Printable);
+        let (fmt_, cols_) = parse_format_string(&value, vm)?;
+        vm.set_mode(VmMode::Expression);
         let cols_ = cols_.unwrap_or(vec![]);
         vm.expr_cache
             .insert(value.clone(), (fmt_.clone(), cols_.clone()));

@@ -17,7 +17,9 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
         chunk: long,
         no_comment,
         no_quality,
+        phred,
         limit,
+        detect_size,
     } = cmd;
 
     let _limit = match limit {
@@ -51,7 +53,13 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
 
     let names = names.iter().map(|x| x.to_string()).collect::<Vec<String>>();
     let expr = util::merge_expr(expr);
-    let mut source = FastqSource::new(path.as_str(), !no_comment.unwrap(), !no_quality.unwrap())?;
+    let mut source = FastqSource::new(
+        path.as_str(),
+        !no_comment.unwrap(),
+        !no_quality.unwrap(),
+        phred.unwrap(),
+        detect_size.unwrap(),
+    )?;
     let output = util::create_buffer_writer(output)?;
     let mut output = Box::new(output);
     if expr.is_empty() {

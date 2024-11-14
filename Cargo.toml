@@ -52,6 +52,7 @@ flate2 = { version = "1.0.34", features = ["zlib-rs"] }
 regex = "1.11.1"
 colored = "2.1.0"
 lazy_static = "1.5.0"
+memchr = "2.7.4"
 
 
 [profile.dev]

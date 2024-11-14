@@ -14,3 +14,5 @@ flate2 = { workspace = true }
 polars = { workspace = true }
 regex = { workspace = true }
 filterx_core = { workspace = true }
+clap = { workspace = true }
+memchr = { workspace = true }

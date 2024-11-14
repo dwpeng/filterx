@@ -23,7 +23,22 @@ fn init_gxf_schema() -> Option<SchemaRef> {
     util::create_schemas(files)
 }
 
-pub fn filterx_gxf(cmd: GFFCommand) -> FilterxResult<()> {
+#[derive(Debug, Clone, Copy, PartialEq, clap::ValueEnum)]
+pub enum GxfType {
+    Gff,
+    Gtf,
+}
+
+impl From<GxfType> for SourceType {
+    fn from(g: GxfType) -> Self {
+        match g {
+            GxfType::Gff => SourceType::Gff,
+            GxfType::Gtf => SourceType::Gtf,
+        }
+    }
+}
+
+pub fn filterx_gxf(cmd: GFFCommand, gxf_type: GxfType) -> FilterxResult<()> {
     let GFFCommand {
         share_args:
             ShareArgs {
@@ -33,7 +48,6 @@ pub fn filterx_gxf(cmd: GFFCommand) -> FilterxResult<()> {
                 table,
             },
     } = cmd;
-
     let comment_prefix = "#";
     let separator = "\t";
     let writer = util::create_buffer_writer(output.clone())?;
@@ -55,7 +69,7 @@ pub fn filterx_gxf(cmd: GFFCommand) -> FilterxResult<()> {
     )?;
     let mut s = DataframeSource::new(lazy_df.clone());
     s.set_init_column_names(&names);
-    let mut vm = Vm::from_source(Source::new(s.into(), SourceType::Gxf));
+    let mut vm = Vm::from_source(Source::new(s.into(), gxf_type.into()));
     let expr = util::merge_expr(expr);
     let writer = Box::new(writer);
     vm.set_writer(writer);

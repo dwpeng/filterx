@@ -7,7 +7,7 @@ use super::super::ast;
 
 use crate::eval::Eval;
 use crate::vm::Vm;
-pub use crate::{eval, eval_col};
+pub use crate::{eval, eval_col, execuable};
 use filterx_core::{util, value::Value, FilterxError, FilterxResult, Hint};
 
 impl<'a> Eval<'a> for ast::ExprUnaryOp {
@@ -290,6 +290,7 @@ fn binop_for_dataframe(left: Value, right: Value, op: ast::Operator) -> FilterxR
 impl<'a> Eval<'a> for ast::ExprBoolOp {
     type Output = Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
+        execuable!(vm, "`and` or `or`");
         let left = &self.values[0];
         let vm_apply_lazy = vm.status.apply_lazy;
         vm.status.update_apply_lazy(false);
@@ -362,6 +363,7 @@ fn boolop_in_dataframe<'a>(
 impl<'a> Eval<'a> for ast::ExprCompare {
     type Output = Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
+        execuable!(vm, "`>=`, `<=`, `==`, `!=`, `<`, `>`, `in`, `not in`");
         if self.ops.len() > 1 {
             let h = &mut vm.hint;
             h.white("Only support one compare op, like a > 1. If you want to chain compare, use `and` or `or`")

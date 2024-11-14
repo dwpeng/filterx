@@ -1,9 +1,8 @@
-use polars::prelude::*;
-use std::io::BufRead;
-
-use super::FastaRecordType;
 use crate::block::reader::TableLikeReader;
 use crate::dataframe::DataframeSource;
+use polars::prelude::*;
+use std::collections::HashSet;
+use std::io::BufRead;
 
 use filterx_core::{FilterxResult, Hint};
 
@@ -35,8 +34,13 @@ impl Drop for FastaSource {
 }
 
 impl FastaSource {
-    pub fn new(path: &str, include_comment: bool) -> FilterxResult<Self> {
-        let fasta = Fasta::from_path(path)?;
+    pub fn new(
+        path: &str,
+        include_comment: bool,
+        record_type: FastaRecordType,
+        n_detect: usize,
+    ) -> FilterxResult<Self> {
+        let fasta = Fasta::from_path(path, record_type, n_detect)?;
         let opt = FastaParserOptions { include_comment };
         let fasta = fasta.set_parser_options(opt);
         let records = vec![FastaRecord::default(); 4096];
@@ -100,6 +104,14 @@ pub struct Fasta {
     record: FastaRecord,
     pub record_type: FastaRecordType,
     break_line_len: Option<usize>,
+}
+
+#[derive(Clone, Copy, Debug, clap::ValueEnum, PartialEq)]
+pub enum FastaRecordType {
+    Dna,
+    Rna,
+    Protein,
+    Auto,
 }
 
 #[derive(Clone, Debug)]
@@ -228,17 +240,77 @@ impl Clone for Fasta {
 }
 
 impl Fasta {
-    pub fn from_path(path: &str) -> FilterxResult<Fasta> {
-        Ok(Fasta {
+    pub fn from_path(
+        path: &str,
+        record_type: FastaRecordType,
+        n_detect: usize,
+    ) -> FilterxResult<Fasta> {
+        let mut fasta = Fasta {
             reader: TableLikeReader::new(path)?,
             prev_line: Vec::new(),
             read_end: false,
             path: path.to_string(),
             parser_options: FastaParserOptions::default(),
             record: FastaRecord::default(),
-            record_type: FastaRecordType::DNA,
+            record_type,
             break_line_len: None,
-        })
+        };
+        if record_type == FastaRecordType::Auto {
+            fasta.detect_record_type(n_detect)?;
+        }
+        Ok(fasta)
+    }
+
+    pub fn detect_record_type(&mut self, n: usize) -> FilterxResult<()> {
+        let mut hashset = HashSet::new();
+        for _ in 0..n {
+            let record = self.parse_next()?;
+            if record.is_none() {
+                break;
+            }
+            let seq = record.unwrap().seq();
+            for c in seq.bytes() {
+                if c == b'n' || c == b'N' {
+                    continue;
+                }
+                hashset.insert(c);
+            }
+        }
+        if hashset.len() < 4 {
+            let mut h = Hint::new();
+            h.white("Too less sequences are used to detect alphabet. Try increase the number of sequences to detect alphabet.")
+                .print_and_exit();
+        }
+        if hashset.len() > 4 {
+            self.record_type = FastaRecordType::Protein;
+        }
+        let contain_t = hashset.contains(&b'T') || hashset.contains(&b't');
+        let contain_u = hashset.contains(&b'u') || hashset.contains(&b'U');
+        if contain_t && contain_u {
+            let mut h = Hint::new();
+            h.white("The fasta file contains both ")
+                .cyan("'T'")
+                .white(" and ")
+                .cyan("'U'")
+                .white(" nucleotides. Can not determine the record type.")
+                .print_and_exit();
+        }
+        if !contain_t && !contain_u {
+            let mut h = Hint::new();
+            h.white("The fasta file contains none of ")
+                .cyan("'T'")
+                .white(" and ")
+                .cyan("'U'")
+                .white(" nucleotides. Can not determine the record type.")
+                .print_and_exit();
+        }
+        if contain_t {
+            self.record_type = FastaRecordType::Dna;
+        } else if contain_u {
+            self.record_type = FastaRecordType::Rna;
+        }
+        self.reset()?;
+        Ok(())
     }
 
     pub fn set_parser_options(mut self, parser_options: FastaParserOptions) -> Self {
@@ -249,6 +321,7 @@ impl Fasta {
     pub fn reset(&mut self) -> FilterxResult<()> {
         self.reader.reset()?;
         self.prev_line.clear();
+        self.record.clear();
         self.read_end = false;
         Ok(())
     }
@@ -396,7 +469,7 @@ pub mod test {
     #[test]
     fn test_open_plain_file() -> FilterxResult<()> {
         let path = "test_data/fasta/1.fa";
-        let fasta = Fasta::from_path(path)?;
+        let fasta = Fasta::from_path(path, FastaRecordType::Auto, 3)?;
         let records = fasta.into_iter().collect::<Vec<FastaRecord>>();
         assert!(records.len() == 2);
         Ok(())
@@ -405,7 +478,7 @@ pub mod test {
     #[test]
     fn test_open_gzip_file() -> FilterxResult<()> {
         let path = "test_data/fasta/1.fa.gz";
-        let fasta = Fasta::from_path(path)?;
+        let fasta = Fasta::from_path(path, FastaRecordType::Auto, 3)?;
         let records = fasta.into_iter().collect::<Vec<FastaRecord>>();
         assert!(records.len() == 2);
         Ok(())

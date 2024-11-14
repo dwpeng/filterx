@@ -50,3 +50,18 @@ macro_rules! builtin_function {
         )*
     };
 }
+
+#[macro_export]
+macro_rules! execuable {
+    ($vm:expr, $target: literal) => {
+        use crate::vm::VmMode;
+        if $vm.mode == VmMode::Printable {
+            let h = &mut $vm.hint;
+            h.white("Con't use ")
+                .red($target)
+                .white(" in builtin function")
+                .green(" `print`.")
+                .print_and_exit()
+        }
+    };
+}

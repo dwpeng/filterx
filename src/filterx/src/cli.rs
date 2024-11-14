@@ -2,7 +2,7 @@ use crate::args::{Cli, Command};
 use crate::files::csv::filterx_csv;
 use crate::files::fasta::filterx_fasta;
 use crate::files::fastq::filterx_fastq;
-use crate::files::gxf::filterx_gxf;
+use crate::files::gxf::{filterx_gxf, GxfType};
 use crate::files::sam::filterx_sam;
 use crate::files::vcf::filterx_vcf;
 
@@ -18,7 +18,7 @@ pub fn cli() -> FilterxResult<()> {
         Command::Fastq(cmd) => filterx_fastq(cmd),
         Command::Sam(cmd) => filterx_sam(cmd),
         Command::Vcf(cmd) => filterx_vcf(cmd),
-        Command::GFF(cmd) => filterx_gxf(cmd),
-        Command::GTF(cmd) => filterx_gxf(cmd),
+        Command::GFF(cmd) => filterx_gxf(cmd, GxfType::Gff),
+        Command::GTF(cmd) => filterx_gxf(cmd, GxfType::Gtf),
     }
 }

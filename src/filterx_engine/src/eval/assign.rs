@@ -8,11 +8,12 @@ use filterx_core::FilterxResult;
 use crate::eval::Eval;
 use crate::vm::Vm;
 
-use crate::eval;
+use crate::{eval, execuable};
 
 impl<'a> Eval<'a> for ast::StmtAssign {
     type Output = Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
+        execuable!(vm, "=");
         if self.targets.len() != 1 {
             let h = &mut vm.hint;
             h.white("Dosn't support unpacking multiple assignment expression")

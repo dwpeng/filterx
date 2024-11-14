@@ -1,8 +1,8 @@
-use crate::block::fasta::FastaSource;
-use crate::block::fastq::FastqSource;
+use crate::block::fasta::{Fasta, FastaSource};
+use crate::block::fastq::{Fastq, FastqSource};
 use crate::DataframeSource;
 
-use filterx_core::FilterxResult;
+use filterx_core::{FilterxError, FilterxResult};
 use polars::prelude::*;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -12,7 +12,47 @@ pub enum SourceType {
     Fastq,
     Vcf,
     Sam,
-    Gxf,
+    Gff,
+    Gtf,
+}
+
+impl SourceType {
+    pub fn is_fasta(&self) -> bool {
+        match self {
+            SourceType::Fasta => true,
+            _ => false,
+        }
+    }
+    pub fn is_fastq(&self) -> bool {
+        match self {
+            SourceType::Fastq => true,
+            _ => false,
+        }
+    }
+    pub fn is_vcf(&self) -> bool {
+        match self {
+            SourceType::Vcf => true,
+            _ => false,
+        }
+    }
+    pub fn is_gff(&self) -> bool {
+        match self {
+            SourceType::Gff => true,
+            _ => false,
+        }
+    }
+    pub fn is_gtf(&self) -> bool {
+        match self {
+            SourceType::Gtf => true,
+            _ => false,
+        }
+    }
+    pub fn is_sam(&self) -> bool {
+        match self {
+            SourceType::Sam => true,
+            _ => false,
+        }
+    }
 }
 
 impl Into<&str> for SourceType {
@@ -23,7 +63,8 @@ impl Into<&str> for SourceType {
             SourceType::Fastq => "fastq",
             SourceType::Vcf => "vcf",
             SourceType::Sam => "sam",
-            SourceType::Gxf => "gxf",
+            SourceType::Gff => "gff",
+            SourceType::Gtf => "gtf",
         }
     }
 }
@@ -36,7 +77,8 @@ impl From<&str> for SourceType {
             "fastq" => SourceType::Fastq,
             "vcf" => SourceType::Vcf,
             "sam" => SourceType::Sam,
-            "gxf" => SourceType::Gxf,
+            "gff" => SourceType::Gff,
+            "gtf" => SourceType::Gtf,
             _ => panic!("Invalid source type"),
         }
     }
@@ -102,5 +144,23 @@ impl Source {
         };
         let df = s.lazy();
         Ok(df.collect()?)
+    }
+
+    pub fn get_fastq(&self) -> FilterxResult<&Fastq> {
+        match &self.inner {
+            SourceInner::Fastq(fastq) => Ok(&fastq.fastq),
+            _ => Err(FilterxError::RuntimeError(
+                "get_fastq only support Fastq source".into(),
+            )),
+        }
+    }
+
+    pub fn get_fasta(&self) -> FilterxResult<&Fasta> {
+        match &self.inner {
+            SourceInner::Fasta(fasta) => Ok(&fasta.fasta),
+            _ => Err(FilterxError::RuntimeError(
+                "get_fasta only support Fasta source".into(),
+            )),
+        }
     }
 }

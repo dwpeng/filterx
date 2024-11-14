@@ -771,8 +771,10 @@ dependencies = [
 name = "filterx_source"
 version = "0.2.8"
 dependencies = [
+ "clap",
  "filterx_core",
  "flate2",
+ "memchr",
  "polars",
  "regex",
 ]

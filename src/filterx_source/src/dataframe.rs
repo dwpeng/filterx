@@ -3,6 +3,7 @@ use polars::prelude::*;
 use filterx_core::{FilterxResult, Hint};
 use regex::Regex;
 
+#[derive(Clone)]
 pub struct DataframeSource {
     pub lazy: LazyFrame,
     pub has_header: bool,

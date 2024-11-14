@@ -17,7 +17,9 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
             },
         chunk: long,
         no_comment,
+        r#type,
         limit,
+        detect_size,
     } = cmd;
 
     let _limit = match limit {
@@ -39,7 +41,12 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
     let names = names.iter().map(|x| x.to_string()).collect();
 
     let expr = util::merge_expr(expr);
-    let mut source = FastaSource::new(path.as_str(), !no_comment.unwrap())?;
+    let mut source = FastaSource::new(
+        path.as_str(),
+        !no_comment.unwrap(),
+        r#type.unwrap(),
+        detect_size.unwrap(),
+    )?;
     let output = util::create_buffer_writer(output)?;
     let mut output = Box::new(output);
     if expr.is_empty() {

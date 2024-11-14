@@ -1,5 +1,5 @@
 use polars::prelude::*;
-use std::io::BufRead;
+use std::{fmt::Display, io::BufRead};
 
 use crate::block::reader::TableLikeReader;
 use crate::dataframe::DataframeSource;
@@ -21,12 +21,20 @@ impl Drop for FastqSource {
 }
 
 impl FastqSource {
-    pub fn new(path: &str, include_comment: bool, include_qual: bool) -> FilterxResult<Self> {
+    pub fn new(
+        path: &str,
+        include_comment: bool,
+        include_qual: bool,
+        quality_type: QualityType,
+        detect_size: usize,
+    ) -> FilterxResult<Self> {
         let parser_option = FastqParserOption {
             include_comment,
             include_qual,
+            phred: quality_type,
         };
-        let fastq = Fastq::from_path(path)?.set_parser_options(parser_option);
+        let fastq =
+            Fastq::from_path(path, quality_type, detect_size)?.set_parser_options(parser_option);
         let records = vec![FastqRecord::default(); 4096];
         let dataframe = DataframeSource::new(DataFrame::empty().lazy());
         Ok(FastqSource {
@@ -85,6 +93,7 @@ impl FastqSource {
 pub struct FastqParserOption {
     pub include_qual: bool,
     pub include_comment: bool,
+    pub phred: QualityType,
 }
 
 impl Default for FastqParserOption {
@@ -92,20 +101,31 @@ impl Default for FastqParserOption {
         FastqParserOption {
             include_qual: true,
             include_comment: true,
+            phred: QualityType::Phred33,
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum QulityType {
+#[derive(Debug, Clone, Copy, PartialEq, clap::ValueEnum)]
+pub enum QualityType {
     Phred33,
     Phred64,
-    Unknown,
+    Auto,
 }
 
-impl Default for QulityType {
+impl Display for QualityType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QualityType::Phred33 => write!(f, "phred33"),
+            QualityType::Phred64 => write!(f, "phred64"),
+            QualityType::Auto => write!(f, "unknown"),
+        }
+    }
+}
+
+impl Default for QualityType {
     fn default() -> Self {
-        QulityType::Unknown
+        QualityType::Phred33
     }
 }
 
@@ -117,7 +137,7 @@ pub struct Fastq {
     record: FastqRecord,
     pub line_buffer: Vec<u8>,
     break_line_len: Option<usize>,
-    pub quality_type: QulityType,
+    pub quality_type: QualityType,
 }
 
 #[derive(Debug, Clone)]
@@ -178,6 +198,14 @@ impl FastqRecord {
     #[inline(always)]
     pub fn format<'a>(&'a self) -> &'a str {
         unsafe { std::str::from_utf8_unchecked(&self.buffer) }
+    }
+
+    pub fn as_phred33(&mut self) -> () {
+        if self._qual.0 != self._qual.1 {
+            for i in self._qual.0..self._qual.1 {
+                self.buffer[i] = self.buffer[i] - 33;
+            }
+        }
     }
 }
 
@@ -253,7 +281,11 @@ impl IntoIterator for Fastq {
 }
 
 impl Fastq {
-    pub fn from_path(path: &str) -> FilterxResult<Fastq> {
+    pub fn from_path(
+        path: &str,
+        quality_type: QualityType,
+        detect_size: usize,
+    ) -> FilterxResult<Fastq> {
         let mut fq = Fastq {
             reader: TableLikeReader::new(path)?,
             read_end: false,
@@ -262,19 +294,21 @@ impl Fastq {
             record: FastqRecord::default(),
             line_buffer: Vec::with_capacity(512),
             break_line_len: None,
-            quality_type: QulityType::default(),
+            quality_type: quality_type,
         };
-        fq.guess_quality_type()?;
+        if quality_type == QualityType::Auto {
+            fq.guess_quality_type(detect_size)?;
+        }
         Ok(fq)
     }
 
-    fn guess_quality_type(&mut self) -> FilterxResult<()> {
+    fn guess_quality_type(&mut self, detect_size: usize) -> FilterxResult<()> {
         if !self.parser_option.include_qual {
             return Ok(());
         }
-        let mut qualitys: [QulityType; 100] = [QulityType::Unknown; 100];
+        let mut qualitys = vec![QualityType::Auto; detect_size];
         let mut count = 0;
-        for _ in 0..100 {
+        for _ in 0..detect_size {
             let record = self.parse_next()?;
             if let Some(record) = record {
                 let qual = record.qual();
@@ -282,12 +316,17 @@ impl Fastq {
                     let qual_u8 = qual.as_bytes();
                     let max = qual_u8.iter().max().unwrap();
                     let min = qual_u8.iter().min().unwrap();
-                    let new_quality_type = if *max >= 64 && *min >= 33 {
-                        QulityType::Phred64
-                    } else if *max <= 64 && *min <= 33 {
-                        QulityType::Phred33
+                    // Sanger:         0 - 40   +33   33 - 73   phred33
+                    // Solexa:        -5 - 40   +64   59 - 124  phred64  not supported!
+                    // Illumina 1.3:   0 - 40   +64   64 - 124  phred64
+                    // Illumina 1.5:   3 - 40   +64   67 - 104  phred64  0,1,2 are clipped
+                    // Illumina 1.8+:  0 - 41   +33   33 - 73   phred33
+                    let new_quality_type = if *max >= 73 && *min >= 64 {
+                        QualityType::Phred64
+                    } else if *max <= 73 && *min >= 33 {
+                        QualityType::Phred33
                     } else {
-                        QulityType::Unknown
+                        QualityType::Auto
                     };
                     qualitys[count] = new_quality_type;
                     count += 1;
@@ -295,12 +334,17 @@ impl Fastq {
             }
         }
         let t = if count == 0 {
-            QulityType::Unknown
+            QualityType::Auto
         } else {
             let mut t = qualitys[0];
             for i in 1..count {
                 if qualitys[i] != t {
-                    t = QulityType::Unknown;
+                    t = QualityType::Auto;
+                    if t == QualityType::Auto {
+                        return Err(filterx_core::FilterxError::FastqError(
+                            "Fastq quality type is not consistent".to_string(),
+                        ));
+                    }
                     break;
                 }
             }
@@ -499,6 +543,8 @@ impl Fastq {
     pub fn reset(&mut self) -> FilterxResult<()> {
         self.reader.reset()?;
         self.read_end = false;
+        self.line_buffer.clear();
+        self.record.buffer.clear();
         Ok(())
     }
 }

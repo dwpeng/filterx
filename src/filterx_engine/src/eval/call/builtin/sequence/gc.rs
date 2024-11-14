@@ -1,7 +1,7 @@
 use super::super::*;
+use filterx_source::FastaRecordType;
 use polars::prelude::*;
 
-use polars::prelude::col;
 use polars_arrow::{
     array::{ArrayRef, Float32Array, Utf8ViewArray},
     buffer::Buffer,
@@ -52,9 +52,23 @@ fn compute_gc(s: Column) -> PolarsResult<Option<Column>> {
 
 pub fn gc<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
     expect_args_len(args, 1)?;
+    if vm.source.source_type.is_fasta() || vm.source.source_type.is_fastq() {
+        if vm.source.source_type.is_fasta() {
+            let fasta = vm.source.get_fasta()?;
+            match fasta.record_type {
+                FastaRecordType::Protein => {
+                    let h = &mut vm.hint;
+                    h.white("gc: protein sequence is not supported")
+                        .print_and_exit();
+                }
+                _ => {}
+            }
+        }
+    }
     let col_name = eval_col!(vm, &args[0], "gc: expected a column name as first argument");
-    let col_name = col_name.column()?;
-    vm.source_mut().has_column(col_name);
-    let e = col(col_name).map(compute_gc, GetOutput::float_type());
+    let name = col_name.column()?;
+    let e = col_name.expr()?;
+    vm.source_mut().has_column(name);
+    let e = e.map(compute_gc, GetOutput::float_type());
     return Ok(value::Value::named_expr(None, e));
 }

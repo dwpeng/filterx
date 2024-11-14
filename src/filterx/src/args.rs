@@ -1,4 +1,5 @@
 use clap::{ArgAction, Args, Parser, Subcommand, ValueHint};
+use filterx_source::{FastaRecordType, QualityType};
 
 static LONG_ABOUT: &'static str = include_str!("./long.txt");
 
@@ -55,7 +56,7 @@ pub struct ShareArgs {
     #[clap(short='o', long, value_hint=ValueHint::FilePath)]
     pub output: Option<String>,
 
-    /// output as table format
+    /// output as table format, only output to stdout
     #[clap(short = 't', long, default_value = "false", action = ArgAction::SetTrue)]
     pub table: Option<bool>,
 }
@@ -110,6 +111,14 @@ pub struct FastaCommand {
     /// limit sequence number, 0 means no limit
     #[clap(long, default_value = "0")]
     pub limit: Option<usize>,
+
+    /// sequence type, default is DNA
+    #[clap(long, default_value = "auto")]
+    pub r#type: Option<FastaRecordType>,
+
+    /// detect sequence type by first N sequences
+    #[clap(long, default_value = "3")]
+    pub detect_size: Option<usize>,
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -132,6 +141,14 @@ pub struct FastqCommand {
     /// limit sequence number, 0 means no limit
     #[clap(long, default_value = "0")]
     pub limit: Option<usize>,
+
+    /// quality type, phred33, phred64, auto, auto: will try to detect
+    #[clap(long, default_value = "auto")]
+    pub phred: Option<QualityType>,
+
+    /// detect quality type by first N sequences
+    #[clap(long, default_value = "100")]
+    pub detect_size: Option<usize>,
 }
 
 #[derive(Debug, Clone, Parser)]
