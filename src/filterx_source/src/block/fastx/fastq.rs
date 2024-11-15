@@ -1,3 +1,4 @@
+use memchr::memchr;
 use polars::prelude::*;
 use std::{fmt::Display, io::BufRead};
 
@@ -135,9 +136,9 @@ pub struct Fastq {
     pub path: String,
     pub parser_option: FastqParserOption,
     record: FastqRecord,
-    pub line_buffer: Vec<u8>,
     break_line_len: Option<usize>,
     pub quality_type: QualityType,
+    pub buffer_unprocess_size: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -195,6 +196,23 @@ impl FastqRecord {
         self._comment = (0, 0);
     }
 
+    pub fn goto_next_record(&mut self, left: usize) {
+        if self.buffer.len() < self.buffer.capacity() && left > 0 {
+            unsafe {
+                std::ptr::copy(
+                    self.buffer.as_ptr().add(self.buffer.len()),
+                    self.buffer.as_mut_ptr(),
+                    left,
+                );
+                self.buffer.set_len(left);
+            }
+        }
+        self._comment = (0, 0);
+        self._name = (0, 0);
+        self._sequence = (0, 0);
+        self._qual = (0, 0);
+    }
+
     #[inline(always)]
     pub fn format<'a>(&'a self) -> &'a str {
         unsafe { std::str::from_utf8_unchecked(&self.buffer) }
@@ -250,33 +268,13 @@ impl FastqRecord {
             }
         }
     }
-}
 
-pub struct FastqRecordIter {
-    fastq: Fastq,
-}
-
-impl Iterator for FastqRecordIter {
-    type Item = FastqRecord;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.fastq.parse_next() {
-            Ok(Some(record)) => Some(record.clone()),
-            Ok(None) => None,
-            Err(e) => {
-                eprintln!("{}", e);
-                None
+    pub fn remove_breakline_from_buffer(&mut self, len: usize) {
+        if len > 0 {
+            unsafe {
+                self.buffer.set_len(self.buffer.len() - len);
             }
         }
-    }
-}
-
-impl IntoIterator for Fastq {
-    type Item = FastqRecord;
-    type IntoIter = FastqRecordIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        FastqRecordIter { fastq: self }
     }
 }
 
@@ -292,14 +290,37 @@ impl Fastq {
             parser_option: FastqParserOption::default(),
             path: path.to_string(),
             record: FastqRecord::default(),
-            line_buffer: Vec::with_capacity(512),
             break_line_len: None,
             quality_type: quality_type,
+            buffer_unprocess_size: 0,
         };
+        fq.detect_breakline_len()?;
         if quality_type == QualityType::Auto {
             fq.guess_quality_type(detect_size)?;
         }
         Ok(fq)
+    }
+
+    pub fn detect_breakline_len(&mut self) -> FilterxResult<()> {
+        loop {
+            let data = self.reader.fill_buf()?;
+            if data.is_empty() {
+                self.break_line_len = Some(0);
+            }
+            let offset = memchr(b'\n', data);
+            if offset.is_some() {
+                // test if endwith is \r\n
+                let offset = offset.unwrap();
+                if offset > 0 && data[offset - 1] == b'\r' {
+                    self.break_line_len = Some(2);
+                } else {
+                    self.break_line_len = Some(1);
+                }
+                break;
+            }
+        }
+        self.reset()?;
+        Ok(())
     }
 
     fn guess_quality_type(&mut self, detect_size: usize) -> FilterxResult<()> {
@@ -355,17 +376,20 @@ impl Fastq {
         Ok(())
     }
 
+    pub fn goto_next_record(&mut self) {
+        self.record.goto_next_record(self.buffer_unprocess_size);
+        self.buffer_unprocess_size = 0;
+    }
+
     /// parse fastq format based paper: https://academic.oup.com/nar/article/38/6/1767/3112533
     pub fn parse_next(&mut self) -> FilterxResult<Option<&mut FastqRecord>> {
         if self.read_end {
             return Ok(None);
         }
-        let record = &mut self.record;
-        let mut line_buff = &mut self.line_buffer;
-        record.clear();
-        if !line_buff.is_empty() {
-            record.buffer.extend_from_slice(line_buff);
-        } else {
+        self.goto_next_record();
+        let record: &mut FastqRecord = &mut self.record;
+
+        if record.buffer.is_empty() {
             let bytes = self.reader.read_until(b'\n', &mut record.buffer)?;
             if bytes == 0 {
                 self.read_end = true;
@@ -391,32 +415,15 @@ impl Fastq {
             h.print_and_exit();
         }
 
+        let break_line_len = self.break_line_len.unwrap();
+
         // fill name and comment
         record._name.0 = 1;
-        record._name.1 = record.buffer.len();
+        record._name.1 = record.buffer.len() - break_line_len;
 
-        // remove \n or \r\n
-        let end = record.buffer.len();
-        let break_line_len;
-        if self.break_line_len.is_some() {
-            break_line_len = self.break_line_len.unwrap();
-        } else {
-            if record.buffer.ends_with(&[b'\r', b'\n']) {
-                break_line_len = 2;
-            } else {
-                break_line_len = 1;
-            }
-            self.break_line_len = Some(break_line_len);
-        }
-        record._name.1 = end - break_line_len;
-        let mut start = None;
-        for i in 0..record._name.1 {
-            if record.buffer[i] == b' ' {
-                start = Some(i);
-                break;
-            }
-        }
-        if let Some(start) = start {
+        let start = memchr::memchr(b' ', &record.buffer[1..record._name.1]);
+        if let Some(mut start) = start {
+            start += 1;
             record._name.1 = start;
             if self.parser_option.include_comment {
                 record._comment.0 = start + 1;
@@ -430,50 +437,77 @@ impl Fastq {
         }
         // fill sequence
         record._sequence.0 = record.buffer.len();
+
         loop {
-            line_buff.clear();
-            let bytes = self.reader.read_until(b'\n', &mut line_buff)?;
+            let buffer_offset = record.buffer.len();
+            let bytes = self.reader.read_until(b'\n', &mut record.buffer)?;
             if bytes == 0 {
                 return Err(FilterxError::FastqError(
                     "Invalid fastq format: sequence".to_string(),
                 ));
             }
-            if line_buff[0] == b'+' {
+            if record.buffer[buffer_offset] == b'+' {
+                unsafe {
+                    record
+                        .buffer
+                        .set_len(record.buffer.len() - break_line_len - 1);
+                }
+                record._sequence.1 = record.buffer.len();
                 if self.parser_option.include_qual {
                     record.buffer.extend_from_slice(&[b'\n', b'+', b'\n']);
+                    record._qual.0 = record.buffer.len();
                 }
                 break;
             }
-            let line = &line_buff[..bytes - break_line_len];
-            record.buffer.extend_from_slice(line);
+            record.remove_breakline_from_buffer(break_line_len);
         }
-        if self.parser_option.include_qual {
-            record._sequence.1 = record.buffer.len() - 3;
-        }
-        if self.parser_option.include_qual {
-            record._qual.0 = record.buffer.len();
-        }
+
         let mut nqual = 0;
+
         loop {
-            line_buff.clear();
-            let bytes = self.reader.read_until(b'\n', &mut line_buff)?;
+            let buffer_offset = record.buffer.len();
+            let bytes = self.reader.read_until(b'\n', &mut record.buffer)?;
             if bytes == 0 && nqual == 0 {
                 return Err(FilterxError::FastqError(
                     "Invalid fastq format: qual".to_string(),
                 ));
             }
             if bytes == 0 {
+                self.read_end = true;
+                if self.parser_option.include_qual {
+                    record._qual.1 = record.buffer.len();
+                } else {
+                    record._qual = (0, 0);
+                    unsafe {
+                        record.buffer.set_len(record._sequence.1);
+                    }
+                }
                 break;
             }
-            nqual += 1;
-            if line_buff[0] == b'@' {
+            nqual += bytes - break_line_len;
+            if record.buffer[buffer_offset] == b'@' {
+                if self.parser_option.include_qual {
+                    unsafe {
+                        record.buffer.set_len(buffer_offset);
+                    }
+                    record._qual.1 = buffer_offset;
+                } else {
+                    unsafe {
+                        std::ptr::copy(
+                            record.buffer.as_ptr().add(record.buffer.len() - bytes),
+                            record.buffer.as_mut_ptr().add(record._sequence.1),
+                            bytes,
+                        );
+                        record.buffer.set_len(record._sequence.1);
+                    }
+                }
+                self.buffer_unprocess_size = bytes;
                 break;
             } else {
                 if !self.parser_option.include_qual {
                     continue;
                 }
-                let line = &line_buff[..bytes - break_line_len];
-                record.buffer.extend_from_slice(line);
+                record.remove_breakline_from_buffer(break_line_len);
             }
         }
 
@@ -482,6 +516,7 @@ impl Fastq {
         } else {
             record.buffer[0] = b'>';
         }
+
         return Ok(Some(record));
     }
 
@@ -543,8 +578,8 @@ impl Fastq {
     pub fn reset(&mut self) -> FilterxResult<()> {
         self.reader.reset()?;
         self.read_end = false;
-        self.line_buffer.clear();
         self.record.buffer.clear();
+        self.buffer_unprocess_size = 0;
         Ok(())
     }
 }
