@@ -1,5 +1,6 @@
 use crate::builtin_function;
 
 builtin_function! {
-    abs
+    FUNCTION_NUMBER,
+    (abs, true),
 }

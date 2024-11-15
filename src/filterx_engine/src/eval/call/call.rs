@@ -4,10 +4,11 @@ use polars::frame::UniqueKeepStrategy;
 
 use super::super::ast;
 
-use crate::vm::Vm;
+use crate::vm::{Vm, VmMode};
 use filterx_core::{value, FilterxResult};
 use filterx_source::source::SourceType;
 
+use super::functions::get_function;
 use crate::eval::call::builtin as call;
 use crate::eval::Eval;
 
@@ -18,7 +19,7 @@ fn compute_similarity(_target: &str, _reference: Vec<&'static str>) -> Option<&'
 impl<'a> Eval<'a> for ast::ExprCall {
     type Output = value::Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
-        let mut function_name: String = match self.func.deref() {
+        let original_function_name: String = match self.func.deref() {
             ast::Expr::Name(e) => {
                 let v = e.eval(vm)?;
                 v.text()?
@@ -30,22 +31,57 @@ impl<'a> Eval<'a> for ast::ExprCall {
             _ => unreachable!(),
         };
 
-        let mut inplace = false;
-        let mut sub_function_name = "".to_string();
+        let mut function_name = original_function_name.as_str();
+        let inplace = function_name.ends_with("_");
+        let mut original_function_name = function_name;
+
+        if inplace {
+            function_name = function_name.strip_suffix("_").unwrap();
+            original_function_name = function_name;
+        }
+        let mut sub_function_name = "";
+
         if function_name.starts_with("cast_") {
-            if function_name.ends_with("_") {
-                inplace = true;
-                function_name = function_name.strip_suffix("_").unwrap().to_string();
-            }
-            sub_function_name = function_name.strip_prefix("cast_").unwrap().to_string();
+            sub_function_name = function_name.strip_prefix("cast_").unwrap();
         }
         if function_name.starts_with("cast") {
-            function_name = "cast".to_string();
+            function_name = "cast";
         }
 
-        // TODO check if the function can executable in this context
+        if vm.mode == VmMode::Printable {
+            let f = get_function(&original_function_name);
+            if let Some(f) = f {
+                if !f.can_expression {
+                    let h = &mut vm.hint;
+                    h.white("Function `")
+                        .cyan(&original_function_name)
+                        .bold()
+                        .white("` can not be used in ")
+                        .green("`print`")
+                        .bold()
+                        .white(" formatter. But got ")
+                        .cyan(&vm.print_expr)
+                        .white(".")
+                        .print_and_exit();
+                }
 
-        match function_name.as_str() {
+                if inplace {
+                    let h = &mut vm.hint;
+                    h.white("Function `")
+                        .cyan(&original_function_name)
+                        .bold()
+                        .white("(")
+                        .cyan("inplace")
+                        .white(")` can not be used in ")
+                        .green("`print`")
+                        .bold()
+                        .white(" formatter.")
+                        .print_and_exit();
+                }
+            }
+        }
+
+        match function_name {
             "alias" => call::alias(vm, &self.args),
             "drop" => call::drop(vm, &self.args),
             "select" => call::select(vm, &self.args),
@@ -68,41 +104,29 @@ impl<'a> Eval<'a> for ast::ExprCall {
             "sorT" => call::sort(vm, &self.args, true),
             "sort" => call::sort(vm, &self.args, true),
             "len" => call::len(vm, &self.args),
-            "print" | "format" | "fmt" => call::print(vm, &self.args),
+            "print" | "format" | "fmt" | "f" => call::print(vm, &self.args),
             "limit" => call::limit(vm, &self.args),
             "gc" => call::gc(vm, &self.args),
             "qual" => call::qual(vm, &self.args),
             "phred" => call::phred(vm),
-            "rev" => call::rev(vm, &self.args, false),
-            "rev_" => call::rev(vm, &self.args, true),
-            "revcomp" => call::revcomp(vm, &self.args, false),
-            "revcomp_" => call::revcomp(vm, &self.args, true),
-            "upper" => call::upper(vm, &self.args, false),
-            "upper_" => call::upper(vm, &self.args, true),
-            "lower" => call::lower(vm, &self.args, false),
-            "lower_" => call::lower(vm, &self.args, true),
-            "replace" => call::replace(vm, &self.args, false, true),
-            "replace_" => call::replace(vm, &self.args, true, true),
-            "replace_one" => call::replace(vm, &self.args, false, false),
-            "replace_one_" => call::replace(vm, &self.args, true, false),
-            "strip" => call::strip(vm, &self.args, false, true, true),
-            "strip_" => call::strip(vm, &self.args, true, true, true),
-            "lstrip" => call::strip(vm, &self.args, false, false, true),
-            "lstrip_" => call::strip(vm, &self.args, true, false, true),
-            "rstrip" => call::strip(vm, &self.args, false, true, false),
-            "rstrip_" => call::strip(vm, &self.args, true, true, false),
-            "slice" => call::slice(vm, &self.args, false),
-            "slice_" => call::slice(vm, &self.args, true),
+            "rev" => call::rev(vm, &self.args, inplace),
+            "revcomp" => call::revcomp(vm, &self.args, inplace),
+            "upper" => call::upper(vm, &self.args, inplace),
+            "lower" => call::lower(vm, &self.args, inplace),
+            "replace" => call::replace(vm, &self.args, inplace, true),
+            "replace_one" => call::replace(vm, &self.args, inplace, false),
+            "strip" => call::strip(vm, &self.args, false, inplace, true),
+            "lstrip" => call::strip(vm, &self.args, false, inplace, true),
+            "rstrip" => call::strip(vm, &self.args, inplace, true, false),
+            "slice" => call::slice(vm, &self.args, inplace),
             "header" => call::header(vm),
             "cast" => call::cast(vm, &self.args, &sub_function_name, inplace),
-            "fill_null" => call::fill(vm, &self.args, false),
-            "fill_null_" => call::fill(vm, &self.args, true),
+            "fill_null" => call::fill(vm, &self.args, inplace),
             "dup" => call::dup(vm, &self.args, UniqueKeepStrategy::First),
             "dup_none" => call::dup(vm, &self.args, UniqueKeepStrategy::None),
             "dup_last" => call::dup(vm, &self.args, UniqueKeepStrategy::Last),
             "dup_any" => call::dup(vm, &self.args, UniqueKeepStrategy::Any),
-            "abs" => call::abs(vm, &self.args, false),
-            "abs_" => call::abs(vm, &self.args, true),
+            "abs" => call::abs(vm, &self.args, inplace),
             "is_null" => call::is_null(vm, &self.args, false),
             "is_not_null" => call::is_null(vm, &self.args, true),
             "is_na" => call::is_na(vm, &self.args, false),

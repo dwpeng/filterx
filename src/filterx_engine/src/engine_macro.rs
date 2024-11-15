@@ -32,19 +32,32 @@ macro_rules! eval_col {
     };
 }
 
+pub struct Builtin {
+    pub name: &'static str,
+    pub alias: &'static [&'static str],
+    pub can_expression: bool,
+}
+
 #[macro_export]
 macro_rules! builtin_function {
-    ($($name:ident),*) => {
+    (   $group: ident,
         $(
-            #[allow(non_snake_case)]
-            pub mod $name;
-            pub use $name::$name;
+            ($name:ident, $expression:expr $(, ($($alias:ident),*))?),
         )*
-    };
-
-    ($($name:ident,)*) => {
+    ) => {
+        pub use crate::engine_macro::Builtin;
+        pub static $group: &'static [Builtin] = &[
+            $(
+                Builtin {
+                    name: stringify!($name),
+                    alias: &[stringify!($name), $(
+                        $(stringify!($alias)),*
+                    )?],
+                    can_expression: $expression,
+                },
+            )*
+        ];
         $(
-            #[allow(non_snake_case)]
             pub mod $name;
             pub use $name::$name;
         )*

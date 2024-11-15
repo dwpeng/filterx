@@ -32,12 +32,39 @@ pub fn cast<'a>(
         "i16" => DataType::Int16,
         "u8" => DataType::UInt8,
         "u16" => DataType::UInt16,
-        _ => {
+        "" => {
             let h = &mut vm.hint;
-            h.white("cast: expected a valid type as second argument, but got ")
-                .cyan(new_type)
+            h.white("cast: avaliable cast funtion: ")
+                .green("cast_int")
+                .white(", ")
+                .green("cast_float")
+                .white(", ")
+                .green("cast_string")
+                .white(", ")
+                .green("cast_bool")
+                .white(", ")
+                .green("cast_i32")
+                .white(", ")
+                .green("cast_i64")
+                .white(", ")
+                .green("cast_f32")
+                .white(", ")
+                .green("cast_f64")
+                .white(", ")
+                .green("cast_u32")
+                .white(", ")
+                .green("cast_u64")
+                .white(", ")
+                .green("cast_i8")
+                .white(", ")
+                .green("cast_i16")
+                .white(", ")
+                .green("cast_u8")
+                .white(", ")
+                .green("cast_u16")
                 .print_and_exit();
         }
+        _ => panic!("unsupported type"),
     };
 
     let e = e.cast(new_type);

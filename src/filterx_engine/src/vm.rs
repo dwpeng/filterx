@@ -16,7 +16,7 @@ use std::io::Write;
 #[derive(Debug, PartialEq)]
 pub enum VmMode {
     Expression,
-    Printable
+    Printable,
 }
 
 #[derive(Debug)]
@@ -68,6 +68,7 @@ impl Default for VmStatus {
 pub struct Vm {
     /// eval_expr
     pub eval_expr: String,
+    pub print_expr: String,
     pub parse_cache: HashMap<String, rustpython_parser::ast::Mod>,
     /// mode
     pub mode: VmMode,
@@ -93,6 +94,7 @@ impl Vm {
 
         let vm = Vm {
             eval_expr: "".to_string(),
+            print_expr: "".to_string(),
             parse_cache: HashMap::new(),
             mode: VmMode::Expression,
             source: Source::new(innser, source_type),
@@ -107,6 +109,7 @@ impl Vm {
     pub fn from_source(source: Source) -> Self {
         Self {
             eval_expr: String::new(),
+            print_expr: String::new(),
             parse_cache: HashMap::new(),
             mode: VmMode::Expression,
             source,
@@ -115,6 +118,11 @@ impl Vm {
             expr_cache: HashMap::new(),
             hint: Hint::new(),
         }
+    }
+
+    pub fn set_print_expr(&mut self, print_expr: &str) {
+        self.print_expr.clear();
+        self.print_expr.push_str(print_expr);
     }
 
     pub fn set_mode(&mut self, mode: VmMode) {

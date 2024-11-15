@@ -1,11 +1,12 @@
 use crate::builtin_function;
 
 builtin_function! {
-        len,
-        slice,
-        replace,
-        strip,
-        lower,
-        upper,
-        rev
+    FUNCTION_STRING,
+    (len, true),
+    (upper, true),
+    (lower, true),
+    (slice, true),
+    (replace, true),
+    (strip, true, (lstrip, rstrip)),
+    (rev, true),
 }

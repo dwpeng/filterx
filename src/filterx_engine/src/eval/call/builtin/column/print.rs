@@ -54,6 +54,7 @@ fn parse_format_string(s: &str, vm: &mut Vm) -> FilterxResult<(String, Option<Ve
             .print_and_exit();
         }
         let ast = ast.expression().unwrap();
+        vm.set_print_expr(item);
         let ast = ast.eval(vm)?;
         let value = ast.expr()?;
         cols.push(value);
