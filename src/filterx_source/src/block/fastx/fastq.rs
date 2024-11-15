@@ -1,8 +1,7 @@
-use memchr::memchr;
 use polars::prelude::*;
 use std::{fmt::Display, io::BufRead};
 
-use crate::block::reader::TableLikeReader;
+use crate::block::reader::{TableLikeReader, detect_breakline_len};
 use crate::dataframe::DataframeSource;
 
 use filterx_core::{FilterxError, FilterxResult, Hint};
@@ -45,7 +44,7 @@ impl FastqSource {
         })
     }
 
-    pub fn into_dataframe(&mut self, n: usize) -> FilterxResult<Option<()>> {
+    pub fn into_dataframe(&mut self, n: usize) -> FilterxResult<usize> {
         let records = &mut self.records;
 
         if records.capacity() < n {
@@ -77,11 +76,11 @@ impl FastqSource {
             records.set_len(count);
         }
         if records.is_empty() {
-            Ok(None)
+            Ok(0)
         } else {
             let df = Fastq::as_dataframe(&records, &self.fastq.parser_option)?;
             self.dataframe.update(df.lazy());
-            Ok(Some(()))
+            Ok(count)
         }
     }
 
@@ -291,37 +290,16 @@ impl Fastq {
             path: path.to_string(),
             record: FastqRecord::default(),
             break_line_len: None,
-            quality_type: quality_type,
+            quality_type,
             buffer_unprocess_size: 0,
         };
-        fq.detect_breakline_len()?;
+        fq.break_line_len = detect_breakline_len(&mut fq.reader)?;
         if quality_type == QualityType::Auto {
             fq.guess_quality_type(detect_size)?;
         }
         Ok(fq)
     }
 
-    pub fn detect_breakline_len(&mut self) -> FilterxResult<()> {
-        loop {
-            let data = self.reader.fill_buf()?;
-            if data.is_empty() {
-                self.break_line_len = Some(0);
-            }
-            let offset = memchr(b'\n', data);
-            if offset.is_some() {
-                // test if endwith is \r\n
-                let offset = offset.unwrap();
-                if offset > 0 && data[offset - 1] == b'\r' {
-                    self.break_line_len = Some(2);
-                } else {
-                    self.break_line_len = Some(1);
-                }
-                break;
-            }
-        }
-        self.reset()?;
-        Ok(())
-    }
 
     fn guess_quality_type(&mut self, detect_size: usize) -> FilterxResult<()> {
         if !self.parser_option.include_qual {

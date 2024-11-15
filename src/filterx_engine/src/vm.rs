@@ -239,15 +239,24 @@ impl Vm {
         self.status.printed = false;
         match self.source_type() {
             SourceType::Fasta | SourceType::Fastq => {
+                if self.status.stop {
+                    return Ok(None);
+                }
                 let left = self.status.limit_rows - self.status.consume_rows;
                 let left = left.min(self.status.chunk_size);
                 if left > 0 {
                     match self.source.inner {
                         SourceInner::Fasta(ref mut fasta) => {
-                            fasta.into_dataframe(left)?;
+                            let count = fasta.into_dataframe(left)?;
+                            if count < left || count == 0 {
+                                self.status.stop = true;
+                            }
                         }
                         SourceInner::Fastq(ref mut fastq) => {
-                            fastq.into_dataframe(left)?;
+                            let count = fastq.into_dataframe(left)?;
+                            if count < left || count == 0 {
+                                self.status.stop = true;
+                            }
                         }
                         _ => {
                             unreachable!();

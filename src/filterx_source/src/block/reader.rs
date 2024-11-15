@@ -4,6 +4,7 @@ use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::ops::{Deref, DerefMut};
 
 use filterx_core::FilterxResult;
+use memchr::memchr;
 
 pub struct TableLikeReaderInner<R> {
     _reader: R,
@@ -119,4 +120,27 @@ impl BufRead for TableLikeReader {
             Self::GZIP(inner) => inner._reader.fill_buf(),
         }
     }
+}
+
+pub fn detect_breakline_len(reader: &mut TableLikeReader) -> FilterxResult<Option<usize>> {
+    let mut break_line_len = 0;
+    loop {
+        let data = reader.fill_buf()?;
+        if data.is_empty() {
+            break;
+        }
+        let offset = memchr(b'\n', data);
+        if offset.is_some() {
+            // test if endwith is \r\n
+            let offset = offset.unwrap();
+            if offset > 0 && data[offset - 1] == b'\r' {
+                break_line_len = 2;
+            } else {
+                break_line_len = 1;
+            }
+            break;
+        }
+    }
+    reader.reset()?;
+    Ok(Some(break_line_len))
 }
