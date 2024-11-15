@@ -1,5 +1,4 @@
 use super::super::*;
-use polars::prelude::col;
 
 pub fn abs<'a>(
     vm: &'a mut Vm,
@@ -12,11 +11,11 @@ pub fn abs<'a>(
         &args[0],
         "abs: expected a column name as first argument"
     );
-    let col_name = col_name.column()?;
-    vm.source_mut().has_column(col_name);
-    let e = col(col_name).abs();
+    let name = col_name.column()?;
+    let e = col_name.expr()?;
+    vm.source_mut().has_column(name);
     if inplace {
-        vm.source_mut().with_column(e.alias(col_name), None);
+        vm.source_mut().with_column(e.alias(name), None);
         return Ok(value::Value::None);
     }
     Ok(value::Value::named_expr(None, e))
