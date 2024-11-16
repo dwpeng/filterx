@@ -5,6 +5,12 @@ use polars::{
     prelude::*,
 };
 
+use gzp::{
+    deflate::Gzip,
+    par::compress::{ParCompress, ParCompressBuilder},
+    Compression,
+};
+
 use crate::{FilterxError, FilterxResult};
 use std::io::BufWriter;
 use std::io::Write;
@@ -130,10 +136,11 @@ pub fn create_buffer_writer(path: Option<String>) -> FilterxResult<BufWriter<Box
     let writer: Box<dyn Write>;
     if let Some(path) = path {
         if path.ends_with(".gz") {
-            writer = Box::new(flate2::write::GzEncoder::new(
-                File::create(path)?,
-                flate2::Compression::default(),
-            ));
+            let fp = File::create(path)?;
+            let gzip_writer: ParCompress<Gzip> = ParCompressBuilder::new()
+                .compression_level(Compression::new(6))
+                .from_writer(fp);
+            writer = Box::new(gzip_writer);
         } else {
             writer = Box::new(File::create(path)?);
         }

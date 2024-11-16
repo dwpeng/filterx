@@ -49,6 +49,7 @@ polars-arrow = { version = "0.44.2" }
 rustpython-parser = "0.4.0"
 thiserror = "2.0.0"
 flate2 = { version = "1.0.34", features = ["zlib-rs"] }
+gzp = { version = "0.11.3", default-features = false, features = ["deflate_rust"] }
 regex = "1.11.1"
 colored = "2.1.0"
 lazy_static = "1.5.0"
