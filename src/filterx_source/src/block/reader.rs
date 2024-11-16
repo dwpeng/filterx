@@ -1,4 +1,4 @@
-use flate2::read::GzDecoder;
+use flate2::read::MultiGzDecoder as GzDecoder;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::ops::{Deref, DerefMut};
