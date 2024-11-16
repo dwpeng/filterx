@@ -52,7 +52,7 @@ pub struct ShareArgs {
     #[clap(short = 'e', long, action = ArgAction::Append)]
     pub expr: Option<Vec<String>>,
 
-    /// The output file, default is stdout
+    /// The output file, default is stdout. Gzip compressed output if path ends with .gz
     #[clap(short='o', long, value_hint=ValueHint::FilePath)]
     pub output: Option<String>,
 
