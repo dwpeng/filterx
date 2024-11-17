@@ -1,17 +1,16 @@
 [package]
-name = "filterx"
+name = "filterx_info"
 version = { workspace = true }
 authors = { workspace = true }
 homepage = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 edition = { workspace = true }
-description = { workspace = true }
+description = "The builtin function documentation library for filterx"
+
+
 
 [dependencies]
-clap = { workspace = true }
-polars = { workspace = true }
 filterx_core = { workspace = true }
-filterx_source = { workspace = true }
-filterx_engine = { workspace = true }
-filterx_info = { workspace = true }
+markdown = { workspace = true }
+colored = { workspace = true }

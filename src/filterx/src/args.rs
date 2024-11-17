@@ -40,6 +40,9 @@ pub enum Command {
 
     /// handle gtf file
     GTF(GFFCommand),
+
+    /// builtin function help
+    Info(InfoArgs),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -167,4 +170,12 @@ pub struct VcfCommand {
 pub struct GFFCommand {
     #[clap(flatten)]
     pub share_args: ShareArgs,
+}
+
+
+#[derive(Debug, Clone, Parser)]
+pub struct InfoArgs {
+    
+    /// builtin function name
+    pub name: String,
 }

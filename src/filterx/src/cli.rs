@@ -5,6 +5,7 @@ use crate::files::fastq::filterx_fastq;
 use crate::files::gxf::{filterx_gxf, GxfType};
 use crate::files::sam::filterx_sam;
 use crate::files::vcf::filterx_vcf;
+use crate::info::filterx_info;
 
 use clap::Parser;
 
@@ -20,5 +21,6 @@ pub fn cli() -> FilterxResult<()> {
         Command::Vcf(cmd) => filterx_vcf(cmd),
         Command::GFF(cmd) => filterx_gxf(cmd, GxfType::Gff),
         Command::GTF(cmd) => filterx_gxf(cmd, GxfType::Gtf),
+        Command::Info(cmd) => filterx_info(cmd),
     }
 }

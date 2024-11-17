@@ -4,12 +4,13 @@ members = [
     "src/filterx",
     "src/filterx_core",
     "src/filterx_engine",
+    "src/filterx_info",
     "src/filterx_source",
 ]
 
 [workspace.package]
 authors = ["dwpeng"]
-version = "0.2.8"
+version = "0.2.9"
 edition = "2021"
 description = "A simple command line tool to filter data by using python-like syntax"
 license = "MIT"
@@ -18,10 +19,11 @@ homepage = "https://github.com/dwpeng/filterx"
 exclude = ["spec/", "docs/"]
 
 [workspace.dependencies]
-filterx = { path = "src/filterx", version = "0.2.8" }
-filterx_core = { path = "src/filterx_core", version = "0.2.8" }
-filterx_engine = { path = "src/filterx_engine", version = "0.2.8" }
-filterx_source = { path = "src/filterx_source", version = "0.2.8" }
+filterx = { path = "src/filterx", version = "0.2.9" }
+filterx_core = { path = "src/filterx_core", version = "0.2.9" }
+filterx_engine = { path = "src/filterx_engine", version = "0.2.9" }
+filterx_source = { path = "src/filterx_source", version = "0.2.9" }
+filterx_info = { path = "src/filterx_info", version = "0.2.9" }
 anyhow = "1.0.89"
 clap = { version = "4.5.17", features = ["derive"] }
 polars = { version = "0.44.2", default-features = false, features = [
@@ -54,7 +56,7 @@ regex = "1.11.1"
 colored = "2.1.0"
 lazy_static = "1.5.0"
 memchr = "2.7.4"
-
+markdown = "0.3.0"
 
 [profile.dev]
 opt-level = 0

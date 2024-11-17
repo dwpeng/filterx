@@ -6,6 +6,7 @@ bin217:
 
 publish:
     cargo publish -p filterx_core --registry crates-io
+    cargo publish -p filterx_info --registry crates-io
     cargo publish -p filterx_source --registry crates-io
     cargo publish -p filterx_engine --registry crates-io
     cargo publish -p filterx --registry crates-io
