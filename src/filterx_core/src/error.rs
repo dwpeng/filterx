@@ -22,4 +22,7 @@ pub enum FilterxError {
 
     #[error("Error reading Fastq file: {0}")]
     FastqError(String),
+
+    #[error("Error initializing gzip: {0}")]
+    GzipError(#[from] gzp::GzpError),
 }

@@ -1,7 +1,7 @@
 use polars::prelude::*;
 use std::{fmt::Display, io::BufRead};
 
-use crate::block::reader::{TableLikeReader, detect_breakline_len};
+use crate::block::reader::{detect_breakline_len, TableLikeReader};
 use crate::dataframe::DataframeSource;
 
 use filterx_core::{FilterxError, FilterxResult, Hint};
@@ -299,7 +299,6 @@ impl Fastq {
         }
         Ok(fq)
     }
-
 
     fn guess_quality_type(&mut self, detect_size: usize) -> FilterxResult<()> {
         if !self.parser_option.include_qual {

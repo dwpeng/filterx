@@ -4,7 +4,11 @@ use filterx_engine::eval::call::functions::get_function;
 use filterx_info::render;
 
 pub fn filterx_info(info: InfoArgs) -> FilterxResult<()> {
-    let InfoArgs { name } = info;
+    let InfoArgs { mut name } = info;
+
+    if name.ends_with('_') {
+        name = name.strip_suffix("_").unwrap().to_owned();
+    }
 
     let f = get_function(&name);
 

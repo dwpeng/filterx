@@ -13,6 +13,10 @@ static LONG_ABOUT: &'static str = include_str!("./long.txt");
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Command,
+
+    /// Set the number of threads to use. Defaults to the number of logical CPUs.
+    #[clap(short = 'j', long)]
+    pub threads: Option<usize>,
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -45,6 +49,16 @@ pub enum Command {
     Info(InfoArgs),
 }
 
+pub fn set_thread_size(thread_size: Option<usize>) -> () {
+    if thread_size.is_some() {
+        let thread_size = thread_size.unwrap();
+        // set polars thread size by env
+        std::env::set_var("POLARS_NUM_THREADS", thread_size.to_string());
+        // set gzp thread size by env
+        std::env::set_var("GZP_NUM_THREADS", thread_size.to_string());
+    }
+}
+
 #[derive(Debug, Clone, Args)]
 pub struct ShareArgs {
     /// The input string
@@ -62,6 +76,9 @@ pub struct ShareArgs {
     /// output as table format, only output to stdout
     #[clap(short = 't', long, default_value = "false", action = ArgAction::SetTrue)]
     pub table: Option<bool>,
+    // /// The number of threads to use
+    // #[clap(short = 'j', long, default_value = "1", )]
+    // pub threads: Option<usize>,
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -172,10 +189,8 @@ pub struct GFFCommand {
     pub share_args: ShareArgs,
 }
 
-
 #[derive(Debug, Clone, Parser)]
 pub struct InfoArgs {
-    
     /// builtin function name
     pub name: String,
 }

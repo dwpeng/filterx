@@ -51,6 +51,7 @@ pub fn filterx_gxf(cmd: GFFCommand, gxf_type: GxfType) -> FilterxResult<()> {
     let comment_prefix = "#";
     let separator = "\t";
     let writer = util::create_buffer_writer(output.clone())?;
+    let writer = Box::new(writer);
     let schema = init_gxf_schema();
     let names = vec![
         "seqid", "source", "type", "start", "end", "score", "strand", "phase", "attr",
@@ -69,10 +70,8 @@ pub fn filterx_gxf(cmd: GFFCommand, gxf_type: GxfType) -> FilterxResult<()> {
     )?;
     let mut s = DataframeSource::new(lazy_df.clone());
     s.set_init_column_names(&names);
-    let mut vm = Vm::from_source(Source::new(s.into(), gxf_type.into()));
+    let mut vm = Vm::from_source(Source::new(s.into(), gxf_type.into()), writer);
     let expr = util::merge_expr(expr);
-    let writer = Box::new(writer);
-    vm.set_writer(writer);
     vm.eval_once(&expr)?;
     vm.finish()?;
     if vm.status.printed {
@@ -89,7 +88,7 @@ pub fn filterx_gxf(cmd: GFFCommand, gxf_type: GxfType) -> FilterxResult<()> {
     let headers = util::collect_comment_lines(path.as_str(), comment_prefix)?;
     util::write_df(
         &mut df,
-        output.as_deref(),
+        &mut vm.writer,
         false,
         separator,
         Some(headers),

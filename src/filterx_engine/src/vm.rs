@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use polars::prelude::*;
 
-use filterx_core::{FilterxError, FilterxResult, Hint};
+use filterx_core::{util, FilterxError, FilterxResult, Hint};
 use filterx_source::source::SourceType;
 use filterx_source::{
     DataframeSource, FastaRecordType, FastaSource, FastqSource, QualityType, Source, SourceInner,
@@ -75,7 +75,7 @@ pub struct Vm {
     /// source
     pub source: Source,
     pub status: VmStatus,
-    pub writer: Option<Box<BufWriter<Box<dyn Write>>>>,
+    pub writer: Box<BufWriter<Box<dyn Write>>>,
     pub expr_cache: HashMap<String, (String, Vec<polars::prelude::Expr>)>,
     pub hint: Hint,
 }
@@ -92,6 +92,8 @@ impl Vm {
             _ => DataframeSource::new(DataFrame::empty().lazy()).into(),
         };
 
+        let buffer = util::create_buffer_writer(None).unwrap();
+
         let vm = Vm {
             eval_expr: "".to_string(),
             print_expr: "".to_string(),
@@ -99,14 +101,14 @@ impl Vm {
             mode: VmMode::Expression,
             source: Source::new(innser, source_type),
             status: VmStatus::default(),
-            writer: None,
+            writer: Box::new(buffer),
             expr_cache: HashMap::new(),
             hint: Hint::new(),
         };
         vm
     }
 
-    pub fn from_source(source: Source) -> Self {
+    pub fn from_source(source: Source, writer: Box<BufWriter<Box<dyn Write>>>) -> Self {
         Self {
             eval_expr: String::new(),
             print_expr: String::new(),
@@ -114,7 +116,7 @@ impl Vm {
             mode: VmMode::Expression,
             source,
             status: VmStatus::default(),
-            writer: None,
+            writer: writer,
             expr_cache: HashMap::new(),
             hint: Hint::new(),
         }
@@ -127,10 +129,6 @@ impl Vm {
 
     pub fn set_mode(&mut self, mode: VmMode) {
         self.mode = mode;
-    }
-
-    pub fn set_writer(&mut self, writer: Box<BufWriter<Box<dyn Write>>>) {
-        self.writer = Some(writer);
     }
 
     pub fn ast(&self, s: &str) -> FilterxResult<rustpython_parser::ast::Mod> {
@@ -289,25 +287,5 @@ impl Vm {
     pub fn finish(&mut self) -> FilterxResult<()> {
         let s = self.source.df_source_mut();
         s.finish()
-    }
-}
-
-#[allow(unused_imports)]
-mod test {
-    use super::*;
-    use filterx_core::util;
-    use filterx_source::source::{SourceInner, SourceType};
-    use filterx_source::DataframeSource;
-
-    #[test]
-    fn test_vm() {
-        let frame = DataframeSource::new(util::mock_lazy_df());
-        let source = Source::new(frame.into(), SourceType::Csv);
-        let mut vm = Vm::from_source(source);
-        let expr = "alias(c) = a + b";
-        let ret = vm.eval_once(expr);
-        println!("{:?}", ret);
-        let ret = vm.finish();
-        println!("{:?}", ret);
     }
 }

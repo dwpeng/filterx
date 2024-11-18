@@ -39,6 +39,7 @@ pub fn filterx_sam(cmd: SamCommand) -> FilterxResult<()> {
     let comment_prefix = "@";
     let separator = "\t";
     let writer = util::create_buffer_writer(output.clone())?;
+    let writer = Box::new(writer);
     let schema = init_sam_schema();
     let lazy_df = util::init_df(
         path.as_str(),
@@ -58,10 +59,8 @@ pub fn filterx_sam(cmd: SamCommand) -> FilterxResult<()> {
     let names = names.iter().map(|x| x.to_string()).collect::<Vec<String>>();
     let mut s = DataframeSource::new(lazy_df.clone());
     s.set_init_column_names(&names);
-    let mut vm = Vm::from_source(Source::new(s.into(), SourceType::Sam));
+    let mut vm = Vm::from_source(Source::new(s.into(), SourceType::Sam), writer);
     let expr = util::merge_expr(expr);
-    let writer = Box::new(writer);
-    vm.set_writer(writer);
     vm.eval_once(&expr)?;
     vm.finish()?;
     if vm.status.printed {
@@ -78,7 +77,7 @@ pub fn filterx_sam(cmd: SamCommand) -> FilterxResult<()> {
     let headers = util::collect_comment_lines(path.as_str(), comment_prefix)?;
     util::write_df(
         &mut df,
-        output.as_deref(),
+        &mut vm.writer,
         false,
         separator,
         Some(headers),

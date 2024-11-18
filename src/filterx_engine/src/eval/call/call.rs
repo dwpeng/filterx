@@ -48,8 +48,10 @@ impl<'a> Eval<'a> for ast::ExprCall {
             function_name = "cast";
         }
 
+        // TODO
+        let f = get_function(function_name);
+
         if vm.mode == VmMode::Printable {
-            let f = get_function(&original_function_name);
             if let Some(f) = f {
                 if !f.can_expression {
                     let h = &mut vm.hint;

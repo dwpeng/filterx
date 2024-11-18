@@ -11,7 +11,7 @@ use gzp::{
     Compression,
 };
 
-use crate::{FilterxError, FilterxResult};
+use crate::{thread_size::ThreadSize, FilterxError, FilterxResult};
 use std::io::BufWriter;
 use std::io::Write;
 use std::{fs::File, num::NonZero};
@@ -139,6 +139,7 @@ pub fn create_buffer_writer(path: Option<String>) -> FilterxResult<BufWriter<Box
             let fp = File::create(path)?;
             let gzip_writer: ParCompress<Gzip> = ParCompressBuilder::new()
                 .compression_level(Compression::new(6))
+                .num_threads(ThreadSize::get())?
                 .from_writer(fp);
             writer = Box::new(gzip_writer);
         } else {
@@ -207,13 +208,12 @@ pub fn init_df(
 
 pub fn write_df(
     df: &mut DataFrame,
-    output: Option<&str>,
+    writer: &mut Box<BufWriter<Box<dyn Write>>>,
     output_header: bool,
     output_separator: &str,
     headers: Option<Vec<String>>,
     null_value: Option<&str>,
 ) -> FilterxResult<()> {
-    let mut writer = create_buffer_writer(output.map(|x| x.to_string()))?;
     if headers.is_some() {
         let headers = headers.unwrap();
         for line in headers {
@@ -226,7 +226,7 @@ pub fn write_df(
         .with_separator(handle_sep(output_separator) as u8)
         .with_quote_style(QuoteStyle::Never)
         .with_float_precision(Some(3))
-        .n_threads(4)
+        .n_threads(ThreadSize::get())
         .with_line_terminator("\n".into());
     if let Some(null_value) = null_value {
         writer = writer.with_null_value(null_value.into());

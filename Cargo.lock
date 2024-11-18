@@ -758,9 +758,11 @@ name = "filterx_core"
 version = "0.2.9"
 dependencies = [
  "anyhow",
+ "clap",
  "colored",
  "flate2",
  "gzp",
+ "num_cpus",
  "polars",
  "rustpython-parser",
  "thiserror 2.0.0",

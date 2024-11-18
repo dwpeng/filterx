@@ -36,6 +36,8 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
     let comment_prefix = comment_prefix.unwrap();
     let separator = separator.unwrap();
     let writer = util::create_buffer_writer(output.clone())?;
+    let writer = Box::new(writer);
+
     let lazy_df = util::init_df(
         path.as_str(),
         header.unwrap(),
@@ -51,11 +53,9 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
     let mut s = DataframeSource::new(lazy_df.clone());
     s.set_has_header(header.unwrap());
     s.set_init_column_names(&columns);
-    let mut vm = Vm::from_source(Source::new(s.into(), SourceType::Csv));
+    let mut vm = Vm::from_source(Source::new(s.into(), SourceType::Csv), writer);
     vm.source_mut().set_has_header(header.unwrap());
     let expr = util::merge_expr(expr);
-    let writer = Box::new(writer);
-    vm.set_writer(writer);
     vm.eval_once(&expr)?;
     vm.finish()?;
     if vm.status.printed {
@@ -71,7 +71,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
     }
     util::write_df(
         &mut df,
-        output.as_deref(),
+        &mut vm.writer,
         output_header.unwrap(),
         output_separator.unwrap().as_str(),
         None,

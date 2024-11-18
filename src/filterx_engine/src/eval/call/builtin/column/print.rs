@@ -1,4 +1,4 @@
-use polars::{io::SerWriter, prelude::format_str};
+use polars::prelude::format_str;
 
 use crate::vm::VmMode;
 
@@ -7,6 +7,8 @@ use polars::prelude::{col, Expr};
 use regex::Regex;
 
 use lazy_static::lazy_static;
+
+use filterx_core::util;
 
 lazy_static! {
     static ref REGEX_PATTERN: Regex = Regex::new(r"\{([\(\)a-zA-Z0-9_\-+/*\\ ]*)\}").unwrap();
@@ -48,10 +50,10 @@ fn parse_format_string(s: &str, vm: &mut Vm) -> FilterxResult<(String, Option<Ve
         if !ast.is_expression() {
             let h = &mut vm.hint;
             h.white("Only support expression in ")
-            .cyan("print")
-            .white(", but got ")
-            .red(item)
-            .print_and_exit();
+                .cyan("print")
+                .white(", but got ")
+                .red(item)
+                .print_and_exit();
         }
         let ast = ast.expression().unwrap();
         vm.set_print_expr(item);
@@ -129,7 +131,6 @@ pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
         .lazy()
         .select([format_str(&fmt, &cols)?.alias(FORMAT_COLUMN_NAME)]);
     let mut df = lazy.collect()?;
-    let writer = vm.writer.as_mut().unwrap().as_mut();
     let need = vm.status.limit_rows - vm.status.consume_rows;
     let need = need.min(df.height());
     if need == 0 {
@@ -138,12 +139,9 @@ pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
     if need < df.height() {
         df = df.slice(0, need);
     }
-    let mut writer = polars::io::csv::write::CsvWriter::new(writer)
-        .include_header(false)
-        .with_float_precision(Some(4))
-        .n_threads(4)
-        .with_quote_style(polars::prelude::QuoteStyle::Never);
-    writer.finish(&mut df)?;
+
+    util::write_df(&mut df, &mut vm.writer, false, "", None, Some(""))?;
+
     vm.status.consume_rows += need;
     vm.status.printed = true;
     Ok(value::Value::None)

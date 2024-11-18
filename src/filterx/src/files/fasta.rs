@@ -47,18 +47,17 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
         r#type.unwrap(),
         detect_size.unwrap(),
     )?;
-    let output = util::create_buffer_writer(output)?;
-    let mut output = Box::new(output);
+    let writer = util::create_buffer_writer(output)?;
+    let mut writer = Box::new(writer);
     if expr.is_empty() {
         while let Some(record) = &mut source.fasta.parse_next()? {
-            writeln!(output, "{}", record.format())?;
+            writeln!(writer, "{}", record.format())?;
         }
         return Ok(());
     }
     let chunk_size = long.unwrap();
-    let mut vm = Vm::from_source(Source::new(source.into(), SourceType::Fasta));
+    let mut vm = Vm::from_source(Source::new(source.into(), SourceType::Fasta), writer);
     vm.source.df_source_mut().set_init_column_names(&names);
-    vm.set_writer(output);
     vm.status.set_chunk_size(chunk_size);
     'stop_parse: loop {
         let left = vm.next_batch()?;
@@ -69,7 +68,7 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
         vm.finish()?;
         if !vm.status.printed {
             let df = vm.into_df()?;
-            let writer = vm.writer.as_mut().unwrap();
+            let writer = vm.writer.as_mut();
             let cols = df.get_columns();
             let seq_col = cols.iter().position(|x| x.name() == "seq");
             let name_col = cols.iter().position(|x| x.name() == "name");

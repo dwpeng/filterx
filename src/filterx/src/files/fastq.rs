@@ -60,17 +60,16 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
         phred.unwrap(),
         detect_size.unwrap(),
     )?;
-    let output = util::create_buffer_writer(output)?;
-    let mut output = Box::new(output);
+    let writer = util::create_buffer_writer(output)?;
+    let mut writer = Box::new(writer);
     if expr.is_empty() {
         while let Some(record) = &mut source.fastq.parse_next()? {
-            writeln!(output, "{}", record.format())?;
+            writeln!(writer, "{}", record.format())?;
         }
         return Ok(());
     }
     let chunk_size = long.unwrap();
-    let mut vm = Vm::from_source(Source::new(source.into(), SourceType::Fastq));
-    vm.set_writer(output);
+    let mut vm = Vm::from_source(Source::new(source.into(), SourceType::Fastq), writer);
     vm.status.set_chunk_size(chunk_size);
     vm.source_mut().set_init_column_names(&names);
     'stop_parse: loop {
@@ -82,7 +81,7 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
         vm.finish()?;
         if !vm.status.printed {
             let df = vm.into_df()?;
-            let writer = vm.writer.as_mut().unwrap();
+            let writer = vm.writer.as_mut();
             let cols = df.get_columns();
             let name_col = cols.iter().position(|x| x.name() == "name");
             let seq_col = cols.iter().position(|x| x.name() == "seq");

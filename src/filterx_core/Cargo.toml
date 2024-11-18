@@ -16,3 +16,5 @@ thiserror = { workspace = true }
 rustpython-parser = { workspace = true }
 flate2 = { workspace = true }
 gzp = { workspace = true }
+num_cpus = { workspace = true }
+clap = { workspace = true }
