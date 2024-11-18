@@ -2,9 +2,9 @@ use crate::builtin_function;
 
 builtin_function! {
     FUNCTION_COLUMN,
-    (drop, false),
-    (alias,false),
-    (cast, true, (
+    (del, false, false),
+    (alias,false, false),
+    (cast, true, true, (
         cast_int,
         cast_float,
         cast_string,
@@ -19,15 +19,15 @@ builtin_function! {
         cast_u16,
         cast_u8
     )),
-    (dup,false),
-    (fill, true),
-    (is_na, false),
-    (is_null, false),
-    (rename, false),
-    (select, false),
-    (print, false),
-    (sort, false),
-    (col, true),
-    (drop_null, false),
-    (header, false),
+    (dup,false, false, (dup_any, dup_none, dup_last)),
+    (fill, true, true, (fill_null, fill_nan)),
+    (is_na, false, false, (is_not_na)),
+    (is_null, false, false, (is_not_null)),
+    (rename, false, false),
+    (select, false, false),
+    (print, false, false, (format, fmt, f)),
+    (sort, false, false),
+    (col, true, false, (c)),
+    (drop_null, false, false),
+    (header, false, false),
 }

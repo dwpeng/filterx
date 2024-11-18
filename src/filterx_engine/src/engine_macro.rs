@@ -36,7 +36,7 @@ macro_rules! eval_col {
 macro_rules! builtin_function {
     (   $group: ident,
         $(
-            ($name:ident, $expression:expr $(, ($($alias:ident),*))?),
+            ($name:ident, $expression:expr, $inplace:expr $(, ($($alias:ident),*))?),
         )*
     ) => {
         pub use crate::eval::call::BuiltinFunction;
@@ -49,6 +49,7 @@ macro_rules! builtin_function {
                         $(stringify!($alias)),*
                     )?],
                     can_expression: $expression,
+                    can_inplace: $inplace,
                     doc: include_str!(concat!("doc/", stringify!($name), ".md")),
                 },
             )*

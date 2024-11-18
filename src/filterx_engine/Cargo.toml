@@ -17,3 +17,4 @@ regex = { workspace = true }
 filterx_core = { workspace = true }
 filterx_source = { workspace = true }
 clap = { workspace = true }
+strsim = { workspace = true }

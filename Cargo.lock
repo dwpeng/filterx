@@ -780,6 +780,7 @@ dependencies = [
  "polars-arrow",
  "regex",
  "rustpython-parser",
+ "strsim",
 ]
 
 [[package]]

@@ -12,10 +12,6 @@ use super::functions::get_function;
 use crate::eval::call::builtin as call;
 use crate::eval::Eval;
 
-fn compute_similarity(_target: &str, _reference: Vec<&'static str>) -> Option<&'static str> {
-    None
-}
-
 impl<'a> Eval<'a> for ast::ExprCall {
     type Output = value::Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
@@ -32,6 +28,9 @@ impl<'a> Eval<'a> for ast::ExprCall {
         };
 
         let mut function_name = original_function_name.as_str();
+
+        let f = get_function(function_name);
+
         let inplace = function_name.ends_with("_");
         let mut original_function_name = function_name;
 
@@ -48,44 +47,39 @@ impl<'a> Eval<'a> for ast::ExprCall {
             function_name = "cast";
         }
 
-        // TODO
-        let f = get_function(function_name);
-
         if vm.mode == VmMode::Printable {
-            if let Some(f) = f {
-                if !f.can_expression {
-                    let h = &mut vm.hint;
-                    h.white("Function `")
-                        .cyan(&original_function_name)
-                        .bold()
-                        .white("` can not be used in ")
-                        .green("`print`")
-                        .bold()
-                        .white(" formatter. But got ")
-                        .cyan(&vm.print_expr)
-                        .white(".")
-                        .print_and_exit();
-                }
+            if !f.can_expression {
+                let h = &mut vm.hint;
+                h.white("Function `")
+                    .cyan(&original_function_name)
+                    .bold()
+                    .white("` can not be used in ")
+                    .green("`print`")
+                    .bold()
+                    .white(" formatter. But got ")
+                    .cyan(&vm.print_expr)
+                    .white(".")
+                    .print_and_exit();
+            }
 
-                if inplace {
-                    let h = &mut vm.hint;
-                    h.white("Function `")
-                        .cyan(&original_function_name)
-                        .bold()
-                        .white("(")
-                        .cyan("inplace")
-                        .white(")` can not be used in ")
-                        .green("`print`")
-                        .bold()
-                        .white(" formatter.")
-                        .print_and_exit();
-                }
+            if inplace {
+                let h = &mut vm.hint;
+                h.white("Function `")
+                    .cyan(&original_function_name)
+                    .bold()
+                    .white("(")
+                    .cyan("inplace")
+                    .white(")` can not be used in ")
+                    .green("`print`")
+                    .bold()
+                    .white(" formatter.")
+                    .print_and_exit();
             }
         }
 
         match function_name {
             "alias" => call::alias(vm, &self.args),
-            "drop" => call::drop(vm, &self.args),
+            "del" => call::del(vm, &self.args),
             "select" => call::select(vm, &self.args),
             "col" | "c" => call::col(vm, &self.args),
             "rename" => {
@@ -123,7 +117,8 @@ impl<'a> Eval<'a> for ast::ExprCall {
             "slice" => call::slice(vm, &self.args, inplace),
             "header" => call::header(vm),
             "cast" => call::cast(vm, &self.args, &sub_function_name, inplace),
-            "fill_null" => call::fill(vm, &self.args, inplace),
+            "fill" | "fill_null" => call::fill(vm, &self.args, inplace, false),
+            "fill_nan" => call::fill(vm, &self.args, inplace, true),
             "dup" => call::dup(vm, &self.args, UniqueKeepStrategy::First),
             "dup_none" => call::dup(vm, &self.args, UniqueKeepStrategy::None),
             "dup_last" => call::dup(vm, &self.args, UniqueKeepStrategy::Last),
@@ -133,23 +128,11 @@ impl<'a> Eval<'a> for ast::ExprCall {
             "is_not_null" => call::is_null(vm, &self.args, true),
             "is_na" => call::is_na(vm, &self.args, false),
             "is_not_na" => call::is_na(vm, &self.args, true),
-            "drop_null" => call::drop_null(vm, &self.args, false),
-            "drop_null_" => call::drop_null(vm, &self.args, true),
+            "drop_null" => call::drop_null(vm, &self.args),
             "to_fa" | "to_fasta" => call::to_fasta(vm),
             "to_fq" | "to_fastq" => call::to_fastq(vm),
             _ => {
-                let simi = compute_similarity(&function_name, vec![]);
-                let h = &mut vm.hint;
-                h.white("Function `")
-                    .cyan(&function_name)
-                    .white("` does not found.");
-
-                if simi.is_some() {
-                    h.white(" Similar function `")
-                        .cyan(simi.unwrap())
-                        .white("` found.");
-                }
-                h.print_and_exit();
+                unreachable!();
             }
         }
     }
