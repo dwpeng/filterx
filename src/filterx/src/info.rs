@@ -7,5 +7,6 @@ pub fn filterx_info(info: InfoArgs) -> FilterxResult<()> {
     let InfoArgs { name } = info;
     let f = get_function(&name);
     render::render_markdown_help(f.doc)?;
+    render::render_alias_function(&f.alias)?;
     Ok(())
 }
