@@ -23,11 +23,6 @@ fn compute_similarity(target: &str) -> Option<&str> {
     let mut best_name = "";
     for function_list in ALL_FUNCTIONS.iter() {
         for function in function_list.iter() {
-            let score = strsim::jaro_winkler(target, function.name);
-            if score > best_score {
-                best_score = score;
-                best_name = function.name;
-            }
             for alias in function.alias.iter() {
                 let score = strsim::jaro_winkler(target, alias);
                 if score > best_score {
@@ -53,7 +48,7 @@ pub fn get_function(name: &str) -> &'static BuiltinFunction {
     };
     for functions in ALL_FUNCTIONS.iter() {
         for function in functions.iter() {
-            if pure_name == function.name || function.alias.contains(&pure_name) {
+            if function.alias.contains(&pure_name) {
                 if inplace && !function.can_inplace {
                     let mut h = Hint::new();
                     h.white("Function: ")

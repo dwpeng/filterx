@@ -14,3 +14,4 @@ description = "The builtin function documentation library for filterx"
 filterx_core = { workspace = true }
 markdown = { workspace = true }
 colored = { workspace = true }
+memchr = { workspace = true }

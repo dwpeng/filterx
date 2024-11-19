@@ -1,8 +1,102 @@
 use colored::{Color, ColoredString, Colorize};
 use markdown::{tokenize, Block, ListItem, Span};
+use memchr::memchr2;
 
 pub trait ToLines {
     fn to_lines(&self) -> Vec<ColoredString>;
+}
+
+struct CodeLine<'a> {
+    pub line: &'a str,
+    pub is_comment: bool,
+    pub is_comment_start: bool,
+    pub other: Option<&'a str>,
+}
+
+impl<'a> CodeLine<'a> {
+    pub fn new(line: &'a str) -> Self {
+        if line.starts_with("//") || line.starts_with("#") {
+            return Self::start_comment(line);
+        } else if line.contains("//") || line.contains("#") {
+            return Self::contain_comment(line);
+        } else {
+            return Self::code(line);
+        }
+    }
+
+    fn code(line: &'a str) -> Self {
+        Self {
+            line,
+            is_comment: false,
+            is_comment_start: false,
+            other: None,
+        }
+    }
+
+    fn start_comment(line: &'a str) -> Self {
+        Self {
+            line,
+            is_comment: true,
+            is_comment_start: true,
+            other: None,
+        }
+    }
+
+    fn contain_comment(line: &'a str) -> Self {
+        // split by `//` or `#`
+        if line.contains("//") {
+            let offset = memchr2(b'/', b'/', line.as_bytes()).unwrap();
+            let (line, other) = line.split_at(offset);
+            return Self {
+                line,
+                is_comment: true,
+                is_comment_start: false,
+                other: Some(other),
+            };
+        } else if line.contains("#") {
+            let offset = memchr2(b'#', b'#', line.as_bytes()).unwrap();
+            let (line, other) = line.split_at(offset);
+            return Self {
+                line,
+                is_comment: true,
+                is_comment_start: false,
+                other: Some(other),
+            };
+        }
+        return Self {
+            line,
+            is_comment: false,
+            is_comment_start: false,
+            other: None,
+        };
+    }
+}
+
+impl<'a> ToLines for CodeLine<'a> {
+    fn to_lines(&self) -> Vec<ColoredString> {
+        if self.is_comment && self.is_comment_start {
+            return vec![self.line.dimmed().italic(), "\n".into()];
+        }
+        if self.is_comment && !self.is_comment_start {
+            return vec![
+                self.line.cyan(),
+                self.other.unwrap().italic().dimmed(),
+                "\n".into(),
+            ];
+        }
+        return vec![self.line.cyan(), "\n".into()];
+    }
+}
+
+fn process_code<'a>(code: &'a str) -> Vec<ColoredString> {
+    // split by `\n`
+    let lines: Vec<&'a str> = code.split("\n").collect();
+    let mut code_lines = vec![];
+    for line in lines {
+        let line = line.trim();
+        code_lines.push(CodeLine::new(line));
+    }
+    code_lines.iter().map(|x| x.to_lines()).flatten().collect()
 }
 
 impl ToLines for Block {
@@ -32,7 +126,6 @@ impl ToLines for Block {
             }
 
             Block::CodeBlock(language, code) => {
-                let code = vec![code.color(Color::Cyan)];
                 let mut lines = vec![];
                 let mut have_filename = 0;
                 if let Some(lang) = language {
@@ -51,9 +144,9 @@ impl ToLines for Block {
                         }
                     }
                 }
-                lines.extend(code);
+                let code_lines = process_code(code);
+                lines.extend(code_lines);
                 if have_filename > 0 {
-                    lines.push("\n".into());
                     lines.push("-".repeat(have_filename).cyan());
                 }
                 lines
