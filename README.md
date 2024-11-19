@@ -1,7 +1,15 @@
 
 ## filterx
 
-[![pypi](https://github.com/dwpeng/filterx/actions/workflows/release-pypi.yml/badge.svg)](https://github.com/dwpeng/filterx/actions/workflows/release-pypi.yml)   [![Github Release](https://github.com/dwpeng/filterx/actions/workflows/release.yml/badge.svg)](https://github.com/dwpeng/filterx/actions/workflows/release.yml)
+<p align="center">
+<img src="./docs/docs/public/filterx-icon.png" width="100" height="100" alt="filterx logo">
+</p>
+
+<p align="center">
+
+[![pypi](https://github.com/dwpeng/filterx/actions/workflows/release-pypi.yml/badge.svg)](https://github.com/dwpeng/filterx/actions/workflows/release-pypi.yml) [![Github Release](https://github.com/dwpeng/filterx/actions/workflows/release.yml/badge.svg)](https://github.com/dwpeng/filterx/actions/workflows/release.yml)  ![PyPI Downloads](https://static.pepy.tech/badge/filterx)
+
+</p>
 
 A fast command-line tool to filter lines by column-based expression.
 
