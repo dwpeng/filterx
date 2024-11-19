@@ -1,9 +1,10 @@
 
 ## filterx
 
-[![pypi](https://github.com/dwpeng/filterx/actions/workflows/release-pypi.yml/badge.svg)](https://github.com/dwpeng/filterx/actions/workflows/release-pypi.yml)[![Github Release](https://github.com/dwpeng/filterx/actions/workflows/release.yml/badge.svg)](https://github.com/dwpeng/filterx/actions/workflows/release.yml)
+[![pypi](https://github.com/dwpeng/filterx/actions/workflows/release-pypi.yml/badge.svg)](https://github.com/dwpeng/filterx/actions/workflows/release-pypi.yml)   [![Github Release](https://github.com/dwpeng/filterx/actions/workflows/release.yml/badge.svg)](https://github.com/dwpeng/filterx/actions/workflows/release.yml)
 
 A fast command-line tool to filter lines by column-based expression.
+
 
 ## Features
 - 🚀 Filter lines by column-based expression
@@ -11,6 +12,28 @@ A fast command-line tool to filter lines by column-based expression.
 - 🎉 Cross-platform support
 - 📦 Easy to install
 - 📚 Rich documentations
+
+## Installation
+
+Using pip or cargo to install `filterx`:
+
+```bash
+pip install filterx
+```
+
+```bash
+cargo install filterx
+```
+
+Download the latest release from [releases](https://github.com/dwpeng/filterx/releases).
+
+
+## Documentation
+
+filterx have rich documentations, you can find them in [docs](https://filterx.dwpeng.com).
+
+filterx has a built-in help system, you can use `filterx info --list` to list all available built-in functions, and use `filterx info <command>` to get help for a specific function.
+
 
 ## Star History
 
