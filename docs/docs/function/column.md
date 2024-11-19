@@ -91,12 +91,12 @@ filterx csv test.csv -H --oH -e 'alias(new_col) = age + 10'
 :::
 
 
-## drop
+## del
 
-drop columns by name. It is more like `select` but if you don't want some columns, use `drop` will be more memory efficient.
+delete columns by name. It is more like `select` but if you don't want some columns, use `delete` will be more memory efficient.
 
 ```bash
-filterx csv test.csv -H --oH -e 'drop(age)'
+filterx csv test.csv -H --oH -e 'delete(age)'
 # output
 # name
 # Alice
