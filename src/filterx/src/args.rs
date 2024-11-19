@@ -192,5 +192,9 @@ pub struct GFFCommand {
 #[derive(Debug, Clone, Parser)]
 pub struct InfoArgs {
     /// builtin function name
-    pub name: String,
+    pub name: Option<String>,
+
+    /// list all builtin functions
+    #[clap(long, default_value = "false", action = ArgAction::SetTrue)]
+    pub list: Option<bool>
 }
