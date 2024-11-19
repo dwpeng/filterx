@@ -65,10 +65,10 @@ Bob,30
 Charlie,40
 ```
 
-filterx can filter the csv file without a header. Use `col` to reference the column. The column index starts from 1. In the following example, `col(2)` refers to the second column in the csv file.
+filterx can filter the csv file without a header. Use `col` to reference the column. The column index starts from 0. In the following example, `col(1)` refers to the second column in the csv file.
 
 ```shell
-filterx csv example-without-header.csv -e 'col(2) > 25'
+filterx csv example-without-header.csv -e 'col(1) > 25'
 
 # Output
 # Bob,30

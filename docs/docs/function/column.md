@@ -14,12 +14,12 @@ Charlie,40
 
 ## col
 
-get column by name or index, for index, it starts from 1.
+get column by name or index, for index, it starts from 0.
 
 ```bash
 filterx csv test.csv -H -e 'col(name) == "Alice"'
 # equivalent to
-filterx csv test-without-header.csv -e 'col(1) == "Alice"'
+filterx csv test-without-header.csv -e 'col(0) == "Alice"'
 
 # output
 # Alice,20
@@ -28,14 +28,14 @@ filterx csv test-without-header.csv -e 'col(1) == "Alice"'
 `col` can be used as column name, so you can use it in any need of column name. And it also can be used in `col` function.
 
 ```bash
-filterx csv test.csv -H -e 'col(col(1)) == "Alice"'
+filterx csv test.csv -H -e 'col(col(0)) == "Alice"'
 ```
 
 ::: warning
 while using index, the csv file should not have header.
 
 ```bash
-filterx csv test.csv -H -e 'col(1) == "Alice"' # error
+filterx csv test.csv -H -e 'col(0) == "Alice"' # error
 ```
 :::
 
@@ -196,16 +196,16 @@ print headers of files. so that you can know the column names to manipulate them
 filterx vcf test.vcf -e 'header()'
 
 # output
-chrom   str
-pos     u32
-id      str
-ref     str
-alt     str
-qual    f32
-filter  str
-info    str
-format  str
-na001   str
+0   chrom   str
+1   pos     u32
+2   id      str
+3   ref     str
+4   alt     str
+5   qual    f32
+6   filter  str
+7   info    str
+8   format  str
+9   na001   str
 ```
 
 
@@ -303,11 +303,6 @@ check if a column is null or not.
 ```
 is_null(col("age")) will filter out all rows with missing values.
 ```
-
-
-## is_na & is_not_na
-check if a column is Na(not a number) or not.
-
 
 ## dup
 
