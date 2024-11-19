@@ -71,6 +71,9 @@ static SEPARATORS: [(&str, char); 4] = [("\\t", '\t'), ("\\n", '\n'), ("\\r", '\
 static FILE_SPE: char = '@';
 
 pub fn handle_sep(sep: &str) -> char {
+    if sep.len() == 0 {
+        return ',';
+    }
     match sep {
         s if s.starts_with("\\") => {
             for (s1, s2) in SEPARATORS.iter() {

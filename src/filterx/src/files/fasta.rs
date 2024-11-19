@@ -35,7 +35,7 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
 
     let names = match no_comment {
         Some(true) => vec!["name", "seq"],
-        _ => vec!["name", "seq", "comm"],
+        _ => vec!["name", "comm", "seq"],
     };
 
     let names = names.iter().map(|x| x.to_string()).collect();

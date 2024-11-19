@@ -40,8 +40,8 @@ pub fn replace<'a>(
     if inplace {
         vm.source_mut().with_column(
             match many {
-                true => e.str().replace_all(patt, repl, true).alias(name),
-                false => e.str().replace(patt, repl, true).alias(name),
+                true => e.str().replace_all(patt, repl, false).alias(name),
+                false => e.str().replace(patt, repl, false).alias(name),
             },
             None,
         );
@@ -51,8 +51,8 @@ pub fn replace<'a>(
     Ok(value::Value::named_expr(
         Some(name.to_string()),
         match many {
-            true => e.str().replace_all(patt, repl, true).alias(name),
-            false => e.str().replace(patt, repl, true).alias(name),
+            true => e.str().replace_all(patt, repl, false).alias(name),
+            false => e.str().replace(patt, repl, false).alias(name),
         },
     ))
 }
