@@ -46,13 +46,9 @@ impl DataframeSource {
     }
 
     pub fn index2column(&self, index: usize) -> String {
-        if index == 0 {
-            let mut h = Hint::new();
-            h.white("while using `col` function, column index should be positive integer and start from 1.").print_and_exit();
-        }
         if self.has_header {
-            if self.init_column_names.len() >= index {
-                return self.init_column_names[index - 1].clone();
+            if self.init_column_names.len() > index {
+                return self.init_column_names[index].clone();
             }
             let mut h = Hint::new();
             h.white("Have ")
