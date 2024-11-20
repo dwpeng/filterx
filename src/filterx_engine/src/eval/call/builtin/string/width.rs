@@ -12,10 +12,6 @@ fn compute_width_string(s: Column) -> PolarsResult<Option<Column>> {
         let length = s.len();
         let width = unsafe { STRING_WIDTH };
 
-        if length <= width {
-            return Cow::Owned(String::from_utf8_lossy(s).into_owned());
-        }
-
         // re-layout the string to the new string
         // Repear unit: width-chars + \n
         let niter = length / width;
@@ -36,7 +32,7 @@ fn compute_width_string(s: Column) -> PolarsResult<Option<Column>> {
             let end = offset;
             let sub = &s[start..end];
             new_string.extend_from_slice(sub);
-        }else{
+        } else {
             new_string.pop();
         }
         let s = unsafe { String::from_utf8_unchecked(new_string) };
@@ -65,13 +61,20 @@ pub fn width<'a>(
         Constant
     );
 
+    let name = col_name.column()?;
+    vm.source_mut().has_column(name);
+    let e = col_name.expr()?;
     let width = width.u32()?;
-
     unsafe { STRING_WIDTH = width as usize };
 
-    let name = col_name.column()?;
-    let e = col_name.expr()?;
-    vm.source_mut().has_column(name);
+    if width == 0 {
+        if inplace {
+            return Ok(value::Value::None);
+        } else {
+            return Ok(value::Value::named_expr(Some(name.to_string()), e));
+        }
+    }
+
     let e = e.map(compute_width_string, GetOutput::same_type());
 
     if inplace {

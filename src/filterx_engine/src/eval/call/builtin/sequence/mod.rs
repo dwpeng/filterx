@@ -8,5 +8,4 @@ builtin_function! {
     (to_fastq, false, false, (to_fq)),
     (qual, true, false),
     (phred, false, false),
-    (width, true, true),
 }

@@ -9,4 +9,5 @@ builtin_function! {
     (replace, true, true, (replace_one)),
     (strip, true, true, (lstrip, rstrip)),
     (rev, true, true),
+    (width, true, true, (w)),
 }
