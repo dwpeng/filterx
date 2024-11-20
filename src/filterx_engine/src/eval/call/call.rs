@@ -129,11 +129,10 @@ impl<'a> Eval<'a> for ast::ExprCall {
             "drop_null" => call::drop_null(vm, &self.args),
             "to_fa" | "to_fasta" => call::to_fasta(vm),
             "to_fq" | "to_fastq" => call::to_fastq(vm),
+            "w" | "width" => call::width(vm, &self.args, inplace),
             _ => {
                 unreachable!();
             }
         }
     }
 }
-
-mod test {}
