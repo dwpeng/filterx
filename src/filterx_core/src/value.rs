@@ -12,12 +12,7 @@ pub enum Value {
     Str(String),
     Name(Name),
     List(Vec<Value>),
-    Item(Item),
-    Ident((String, Box<Value>)),
-    AttrMethod(AttrMethod),
-    File(File),
     NamedExpr(NamedExpr),
-    // Slice(Slice),
     Null,
     Na,
     None,
@@ -136,7 +131,6 @@ impl Value {
             Value::Float(f) => f.lit(),
             Value::Int(i) => i.lit(),
             Value::Str(s) => s.clone().lit(),
-            Value::Item(c) => col(c.col_name.clone()),
             Value::Name(n) => col(n.name.clone()),
             Value::NamedExpr(e) => e.expr.clone(),
             Value::Null => Expr::Literal(LiteralValue::Null),
@@ -150,7 +144,6 @@ impl Value {
     pub fn text(&self) -> FilterxResult<String> {
         match self {
             Value::Str(s) => Ok(s.to_owned()),
-            Value::Item(c) => Ok(c.col_name.to_owned()),
             Value::Name(n) => Ok(n.name.to_owned()),
             _ => {
                 return Err(FilterxError::RuntimeError(
@@ -182,7 +175,6 @@ impl Value {
 
     pub fn column<'a>(&'a self) -> FilterxResult<&'a str> {
         match self {
-            Value::Item(c) => Ok(c.col_name.as_str()),
             Value::Name(n) => Ok(n.name.as_str()),
             Value::Str(s) => Ok(s.as_str()),
             Value::NamedExpr(e) => match e.name {
@@ -211,7 +203,6 @@ impl Value {
 
     pub fn is_column(&self) -> bool {
         match self {
-            Value::Item(_) => true,
             Value::Name(_) => true,
             Value::NamedExpr(_) => true,
             Value::Str(_) => true,
@@ -246,114 +237,6 @@ impl Value {
             _ => false,
         }
     }
-
-
-}
-
-#[derive(Debug, Clone)]
-pub struct Slice {
-    pub start: Option<Box<Value>>,
-    pub end: Option<Box<Value>>,
-}
-
-impl PartialEq for Slice {
-    fn eq(&self, other: &Self) -> bool {
-        self.start == other.start && self.end == other.end
-    }
-}
-
-impl Default for Slice {
-    fn default() -> Self {
-        Slice {
-            start: None,
-            end: None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Item {
-    pub col_name: String,
-    pub data_type: Option<DataType>,
-}
-
-impl Item {
-    pub fn new(col_name: String) -> Self {
-        Item {
-            col_name,
-            data_type: None,
-        }
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.col_name
-    }
-}
-
-impl Default for Item {
-    fn default() -> Self {
-        Item {
-            col_name: String::new(),
-            data_type: None,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct AttrMethod {
-    pub col: Item,
-    pub method: String,
-    pub value: Vec<Value>,
-}
-
-#[derive(Debug, Clone)]
-pub struct File {
-    pub file_name: String,
-    pub seprarator: char,
-    pub select: String,
-    pub df: DataFrame,
-}
-
-impl PartialEq for File {
-    fn eq(&self, other: &Self) -> bool {
-        self.file_name == other.file_name
-    }
-}
-
-impl File {
-    pub fn new(file_name: String, seprarator: char, select: String, target: DataFrame) -> Self {
-        File {
-            file_name,
-            seprarator,
-            select,
-            df: target,
-        }
-    }
-}
-
-impl Default for File {
-    fn default() -> Self {
-        File {
-            file_name: String::new(),
-            seprarator: ',',
-            select: String::new(),
-            df: DataFrame::empty(),
-        }
-    }
-}
-
-#[allow(unused)]
-fn string_slice(slice: &Slice) -> String {
-    let mut s = String::from("[");
-    if let Some(ref start) = slice.start {
-        s.push_str(&start.to_string());
-    }
-    s.push_str(":");
-    if let Some(ref end) = slice.end {
-        s.push_str(&end.to_string());
-    }
-    s.push_str("]");
-    s
 }
 
 impl Value {
@@ -379,32 +262,9 @@ impl Value {
                 s
             }
             Value::Name(n) => n.to_string(),
-            Value::AttrMethod(attr) => {
-                let s = format!(
-                    "AttrMethod({}.{} {:?})",
-                    attr.col.col_name, attr.method, attr.value
-                );
-                s
-            }
-            Value::File(f) => f.file_name.clone(),
-            Value::Item(c) => c.col_name.clone(),
-            Value::Ident(i) => {
-                let mut s = String::from("(");
-                s.push_str(&i.0);
-                s.push_str(": ");
-                s.push_str(&i.1.to_string());
-                s.push_str(")");
-                s
-            }
             Value::Null => String::from("Null"),
             Value::Na => String::from("Na"),
             Value::None => String::from("None"),
-            // Value::Slice(s) => {
-            //     let mut str = String::from("Slice(");
-            //     str.push_str(&string_slice(s));
-            //     str.push_str(")");
-            //     str
-            // }
         }
     }
 }

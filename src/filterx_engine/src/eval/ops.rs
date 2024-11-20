@@ -57,7 +57,7 @@ impl<'a> Eval<'a> for ast::ExprUnaryOp {
                 let r = unary(v, self.op)?;
                 return Ok(r);
             }
-            Value::Name(_) | Value::Item(_) => {
+            Value::Name(_) => {
                 return Ok(Value::named_expr(None, -(v.expr()?)));
             }
             Value::NamedExpr(e) => {

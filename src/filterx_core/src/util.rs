@@ -9,8 +9,6 @@ use crate::{thread_size::ThreadSize, writer::FilterxWriter, FilterxError, Filter
 use std::io::Write;
 use std::num::NonZero;
 
-use crate::value;
-
 pub fn open_csv_file_in_lazy(
     path: &str,
     reader_options: CsvReadOptions,
@@ -47,8 +45,7 @@ pub fn open_csv_file_in_lazy(
     Ok(lazy)
 }
 
-static SEPARATORS: [(&str, char); 4] = [("\\t", '\t'), ("\\n", '\n'), ("\\r", '\r'), ("\\s", ' ')];
-static FILE_SPE: char = '@';
+static SEPARATORS: [(&str, char); 2] = [("\\t", '\t'), ("\t", '\t')];
 
 pub fn handle_sep(sep: &str) -> char {
     if sep.len() == 0 {
@@ -65,44 +62,6 @@ pub fn handle_sep(sep: &str) -> char {
         }
         _ => sep.chars().next().unwrap(),
     }
-}
-
-pub fn handle_file(path_repr: &str) -> FilterxResult<value::Value> {
-    let path_repr = path_repr.to_string();
-    let path_repr_list = path_repr.split(FILE_SPE).collect::<Vec<&str>>();
-    let path = std::path::Path::new(path_repr_list[0]);
-    let _ = std::fs::File::open(path)?;
-    let mut file = value::File::default();
-    file.file_name = path_repr_list[0].to_string();
-    match path_repr_list.len() {
-        2 => {
-            file.select = path_repr_list[1].to_string();
-        }
-        3 => {
-            file.select = path_repr_list[1].to_string();
-            file.seprarator = handle_sep(path_repr_list[2]);
-        }
-        _ => {
-            file.select = "1".to_string();
-        }
-    }
-    let parser_options =
-        polars::io::csv::read::CsvParseOptions::default().with_separator(file.seprarator as u8);
-    let reader_options = polars::io::csv::read::CsvReadOptions::default()
-        .with_parse_options(parser_options)
-        .with_has_header(false);
-    let df = reader_options.try_into_reader_with_file_path(Some(path.into()))?;
-    let df = df.finish()?;
-    let columns = df.get_column_names();
-    match file.select.parse::<usize>() {
-        Ok(mut i) => {
-            i -= 1;
-            file.select = columns[i].clone().into_string();
-        }
-        Err(_) => {}
-    }
-    file.df = df;
-    Ok(value::Value::File(file))
 }
 
 #[inline]
