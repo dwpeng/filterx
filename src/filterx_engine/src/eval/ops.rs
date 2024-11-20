@@ -441,17 +441,9 @@ fn compare_in_datarame<'a>(
 }
 
 fn str_in_col<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> FilterxResult<Value> {
-    let left_str = match &left {
-        Value::Str(s) => s.clone(),
-        _ => unreachable!(),
-    };
-    let right_col = match &right {
-        Value::Item(c) => c.col_name.clone(),
-        _ => unreachable!(),
-    };
-
+    let left_str = left.string().unwrap();
+    let right_col = right.column().unwrap();
     let e = col(right_col).str().contains(left_str.lit(), true);
-
     let e = match op {
         CmpOp::In => e.eq(true.lit()),
         CmpOp::NotIn => e.eq(false.lit()),
