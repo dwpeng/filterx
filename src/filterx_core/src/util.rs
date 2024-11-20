@@ -5,31 +5,11 @@ use polars::{
     prelude::*,
 };
 
-use gzp::{
-    deflate::Gzip,
-    par::compress::{ParCompress, ParCompressBuilder},
-    Compression,
-};
-
-use crate::{thread_size::ThreadSize, FilterxError, FilterxResult};
-use std::io::BufWriter;
+use crate::{thread_size::ThreadSize, writer::FilterxWriter, FilterxError, FilterxResult};
 use std::io::Write;
-use std::{fs::File, num::NonZero};
+use std::num::NonZero;
 
 use crate::value;
-
-pub fn open_csv_file(path: &str, reader_options: CsvReadOptions) -> FilterxResult<DataFrame> {
-    let path = std::path::Path::new(path);
-    if path.exists() == false {
-        return Err(FilterxError::RuntimeError(format!(
-            "{} not exists",
-            path.display()
-        )));
-    }
-    let reader = reader_options.try_into_reader_with_file_path(Some(path.into()))?;
-    let df = reader.finish()?;
-    Ok(df)
-}
 
 pub fn open_csv_file_in_lazy(
     path: &str,
@@ -125,35 +105,6 @@ pub fn handle_file(path_repr: &str) -> FilterxResult<value::Value> {
     Ok(value::Value::File(file))
 }
 
-pub fn mock_lazy_df() -> LazyFrame {
-    let df = DataFrame::new(vec![
-        Column::new("a".into(), &[1, 2, 3]),
-        Column::new("b".into(), &[2, 3, 4]),
-        Column::new("c".into(), &["a", "b", "c"]),
-    ])
-    .unwrap();
-    df.lazy()
-}
-
-pub fn create_buffer_writer(path: Option<String>) -> FilterxResult<BufWriter<Box<dyn Write>>> {
-    let writer: Box<dyn Write>;
-    if let Some(path) = path {
-        if path.ends_with(".gz") {
-            let fp = File::create(path)?;
-            let gzip_writer: ParCompress<Gzip> = ParCompressBuilder::new()
-                .compression_level(Compression::new(6))
-                .num_threads(ThreadSize::get())?
-                .from_writer(fp);
-            writer = Box::new(gzip_writer);
-        } else {
-            writer = Box::new(File::create(path)?);
-        }
-    } else {
-        writer = Box::new(std::io::stdout());
-    }
-    Ok(BufWriter::with_capacity(8192 * 16, writer))
-}
-
 #[inline]
 pub fn merge_expr(expr: Option<Vec<String>>) -> String {
     match expr {
@@ -211,7 +162,7 @@ pub fn init_df(
 
 pub fn write_df(
     df: &mut DataFrame,
-    writer: &mut Box<BufWriter<Box<dyn Write>>>,
+    writer: &mut FilterxWriter,
     output_header: bool,
     output_separator: &str,
     headers: Option<Vec<String>>,
@@ -256,30 +207,4 @@ pub fn collect_comment_lines(path: &str, comment_prefix: &str) -> FilterxResult<
         break;
     }
     Ok(comment_lines)
-}
-
-pub fn check_repeat<T: PartialEq>(names: &Vec<T>) -> bool {
-    if names.len() == 0 || names.len() == 1 {
-        return false;
-    }
-    for i in 1..names.len() {
-        let name = &names[i];
-        for j in 0..i {
-            if name == &names[j] {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-#[test]
-fn test_check_repeat() {
-    let mut names: Vec<String> = Vec::new();
-    names.push("a".into());
-    assert_eq!(check_repeat(&names), false);
-    names.push("b".into());
-    assert_eq!(check_repeat(&names), false);
-    names.push("a".into());
-    assert_eq!(check_repeat(&names), true);
 }

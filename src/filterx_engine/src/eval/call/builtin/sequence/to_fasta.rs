@@ -36,7 +36,7 @@ fn print_fasta(vm: &mut Vm) -> FilterxResult<value::Value> {
             .white(" columns are different.")
             .print_and_exit();
     }
-    let writer = vm.writer.as_mut();
+    let writer = &mut vm.writer;
     for i in 0..name_col.len() {
         let name = name_col.get(i).unwrap();
         let seq = seq_col.get(i).unwrap();

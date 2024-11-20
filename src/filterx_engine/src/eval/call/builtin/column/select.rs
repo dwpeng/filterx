@@ -1,4 +1,4 @@
-use filterx_core::util::check_repeat;
+use crate::util::check_repeat;
 
 use super::super::*;
 

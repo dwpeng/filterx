@@ -1,10 +1,12 @@
 use polars::prelude::*;
 use std::{fmt::Display, io::BufRead};
 
-use crate::block::reader::{detect_breakline_len, TableLikeReader};
 use crate::dataframe::DataframeSource;
 
-use filterx_core::{FilterxError, FilterxResult, Hint};
+use filterx_core::{
+    reader::{detect_breakline_len, FilterxReader},
+    FilterxError, FilterxResult, Hint,
+};
 
 pub struct FastqSource {
     pub fastq: Fastq,
@@ -130,7 +132,7 @@ impl Default for QualityType {
 }
 
 pub struct Fastq {
-    reader: TableLikeReader,
+    reader: FilterxReader,
     read_end: bool,
     pub path: String,
     pub parser_option: FastqParserOption,
@@ -284,7 +286,7 @@ impl Fastq {
         detect_size: usize,
     ) -> FilterxResult<Fastq> {
         let mut fq = Fastq {
-            reader: TableLikeReader::new(path)?,
+            reader: FilterxReader::new(path)?,
             read_end: false,
             parser_option: FastqParserOption::default(),
             path: path.to_string(),

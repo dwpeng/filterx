@@ -1,13 +1,8 @@
-use filterx_source::Source;
-use filterx_source::SourceType;
-use polars::prelude::DataType;
-use polars::prelude::SchemaRef;
-
 use crate::args::{GFFCommand, ShareArgs};
+use filterx_core::{util, writer::FilterxWriter, FilterxResult};
 use filterx_engine::vm::Vm;
-use filterx_source::DataframeSource;
-
-use filterx_core::{util, FilterxResult};
+use filterx_source::{DataframeSource, Source, SourceType};
+use polars::prelude::*;
 
 fn init_gxf_schema() -> Option<SchemaRef> {
     let mut files = Vec::<(String, DataType)>::new();
@@ -46,12 +41,12 @@ pub fn filterx_gxf(cmd: GFFCommand, gxf_type: GxfType) -> FilterxResult<()> {
                 expr,
                 output,
                 table,
+                output_type,
             },
     } = cmd;
     let comment_prefix = "#";
     let separator = "\t";
-    let writer = util::create_buffer_writer(output.clone())?;
-    let writer = Box::new(writer);
+    let writer = FilterxWriter::new(output.clone(), None, output_type)?;
     let schema = init_gxf_schema();
     let names = vec![
         "seqid", "source", "type", "start", "end", "score", "strand", "phase", "attr",

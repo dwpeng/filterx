@@ -35,7 +35,7 @@ fn print_fastq(vm: &mut Vm) -> FilterxResult<value::Value> {
             .white(" columns are different.")
             .print_and_exit();
     }
-    let writer = vm.writer.as_mut();
+    let writer = &mut vm.writer;
     if qual_index.is_some() {
         let qual_index = qual_index.unwrap();
         let qual_col = &columns[qual_index];

@@ -18,3 +18,4 @@ flate2 = { workspace = true }
 gzp = { workspace = true }
 num_cpus = { workspace = true }
 clap = { workspace = true }
+memchr = { workspace = true }

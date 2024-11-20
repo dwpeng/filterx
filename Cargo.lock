@@ -756,6 +756,7 @@ dependencies = [
  "colored",
  "flate2",
  "gzp",
+ "memchr",
  "num_cpus",
  "polars",
  "rustpython-parser",

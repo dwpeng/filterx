@@ -1,10 +1,10 @@
 use crate::args::{FastqCommand, ShareArgs};
-use std::io::Write;
 
+use filterx_core::{util, writer::FilterxWriter, FilterxResult};
 use filterx_engine::vm::Vm;
 use filterx_source::{FastqSource, Source, SourceType};
 
-use filterx_core::{util, FilterxResult};
+use std::io::Write;
 pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
     let FastqCommand {
         share_args:
@@ -13,6 +13,7 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
                 expr,
                 output,
                 table: _,
+                output_type,
             },
         chunk: long,
         no_comment,
@@ -60,8 +61,7 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
         phred.unwrap(),
         detect_size.unwrap(),
     )?;
-    let writer = util::create_buffer_writer(output)?;
-    let mut writer = Box::new(writer);
+    let mut writer = FilterxWriter::new(output.clone(), None, output_type)?;
     if expr.is_empty() {
         while let Some(record) = &mut source.fastq.parse_next()? {
             writeln!(writer, "{}", record.format())?;
@@ -81,7 +81,7 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
         vm.finish()?;
         if !vm.status.printed {
             let df = vm.into_df()?;
-            let writer = vm.writer.as_mut();
+            let writer = &mut vm.writer;
             let cols = df.get_columns();
             let name_col = cols.iter().position(|x| x.name() == "name");
             let seq_col = cols.iter().position(|x| x.name() == "seq");

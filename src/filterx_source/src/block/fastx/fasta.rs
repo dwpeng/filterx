@@ -1,10 +1,11 @@
-use crate::block::reader::{detect_breakline_len, TableLikeReader};
 use crate::dataframe::DataframeSource;
-use filterx_core::{FilterxResult, Hint};
+use filterx_core::{
+    reader::{detect_breakline_len, FilterxReader},
+    FilterxResult, Hint,
+};
 use memchr::memchr;
 use polars::prelude::*;
-use std::collections::HashSet;
-use std::io::BufRead;
+use std::{collections::HashSet, io::BufRead};
 
 #[derive(Debug, Clone, Copy)]
 pub struct FastaParserOptions {
@@ -95,7 +96,7 @@ impl FastaSource {
 }
 
 pub struct Fasta {
-    reader: TableLikeReader,
+    reader: FilterxReader,
     read_end: bool,
     pub path: String,
     pub parser_options: FastaParserOptions,
@@ -241,7 +242,7 @@ impl Fasta {
         n_detect: usize,
     ) -> FilterxResult<Fasta> {
         let mut fasta = Fasta {
-            reader: TableLikeReader::new(path)?,
+            reader: FilterxReader::new(path)?,
             read_end: false,
             path: path.to_string(),
             parser_options: FastaParserOptions::default(),

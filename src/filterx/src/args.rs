@@ -1,4 +1,5 @@
 use clap::{ArgAction, Args, Parser, Subcommand, ValueHint};
+use filterx_core::reader::FileContentType;
 use filterx_source::{FastaRecordType, QualityType};
 
 static LONG_ABOUT: &'static str = include_str!("./long.txt");
@@ -69,16 +70,17 @@ pub struct ShareArgs {
     #[clap(short = 'e', long, action = ArgAction::Append)]
     pub expr: Option<Vec<String>>,
 
-    /// The output file, default is stdout. Gzip compressed output if path ends with .gz
+    /// The output file, default is stdout.
     #[clap(short='o', long, value_hint=ValueHint::FilePath)]
     pub output: Option<String>,
 
     /// output as table format, only output to stdout
     #[clap(short = 't', long, default_value = "false", action = ArgAction::SetTrue)]
     pub table: Option<bool>,
-    // /// The number of threads to use
-    // #[clap(short = 'j', long, default_value = "1", )]
-    // pub threads: Option<usize>,
+
+    /// only works with -o.
+    #[clap(long, alias = "ot", default_value = "auto")]
+    pub output_type: Option<FileContentType>,
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -196,5 +198,5 @@ pub struct InfoArgs {
 
     /// list all builtin functions
     #[clap(long, default_value = "false", action = ArgAction::SetTrue)]
-    pub list: Option<bool>
+    pub list: Option<bool>,
 }

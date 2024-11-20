@@ -2,16 +2,13 @@ use std::collections::HashMap;
 
 use polars::prelude::*;
 
-use filterx_core::{util, FilterxError, FilterxResult, Hint};
-use filterx_source::source::SourceType;
+use filterx_core::{writer::FilterxWriter, FilterxError, FilterxResult, Hint};
 use filterx_source::{
-    DataframeSource, FastaRecordType, FastaSource, FastqSource, QualityType, Source, SourceInner,
+    source::SourceType, DataframeSource, FastaRecordType, FastaSource, FastqSource, QualityType,
+    Source, SourceInner,
 };
 
 use super::eval::Eval;
-
-use std::io::BufWriter;
-use std::io::Write;
 
 #[derive(Debug, PartialEq)]
 pub enum VmMode {
@@ -75,7 +72,7 @@ pub struct Vm {
     /// source
     pub source: Source,
     pub status: VmStatus,
-    pub writer: Box<BufWriter<Box<dyn Write>>>,
+    pub writer: FilterxWriter,
     pub expr_cache: HashMap<String, (String, Vec<polars::prelude::Expr>)>,
     pub hint: Hint,
 }
@@ -92,7 +89,7 @@ impl Vm {
             _ => DataframeSource::new(DataFrame::empty().lazy()).into(),
         };
 
-        let buffer = util::create_buffer_writer(None).unwrap();
+        let writer = FilterxWriter::new(None, None, None).unwrap();
 
         let vm = Vm {
             eval_expr: "".to_string(),
@@ -101,14 +98,14 @@ impl Vm {
             mode: VmMode::Expression,
             source: Source::new(innser, source_type),
             status: VmStatus::default(),
-            writer: Box::new(buffer),
+            writer: writer,
             expr_cache: HashMap::new(),
             hint: Hint::new(),
         };
         vm
     }
 
-    pub fn from_source(source: Source, writer: Box<BufWriter<Box<dyn Write>>>) -> Self {
+    pub fn from_source(source: Source, writer: FilterxWriter) -> Self {
         Self {
             eval_expr: String::new(),
             print_expr: String::new(),

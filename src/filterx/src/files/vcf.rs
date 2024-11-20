@@ -1,12 +1,8 @@
-use filterx_source::Source;
-use polars::prelude::DataType;
-use polars::prelude::SchemaRef;
-
 use crate::args::{ShareArgs, VcfCommand};
+use filterx_core::{util, writer::FilterxWriter, FilterxResult};
 use filterx_engine::vm::Vm;
-use filterx_source::{DataframeSource, SourceType};
-
-use filterx_core::{util, FilterxResult};
+use filterx_source::{DataframeSource, Source, SourceType};
+use polars::prelude::*;
 
 fn init_vcf_schema(path: &str) -> FilterxResult<(Vec<String>, Option<SchemaRef>)> {
     use std::fs::File;
@@ -63,13 +59,13 @@ pub fn filterx_vcf(cmd: VcfCommand) -> FilterxResult<()> {
                 expr,
                 output,
                 table,
+                output_type,
             },
     } = cmd;
 
     let comment_prefix = "#";
     let separator = "\t";
-    let writer = util::create_buffer_writer(output.clone())?;
-    let writer = Box::new(writer);
+    let writer = FilterxWriter::new(output.clone(), None, output_type)?;
     let (names, schema) = init_vcf_schema(&path)?;
     let lazy_df = util::init_df(
         path.as_str(),

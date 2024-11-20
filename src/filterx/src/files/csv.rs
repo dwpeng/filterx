@@ -2,7 +2,7 @@ use crate::args::{CsvCommand, ShareArgs};
 use filterx_engine::vm::Vm;
 use filterx_source::{detect_columns, DataframeSource, Source, SourceType};
 
-use filterx_core::{util, FilterxResult};
+use filterx_core::{util, writer::FilterxWriter, FilterxResult};
 
 pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
     let CsvCommand {
@@ -12,6 +12,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
                 expr,
                 output,
                 table,
+                output_type,
             },
         header,
         output_header,
@@ -35,9 +36,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
 
     let comment_prefix = comment_prefix.unwrap();
     let separator = separator.unwrap();
-    let writer = util::create_buffer_writer(output.clone())?;
-    let writer = Box::new(writer);
-
+    let writer = FilterxWriter::new(output.clone(), None, output_type)?;
     let lazy_df = util::init_df(
         path.as_str(),
         header.unwrap(),
