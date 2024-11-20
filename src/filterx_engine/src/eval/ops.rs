@@ -8,7 +8,7 @@ use super::super::ast;
 use crate::eval::Eval;
 use crate::vm::Vm;
 pub use crate::{eval, eval_col, execuable};
-use filterx_core::{util, value::Value, FilterxError, FilterxResult, Hint};
+use filterx_core::{value::Value, FilterxResult, Hint};
 
 impl<'a> Eval<'a> for ast::ExprUnaryOp {
     type Output = Value;
@@ -406,28 +406,29 @@ impl<'a> Eval<'a> for ast::ExprCompare {
             Name,
             Tuple
         );
-        compare_in_datarame(vm, left, right, op)
+        compare_in(vm, left, right, op)
     }
 }
 
-fn compare_in_datarame<'a>(
-    vm: &'a mut Vm,
-    left: Value,
-    right: Value,
-    op: &CmpOp,
-) -> FilterxResult<Value> {
+fn compare_in<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> FilterxResult<Value> {
     match op {
         CmpOp::In | CmpOp::NotIn => {
             if left.is_str() && right.is_column() {
                 return str_in_col(vm, left, right, op);
             }
-            if vm.status.apply_lazy {
-                return compare_in_and_not_in_dataframe(vm, left, right, op);
-            } else {
-                let h = &mut vm.hint;
-                h.white("in/not in operator can't be used with and/or")
-                    .print_and_exit();
+
+            if left.is_column() && !left.is_str() && (right.is_str() || right.is_list()) {
+                // TODO
             }
+
+            let h = &mut vm.hint;
+            h.white("Only two kinds of compare are supported: ")
+                .white("column in list: ")
+                .cyan("a in ('b', 'c')")
+                .white(" or ")
+                .white("string in column: ")
+                .cyan("'a' in a")
+                .print_and_exit();
         }
         CmpOp::Eq | CmpOp::NotEq | CmpOp::Lt | CmpOp::LtE | CmpOp::Gt | CmpOp::GtE => {
             return compare_cond_expr_in_dataframe(vm, left, right, op)
@@ -442,7 +443,8 @@ fn compare_in_datarame<'a>(
 
 fn str_in_col<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> FilterxResult<Value> {
     let left_str = left.string().unwrap();
-    let right_col = right.column().unwrap();
+    let right_col: &str = right.column().unwrap();
+    vm.source().has_column(right_col);
     let e = col(right_col).str().contains(left_str.lit(), true);
     let e = match op {
         CmpOp::In => e.eq(true.lit()),
@@ -454,118 +456,6 @@ fn str_in_col<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Filt
         }
     };
     vm.source_mut().filter(e);
-    Ok(Value::None)
-}
-
-fn compare_in_and_not_in_dataframe<'a>(
-    vm: &'a mut Vm,
-    left: Value,
-    right: Value,
-    op: &CmpOp,
-) -> FilterxResult<Value> {
-    let left_col = match &left {
-        Value::Name(l) => l.name.clone(),
-        _ => {
-            return Err(FilterxError::RuntimeError(
-                "Only support in/not in for column".to_string(),
-            ));
-        }
-    };
-    let right = match &right {
-        Value::Str(path_repr) => util::handle_file(&path_repr)?,
-        Value::List(_l) => right.clone(),
-        _ => {
-            let h = &mut vm.hint;
-            h.white("Only support File/List for in/not in")
-                .print_and_exit();
-        }
-    };
-    let df_root = vm.source_mut().lazy();
-    let left_df = df_root.collect()?;
-    let left_col_type = left_df.column(&left.to_string())?.dtype();
-    let right_col = match &right {
-        Value::File(f) => f.select.clone(),
-        Value::List(_l) => "__vitrual_column_filterx__".into(),
-        _ => {
-            unreachable!();
-        }
-    };
-
-    let right_df = match &right {
-        Value::List(l) => match left_col_type {
-            DataType::Float32 | DataType::Float64 => {
-                let mut v = Vec::new();
-                for i in l.iter() {
-                    match i {
-                        Value::Float(f) => v.push(*f),
-                        Value::Int(i) => v.push(*i as f64),
-                        _ => {
-                            return Err(FilterxError::RuntimeError(
-                                "Column type is float, but value is not".to_string(),
-                            ));
-                        }
-                    }
-                }
-                DataFrame::new(vec![Column::new(right_col.as_str().into(), v)])?
-            }
-            DataType::Int32 | DataType::Int64 => {
-                let mut v = Vec::new();
-                for i in l.iter() {
-                    match i {
-                        Value::Int(i) => v.push(*i),
-                        Value::Float(f) => v.push(*f as i64),
-                        _ => {
-                            return Err(FilterxError::RuntimeError(
-                                "Column type is int, but value is not".to_string(),
-                            ));
-                        }
-                    }
-                }
-                DataFrame::new(vec![Column::new(right_col.as_str().into(), v)])?
-            }
-            DataType::String => {
-                let mut v = Vec::new();
-                for i in l.iter() {
-                    match i {
-                        Value::Str(s) => v.push(s.clone()),
-                        Value::Int(i) => v.push(i.to_string()),
-                        Value::Float(f) => v.push(f.to_string()),
-                        _ => {
-                            return Err(FilterxError::RuntimeError(
-                                "Column type is string, but value is not".to_string(),
-                            ));
-                        }
-                    }
-                }
-                DataFrame::new(vec![Column::new(right_col.as_str().into(), v)])?
-            }
-            _ => {
-                return Err(FilterxError::RuntimeError(
-                    "Only support int/float/string in list".to_string(),
-                ));
-            }
-        },
-        Value::File(f) => f.df.clone(),
-        _ => {
-            unreachable!();
-        }
-    };
-
-    let left_on = [left_col.as_str()];
-    let right_on = [right_col.as_str()];
-
-    match op {
-        CmpOp::In => {
-            let df = left_df.join(&right_df, left_on, right_on, JoinArgs::new(JoinType::Semi))?;
-            vm.source_mut().update(df.lazy());
-        }
-        CmpOp::NotIn => {
-            let df = left_df.join(&right_df, left_on, right_on, JoinArgs::new(JoinType::Anti))?;
-            vm.source_mut().update(df.lazy());
-        }
-        _ => unreachable!(),
-    }
-
     Ok(Value::None)
 }
 

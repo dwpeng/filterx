@@ -110,18 +110,24 @@ impl From<BigInt> for Value {
 }
 
 impl Value {
-    pub fn int(&self) -> i64 {
+    pub fn int(&self) -> FilterxResult<i64> {
         match self {
-            Value::Int(i) => *i,
-            _ => panic!("not a int"),
+            Value::Int(i) => Ok(*i),
+            _ => Err(FilterxError::RuntimeError(format!(
+                "Can't convert {:?} to int",
+                self
+            ))),
         }
     }
 
-    pub fn float(&self) -> f64 {
+    pub fn float(&self) -> FilterxResult<f64> {
         match self {
-            Value::Float(f) => *f,
-            Value::Int(i) => *i as f64,
-            _ => panic!("not a float"),
+            Value::Float(f) => Ok(*f),
+            Value::Int(i) => Ok(*i as f64),
+            _ => Err(FilterxError::RuntimeError(format!(
+                "Can't convert {:?} to float",
+                self
+            ))),
         }
     }
 
@@ -194,10 +200,21 @@ impl Value {
         }
     }
 
+    pub fn list(&self) -> FilterxResult<Vec<Value>> {
+        match self {
+            Value::List(l) => Ok(l.clone()),
+            _ => Err(FilterxError::RuntimeError(
+                "Only List can convert to list".into(),
+            )),
+        }
+    }
+
     pub fn is_column(&self) -> bool {
         match self {
             Value::Item(_) => true,
             Value::Name(_) => true,
+            Value::NamedExpr(_) => true,
+            Value::Str(_) => true,
             _ => false,
         }
     }
@@ -223,7 +240,14 @@ impl Value {
         }
     }
 
-    pub fn free(self) -> () {}
+    pub fn is_list(&self) -> bool {
+        match self {
+            Value::List(_) => true,
+            _ => false,
+        }
+    }
+
+
 }
 
 #[derive(Debug, Clone)]
