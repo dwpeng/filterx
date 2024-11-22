@@ -11,7 +11,7 @@ use lazy_static::lazy_static;
 use filterx_core::util;
 
 lazy_static! {
-    static ref REGEX_PATTERN: Regex = Regex::new(r"\{([\(\)a-zA-Z0-9_\-+/*\\ ]*)\}").unwrap();
+    static ref REGEX_PATTERN: Regex = Regex::new(r"\{([\(\)a-zA-Z0-9_\-+/*,=\\ ]*)\}").unwrap();
     static ref REGEX_VARNAME: Regex = Regex::new(r"^[_a-zA-Z]+[a-zA-Z_0-9]*$").unwrap();
 }
 
