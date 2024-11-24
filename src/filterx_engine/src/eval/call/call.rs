@@ -107,6 +107,7 @@ impl<'a> Eval<'a> for ast::ExprCall {
             "phred" => call::phred(vm),
             "rev" => call::rev(vm, &self.args, inplace),
             "revcomp" => call::revcomp(vm, &self.args, inplace),
+            "hpc" => call::hpc(vm, &self.args, inplace),
             "upper" => call::upper(vm, &self.args, inplace),
             "lower" => call::lower(vm, &self.args, inplace),
             "replace" => call::replace(vm, &self.args, inplace, true),
