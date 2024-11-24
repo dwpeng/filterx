@@ -2,7 +2,7 @@ use crate::builtin_function;
 
 builtin_function! {
     FUNCTION_COLUMN,
-    (del, false, false),
+    (rm, false, false),
     (alias,false, false),
     (cast, true, true, (
         cast_int,

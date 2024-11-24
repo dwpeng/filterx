@@ -1,6 +1,6 @@
 # del
 
-Delete a column from a table.
+Delete a column(s) from a table.
 
 ```csv title="data.csv"
 a1,a2,a3,b
@@ -9,7 +9,7 @@ a1,a2,a3,b
 ```
 
 ```bash title=Example
-filterx csv data.csv -e "del(a1)"
+filterx csv data.csv -e "rm(a1)"
 
 # Output
 a2,a3,b

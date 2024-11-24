@@ -79,7 +79,7 @@ impl<'a> Eval<'a> for ast::ExprCall {
 
         match function_name {
             "alias" => call::alias(vm, &self.args),
-            "del" => call::del(vm, &self.args),
+            "rm" => call::rm(vm, &self.args),
             "select" => call::select(vm, &self.args),
             "col" | "c" => call::col(vm, &self.args),
             "rename" => {
