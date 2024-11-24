@@ -116,6 +116,7 @@ impl<'a> Eval<'a> for ast::ExprCall {
             "lstrip" => call::strip(vm, &self.args, inplace, false, true),
             "rstrip" => call::strip(vm, &self.args, inplace, true, false),
             "slice" => call::slice(vm, &self.args, inplace),
+            "trim" => call::trim(vm, &self.args, inplace),
             "header" => call::header(vm),
             "cast" => call::cast(vm, &self.args, &sub_function_name, inplace),
             "fill" | "fill_null" => call::fill(vm, &self.args, inplace, false),

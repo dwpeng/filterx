@@ -10,4 +10,5 @@ builtin_function! {
     (strip, true, true, (lstrip, rstrip)),
     (rev, true, true),
     (width, true, true, (w)),
+    (trim, true, true),
 }

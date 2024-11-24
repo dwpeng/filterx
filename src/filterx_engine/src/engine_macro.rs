@@ -33,6 +33,16 @@ macro_rules! eval_col {
 }
 
 #[macro_export]
+macro_rules! eval_int {
+    ($vm:expr, $target:expr, $msg:literal) => {
+        eval!($vm, $target, $msg, Constant, UnaryOp, BinOp)
+    };
+    ($vm:expr, $target:expr, $msg:literal,) => {
+        eval!($vm, $target, $msg, Constant, UnaryOp, BinOp)
+    };
+}
+
+#[macro_export]
 macro_rules! builtin_function {
     (   $group: ident,
         $(

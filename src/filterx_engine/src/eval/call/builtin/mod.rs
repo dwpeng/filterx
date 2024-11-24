@@ -2,7 +2,7 @@ pub use super::*;
 pub use crate::ast;
 pub use crate::eval::Eval;
 pub use crate::vm::Vm;
-pub use crate::{eval, eval_col, execuable};
+pub use crate::{eval, eval_col, eval_int, execuable};
 pub use filterx_core::{value, FilterxError, FilterxResult};
 pub use filterx_source::{source::SourceType, DataframeSource};
 

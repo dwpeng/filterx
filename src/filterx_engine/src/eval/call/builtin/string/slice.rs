@@ -3,30 +3,15 @@ use polars::prelude::lit;
 use super::super::*;
 
 fn check_number<'a>(vm: &'a mut Vm, n: &ast::Expr) -> FilterxResult<u32> {
-    let n = eval!(
-        vm,
-        n,
-        "head: expected a non-negative number as argument",
-        Constant
-    );
-
-    match n {
-        value::Value::Int(i) => {
-            if i >= 0 {
-                Ok(i as u32)
-            } else {
-                let h = &mut vm.hint;
-                h.white("head: expected a non-negative number as argument, but got ")
-                    .cyan(&format!("{}", i))
-                    .print_and_exit();
-            }
-        }
-        _ => {
-            let h = &mut vm.hint;
-            h.white("head: expected a non-negative number as argument")
-                .print_and_exit();
-        }
+    let n = eval_int!(vm, n, "head: expected a non-negative number as argument");
+    let n = n.int()?;
+    if n > 0 {
+        return Ok(n as u32);
+    } else {
     }
+    let h = &mut vm.hint;
+    h.white("head: expected a non-negative number as argument")
+        .print_and_exit();
 }
 
 pub fn slice<'a>(
@@ -48,6 +33,9 @@ pub fn slice<'a>(
         length = check_number(vm, &args[1])?;
     } else {
         start = check_number(vm, &args[1])?;
+        if start > 0 {
+            start -= 1;
+        }
         length = check_number(vm, &args[2])?;
     }
 

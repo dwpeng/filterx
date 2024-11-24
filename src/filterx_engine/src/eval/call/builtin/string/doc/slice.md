@@ -22,5 +22,5 @@ filterx fa test.fa -e "slice_(seq, 1, 5)" # offset starts from 0, so 1 is the se
 
 # output
 >seq1
-CGTCT
+ACGTC
 ```

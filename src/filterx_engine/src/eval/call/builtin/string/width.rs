@@ -54,17 +54,24 @@ pub fn width<'a>(
         "width: expected a column name as first argument"
     );
 
-    let width = eval!(
+    let width = eval_int!(
         vm,
         &args[1],
-        "width: expected an integer as second argument",
-        Constant
+        "width: expected an integer as second argument"
     );
 
     let name = col_name.column()?;
     vm.source_mut().has_column(name);
     let e = col_name.expr()?;
-    let width = width.u32()?;
+    let width = width.int()?;
+
+    if width < 0 {
+        let h = &mut vm.hint;
+        h.white("width: expected a non-negative number as argument, but got ")
+            .cyan(&format!("{}", width))
+            .print_and_exit();
+    }
+
     unsafe { STRING_WIDTH = width as usize };
 
     if width == 0 {
