@@ -181,6 +181,13 @@ impl Value {
                 Some(ref name) => Ok(name.as_str()),
                 None => return Err(FilterxError::RuntimeError("Can't find column name.".into())),
             },
+            Value::Int(i) => {
+                let mut h = Hint::new();
+                h.white("Use ")
+                    .green(&format!("col({})", i))
+                    .white(" to access column by index.")
+                    .print_and_exit()
+            }
             _ => {
                 let mut h = Hint::new();
                 h.white("Expected the following types as a column name: ")

@@ -195,4 +195,8 @@ impl DataframeSource {
         }
         ()
     }
+
+    pub fn check_column(&self, name: &str) -> bool{
+        return self.ret_column_names.contains(&name.to_string());
+    }
 }

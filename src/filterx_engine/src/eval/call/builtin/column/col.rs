@@ -18,6 +18,5 @@ pub fn col(vm: &mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::Value> {
             h.white("col only support column index, column name, or function which return a column name.").print_and_exit();
         }
     };
-    vm.source_mut().has_column(&c);
     Ok(value::Value::named_expr(Some(c.clone()), polars_col(c)))
 }

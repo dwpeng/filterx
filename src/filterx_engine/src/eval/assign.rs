@@ -8,7 +8,7 @@ use filterx_core::FilterxResult;
 use crate::eval::Eval;
 use crate::vm::Vm;
 
-use crate::{eval, execuable};
+use crate::{eval, eval_col, execuable};
 
 impl<'a> Eval<'a> for ast::StmtAssign {
     type Output = Value;
@@ -44,7 +44,12 @@ impl<'a> Eval<'a> for ast::StmtAssign {
             }
             _ => false,
         };
-        if !pass {
+
+        let new_col = eval_col!(vm, target, "A column needed in left `=` expression");
+        let new_col_name = new_col.column()?;
+        let exist = vm.source().check_column(new_col_name);
+
+        if !exist && !pass {
             let h = &mut vm.hint;
             h.white("Use")
                 .cyan(" `alias` ")
@@ -53,9 +58,6 @@ impl<'a> Eval<'a> for ast::StmtAssign {
                 .green(" alias(new_col) = col1 + col2")
                 .print_and_exit();
         }
-
-        let new_col = eval!(vm, target, "", Call);
-        let new_col_name = new_col.column().unwrap();
 
         let right = self.value.deref();
 
@@ -82,10 +84,6 @@ impl<'a> Eval<'a> for ast::StmtAssign {
             UnaryOp,
             BinOp
         );
-        let exist = vm
-            .source_mut()
-            .ret_column_names
-            .contains(&new_col_name.to_string());
         let if_append = match exist {
             true => None,
             false => Some(new_col_name.into()),
