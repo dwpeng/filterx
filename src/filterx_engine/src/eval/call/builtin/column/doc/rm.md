@@ -1,4 +1,4 @@
-# del
+# rm
 
 Delete a column(s) from a table.
 

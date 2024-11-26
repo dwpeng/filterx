@@ -197,6 +197,7 @@ impl FastqRecord {
         self._comment = (0, 0);
     }
 
+    #[inline(always)]
     pub fn goto_next_record(&mut self, left: usize) {
         if self.buffer.len() < self.buffer.capacity() && left > 0 {
             unsafe {
@@ -270,6 +271,7 @@ impl FastqRecord {
         }
     }
 
+    #[inline(always)]
     pub fn remove_breakline_from_buffer(&mut self, len: usize) {
         if len > 0 {
             unsafe {

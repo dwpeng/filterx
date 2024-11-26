@@ -15,13 +15,27 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
                 output_type,
             },
         header,
-        output_header,
+        no_header: _output_header,
         comment_prefix,
         separator,
-        output_separator,
+        output_separator: _output_separator,
         skip,
         limit,
     } = cmd;
+
+    let output_separator;
+    if _output_separator.is_none() {
+        output_separator = separator.clone();
+    } else {
+        output_separator = _output_separator;
+    }
+
+    let mut output_header = Some(false);
+    if header.is_some_and(|v| v == true) {
+        if output_header.is_some_and(|v| v == true) {
+            output_header = Some(true);
+        }
+    }
 
     let limit = match limit {
         Some(l) => {

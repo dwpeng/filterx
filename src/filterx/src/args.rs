@@ -92,9 +92,9 @@ pub struct CsvCommand {
     #[clap(short = 'H', long, default_value = "false", action = ArgAction::SetTrue)]
     pub header: Option<bool>,
 
-    /// whether output header to file, default is false
-    #[clap(long = "oH", default_value = "false", action = ArgAction::SetTrue)]
-    pub output_header: Option<bool>,
+    /// Output headers if -H was set. --no-header will disable it.
+    #[clap(long = "no-header", action = ArgAction::SetFalse, alias="nh")]
+    pub no_header: Option<bool>,
 
     /// The comment prefix
     #[clap(short = 'c', long, default_value = "#")]
@@ -104,8 +104,8 @@ pub struct CsvCommand {
     #[clap(short = 's', long, default_value = ",")]
     pub separator: Option<String>,
 
-    /// The output separator
-    #[clap(long = "os", default_value = ",")]
+    /// The output separator, same as -s if not set
+    #[clap(long = "os")]
     pub output_separator: Option<String>,
 
     /// skip row number, 0 means no skip

@@ -5,7 +5,9 @@ use polars::{
     prelude::*,
 };
 
-use crate::{thread_size::ThreadSize, writer::FilterxWriter, FilterxError, FilterxResult};
+use crate::{
+    sep::Separator, thread_size::ThreadSize, writer::FilterxWriter, FilterxError, FilterxResult,
+};
 use std::io::Write;
 use std::num::NonZero;
 
@@ -45,25 +47,6 @@ pub fn open_csv_file_in_lazy(
     Ok(lazy)
 }
 
-static SEPARATORS: [(&str, char); 2] = [("\\t", '\t'), ("\t", '\t')];
-
-pub fn handle_sep(sep: &str) -> char {
-    if sep.len() == 0 {
-        return ',';
-    }
-    match sep {
-        s if s.starts_with("\\") => {
-            for (s1, s2) in SEPARATORS.iter() {
-                if s == *s1 {
-                    return *s2;
-                }
-            }
-            panic!("unsupported type");
-        }
-        _ => sep.chars().next().unwrap(),
-    }
-}
-
 #[inline]
 pub fn merge_expr(expr: Option<Vec<String>>) -> String {
     match expr {
@@ -92,9 +75,10 @@ pub fn init_df(
     null_values: Option<Vec<&str>>,
     missing_is_null: bool,
 ) -> FilterxResult<LazyFrame> {
+    let sep = Separator::new(separator);
     let mut parser_options = CsvParseOptions::default()
         .with_comment_prefix(Some(comment_prefix))
-        .with_separator(handle_sep(separator) as u8);
+        .with_separator(sep.get_sep()?);
 
     parser_options = parser_options.with_missing_is_null(missing_is_null);
     if let Some(null_values) = null_values {
@@ -127,6 +111,7 @@ pub fn write_df(
     headers: Option<Vec<String>>,
     null_value: Option<&str>,
 ) -> FilterxResult<()> {
+    let output_separator = Separator::new(output_separator);
     if headers.is_some() {
         let headers = headers.unwrap();
         for line in headers {
@@ -136,7 +121,7 @@ pub fn write_df(
     let mut writer = csv::write::CsvWriter::new(writer)
         .include_header(output_header)
         .with_batch_size(NonZero::new(1024).unwrap())
-        .with_separator(handle_sep(output_separator) as u8)
+        .with_separator(output_separator.get_sep()?)
         .with_quote_style(QuoteStyle::Never)
         .with_float_precision(Some(3))
         .n_threads(ThreadSize::get())
