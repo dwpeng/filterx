@@ -132,6 +132,9 @@ impl<'a> Eval<'a> for ast::ExprCall {
             "to_fa" | "to_fasta" => call::to_fasta(vm),
             "to_fq" | "to_fastq" => call::to_fastq(vm),
             "w" | "width" => call::width(vm, &self.args, inplace),
+            "occ_lte" => call::occ(vm, &self.args, true),
+            "occ_gte" => call::occ(vm, &self.args, false),
+            "occ" => call::occ(vm, &self.args, false),
             _ => {
                 unreachable!();
             }

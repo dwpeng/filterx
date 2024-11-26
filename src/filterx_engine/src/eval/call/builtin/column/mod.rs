@@ -29,4 +29,5 @@ builtin_function! {
     (col, true, false, (c)),
     (drop_null, false, false),
     (header, false, false),
+    (occ, false, false, (occ_lte, occ_gte)),
 }

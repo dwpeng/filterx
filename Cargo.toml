@@ -47,6 +47,7 @@ polars = { version = "0.44.2", default-features = false, features = [
     "describe",
     "fmt",
     "fmt_no_tty",
+    "dynamic_group_by"
 ] }
 polars-arrow = { version = "0.44.2" }
 rustpython-parser = "0.4.0"
