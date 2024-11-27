@@ -10,6 +10,13 @@ use filterx_source::{
 
 use super::eval::Eval;
 
+use lazy_static;
+use regex;
+
+lazy_static::lazy_static! {
+    static ref ASSIGN_REGEX: regex::Regex = regex::Regex::new(r#"([^'"][a-zA-Z0-9_\(\)]+)\s*=\s*([^'"][a-zA-Z0-9_\+\*\-\/&\|\(\)]+)"#).unwrap();
+}
+
 #[derive(Debug, PartialEq)]
 pub enum VmMode {
     Expression,
@@ -130,13 +137,7 @@ impl Vm {
 
     pub fn ast(&self, s: &str) -> FilterxResult<rustpython_parser::ast::Mod> {
         let s = s.trim();
-        if s.contains("=")
-            && !s.contains("==")
-            && !s.contains("!=")
-            && !s.contains(">=")
-            && !s.contains("<=")
-            && !s.contains("print(")
-        {
+        if ASSIGN_REGEX.is_match(s) {
             let expr = rustpython_parser::parse(s, rustpython_parser::Mode::Interactive, "")?;
             return Ok(expr);
         } else {
