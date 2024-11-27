@@ -61,6 +61,7 @@ pub fn filterx_vcf(cmd: VcfCommand) -> FilterxResult<()> {
                 table,
                 output_type,
             },
+        header: include_header,
     } = cmd;
 
     let comment_prefix = "#";
@@ -95,13 +96,16 @@ pub fn filterx_vcf(cmd: VcfCommand) -> FilterxResult<()> {
     if vm.status.printed {
         return Ok(());
     }
-    let headers = util::collect_comment_lines(path.as_str(), comment_prefix)?;
+    let mut headers = None;
+    if include_header.unwrap() {
+        headers = Some(util::collect_comment_lines(path.as_str(), comment_prefix)?);
+    }
     util::write_df(
         &mut df,
         &mut vm.writer,
         false,
         separator,
-        Some(headers),
+        headers,
         Some("."),
     )
 }

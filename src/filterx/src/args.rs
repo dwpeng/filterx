@@ -177,18 +177,27 @@ pub struct FastqCommand {
 pub struct SamCommand {
     #[clap(flatten)]
     pub share_args: ShareArgs,
+
+    #[clap(short = 'H', long, default_value = "false", action = ArgAction::SetTrue)]
+    pub header: Option<bool>,
 }
 
 #[derive(Debug, Clone, Parser)]
 pub struct VcfCommand {
     #[clap(flatten)]
     pub share_args: ShareArgs,
+
+    #[clap(short = 'H', long, default_value = "false", action = ArgAction::SetTrue)]
+    pub header: Option<bool>,
 }
 
 #[derive(Debug, Clone, Parser)]
 pub struct GFFCommand {
     #[clap(flatten)]
     pub share_args: ShareArgs,
+
+    #[clap(short = 'H', long, default_value = "false", action = ArgAction::SetTrue)]
+    pub header: Option<bool>,
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -197,6 +206,6 @@ pub struct InfoArgs {
     pub name: Option<String>,
 
     /// list all builtin functions
-    #[clap(long, default_value = "false", action = ArgAction::SetTrue)]
+    #[clap(short='l', long, default_value = "false", action = ArgAction::SetTrue)]
     pub list: Option<bool>,
 }
