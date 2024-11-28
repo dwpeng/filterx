@@ -65,11 +65,15 @@ impl<'a> Eval<'a> for ast::ModInteractive {
                 let v = a.eval(vm)?;
                 Ok(v)
             }
+            ast::Stmt::AugAssign(a) => {
+                let v = a.eval(vm)?;
+                Ok(v)
+            }
             _ => {
-                return Err(FilterxError::RuntimeError(
-                    "Only support assign operate, like \"alias(new_col) = col1 + col2\""
-                        .to_string(),
-                ));
+                return Err(FilterxError::RuntimeError(format!(
+                    "Only support assign and augassign. But got {}",
+                    vm.eval_expr
+                )));
             }
         }
     }

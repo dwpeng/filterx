@@ -73,7 +73,7 @@ macro_rules! builtin_function {
 
 #[macro_export]
 macro_rules! execuable {
-    ($vm:expr, $target: literal) => {
+    ($vm:expr, $target: expr) => {
         use crate::vm::VmMode;
         if $vm.mode == VmMode::Printable {
             let h = &mut $vm.hint;

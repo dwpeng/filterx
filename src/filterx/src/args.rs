@@ -93,7 +93,7 @@ pub struct CsvCommand {
     pub header: Option<bool>,
 
     /// Output headers if -H was set. --no-header will disable it.
-    #[clap(long = "no-header", action = ArgAction::SetFalse, alias="nh")]
+    #[clap(long = "no-header", action = ArgAction::SetTrue, alias="nh")]
     pub no_header: Option<bool>,
 
     /// The comment prefix

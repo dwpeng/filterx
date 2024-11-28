@@ -79,7 +79,7 @@ pub fn filterx_sam(cmd: SamCommand) -> FilterxResult<()> {
         &mut df,
         &mut vm.writer,
         false,
-        separator,
+        Some(separator),
         headers,
         Some("."),
     )

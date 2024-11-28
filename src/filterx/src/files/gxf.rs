@@ -89,7 +89,7 @@ pub fn filterx_gxf(cmd: GFFCommand, gxf_type: GxfType) -> FilterxResult<()> {
         &mut df,
         &mut vm.writer,
         false,
-        separator,
+        Some(separator),
         headers,
         Some("."),
     )

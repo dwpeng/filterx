@@ -140,7 +140,7 @@ pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
         df = df.slice(0, need);
     }
 
-    util::write_df(&mut df, &mut vm.writer, false, "", None, Some(""))?;
+    util::write_df(&mut df, &mut vm.writer, false, None, None, Some(" "))?;
 
     vm.status.consume_rows += need;
     vm.status.printed = true;

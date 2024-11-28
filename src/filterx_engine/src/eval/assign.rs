@@ -10,6 +10,8 @@ use crate::vm::Vm;
 
 use crate::{eval, eval_col, execuable};
 
+use polars::prelude::col as polars_col;
+
 impl<'a> Eval<'a> for ast::StmtAssign {
     type Output = Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
@@ -90,6 +92,48 @@ impl<'a> Eval<'a> for ast::StmtAssign {
         };
         vm.source_mut()
             .with_column(value.expr()?.alias(new_col_name), if_append);
+        Ok(Value::None)
+    }
+}
+
+impl<'a> Eval<'a> for ast::StmtAugAssign {
+    type Output = Value;
+    fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
+        execuable!(vm, &format!("{:?}", self.op));
+        let target = eval!(vm, self.target.deref(), "A column needed.", Call, Name);
+        let target_name = target.column()?;
+
+        vm.source().has_column(target_name);
+        let value = eval!(
+            vm,
+            self.value.deref(),
+            "A const or expression needed.",
+            Constant,
+            UnaryOp,
+            BinOp
+        );
+
+        let target = polars_col(target_name);
+        let value = value.expr()?;
+
+        let e = match self.op {
+            ast::Operator::Add => target + value,
+            ast::Operator::Sub => target - value,
+            ast::Operator::Mult => target * value,
+            ast::Operator::Div => target / value,
+            ast::Operator::Mod => target % value,
+            ast::Operator::BitAnd => target.and(value),
+            ast::Operator::BitOr => target.or(value),
+            _ => {
+                let h = &mut vm.hint;
+                h.white("Only support binary op: ")
+                    .cyan("+, -, *, /, %, &, |")
+                    .print_and_exit();
+            }
+        };
+
+        let e = e.alias(target_name);
+        vm.source_mut().with_column(e, None);
         Ok(Value::None)
     }
 }

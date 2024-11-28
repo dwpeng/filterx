@@ -13,6 +13,7 @@ pub use python_ast::ModInteractive;
 /// A statement in Python
 pub use python_ast::Stmt;
 pub use python_ast::StmtAssign;
+pub use python_ast::StmtAugAssign;
 
 pub use python_ast::ExprAttribute;
 pub use python_ast::ExprBinOp;

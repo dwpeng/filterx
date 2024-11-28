@@ -15,7 +15,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
                 output_type,
             },
         header,
-        no_header: _output_header,
+        no_header,
         comment_prefix,
         separator,
         output_separator: _output_separator,
@@ -30,11 +30,9 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         output_separator = _output_separator;
     }
 
-    let mut output_header = Some(false);
-    if header.is_some_and(|v| v == true) {
-        if output_header.is_some_and(|v| v == true) {
-            output_header = Some(true);
-        }
+    let mut output_header = Some(true);
+    if no_header.is_some_and(|v| v == true) || header.is_some_and(|v| v == false) {
+        output_header = Some(false);
     }
 
     let limit = match limit {
@@ -86,7 +84,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         &mut df,
         &mut vm.writer,
         output_header.unwrap(),
-        output_separator.unwrap().as_str(),
+        Some(output_separator.unwrap().as_str()),
         None,
         None,
     )

@@ -104,7 +104,7 @@ pub fn filterx_vcf(cmd: VcfCommand) -> FilterxResult<()> {
         &mut df,
         &mut vm.writer,
         false,
-        separator,
+        Some(separator),
         headers,
         Some("."),
     )

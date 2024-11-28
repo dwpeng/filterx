@@ -199,6 +199,17 @@ impl Value {
         }
     }
 
+    pub fn r#const(&self) -> FilterxResult<Value> {
+        match self {
+            Value::Int(i) => Ok(Value::Int(*i)),
+            Value::Float(f) => Ok(Value::Float(*f)),
+            Value::Str(s) => Ok(Value::Str(s.clone())),
+            _ => Err(FilterxError::RuntimeError(
+                "Only Int, Float or Str can convert to const".into(),
+            )),
+        }
+    }
+
     pub fn list(&self) -> FilterxResult<Vec<Value>> {
         match self {
             Value::List(l) => Ok(l.clone()),

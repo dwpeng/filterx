@@ -10,13 +10,6 @@ use filterx_source::{
 
 use super::eval::Eval;
 
-use lazy_static;
-use regex;
-
-lazy_static::lazy_static! {
-    static ref ASSIGN_REGEX: regex::Regex = regex::Regex::new(r#"([^'"][a-zA-Z0-9_\(\)]+)\s*=\s*([^'"][a-zA-Z0-9_\+\*\-\/&\|\(\)]+)"#).unwrap();
-}
-
 #[derive(Debug, PartialEq)]
 pub enum VmMode {
     Expression,
@@ -137,13 +130,12 @@ impl Vm {
 
     pub fn ast(&self, s: &str) -> FilterxResult<rustpython_parser::ast::Mod> {
         let s = s.trim();
-        if ASSIGN_REGEX.is_match(s) {
+        let expr = rustpython_parser::parse(s, rustpython_parser::Mode::Expression, "");
+        if expr.is_err() {
             let expr = rustpython_parser::parse(s, rustpython_parser::Mode::Interactive, "")?;
             return Ok(expr);
-        } else {
-            let expr = rustpython_parser::parse(s, rustpython_parser::Mode::Expression, "")?;
-            return Ok(expr);
         }
+        return Ok(expr.unwrap());
     }
 
     pub fn exprs_to_ast(
@@ -220,13 +212,9 @@ impl Vm {
             } else if eval_expr.is_interactive() {
                 let expr = eval_expr.as_interactive().unwrap();
                 expr.eval(self)?;
+            } else {
+                return Err(FilterxError::RuntimeError("Parse Error".to_string()));
             }
-            // if self.status.stop {
-            //     std::process::exit(0);
-            // }
-            // if self.status.printed {
-            //     return Ok(());
-            // }
         }
         Ok(())
     }

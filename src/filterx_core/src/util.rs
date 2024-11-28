@@ -107,11 +107,10 @@ pub fn write_df(
     df: &mut DataFrame,
     writer: &mut FilterxWriter,
     output_header: bool,
-    output_separator: &str,
+    output_separator: Option<&str>,
     headers: Option<Vec<String>>,
     null_value: Option<&str>,
 ) -> FilterxResult<()> {
-    let output_separator = Separator::new(output_separator);
     if headers.is_some() {
         let headers = headers.unwrap();
         for line in headers {
@@ -121,11 +120,15 @@ pub fn write_df(
     let mut writer = csv::write::CsvWriter::new(writer)
         .include_header(output_header)
         .with_batch_size(NonZero::new(1024).unwrap())
-        .with_separator(output_separator.get_sep()?)
         .with_quote_style(QuoteStyle::Never)
         .with_float_precision(Some(3))
         .n_threads(ThreadSize::get())
         .with_line_terminator("\n".into());
+
+    if let Some(output_separator) = output_separator {
+        writer = writer.with_separator(Separator::new(output_separator).get_sep()?);
+    }
+
     if let Some(null_value) = null_value {
         writer = writer.with_null_value(null_value.into());
     }
