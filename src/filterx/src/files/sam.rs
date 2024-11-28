@@ -17,7 +17,6 @@ fn init_sam_schema() -> Option<SchemaRef> {
     files.push(("tlen".into(), DataType::Int32));
     files.push(("seq".into(), DataType::String));
     files.push(("qual".into(), DataType::String));
-    files.push(("tags".into(), DataType::String));
     util::create_schemas(files)
 }
 
@@ -51,7 +50,6 @@ pub fn filterx_sam(cmd: SamCommand) -> FilterxResult<()> {
     )?;
     let names = vec![
         "qname", "flag", "rname", "pos", "mapq", "cigar", "rnext", "pnext", "tlen", "seq", "qual",
-        "tags",
     ];
     let names = names.iter().map(|x| x.to_string()).collect::<Vec<String>>();
     let mut s = DataframeSource::new(lazy_df.clone());

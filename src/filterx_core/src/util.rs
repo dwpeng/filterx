@@ -78,7 +78,8 @@ pub fn init_df(
     let sep = Separator::new(separator);
     let mut parser_options = CsvParseOptions::default()
         .with_comment_prefix(Some(comment_prefix))
-        .with_separator(sep.get_sep()?);
+        .with_separator(sep.get_sep()?)
+        .with_truncate_ragged_lines(true);
 
     parser_options = parser_options.with_missing_is_null(missing_is_null);
     if let Some(null_values) = null_values {
