@@ -227,18 +227,18 @@ impl Vm {
                     return Ok(None);
                 }
                 let left = self.status.limit_rows - self.status.consume_rows;
-                let left = left.min(self.status.chunk_size);
+                let fetch = left.min(self.status.chunk_size);
                 if left > 0 {
                     match self.source.inner {
                         SourceInner::Fasta(ref mut fasta) => {
-                            let count = fasta.into_dataframe(left)?;
-                            if count < left || count == 0 {
+                            let count = fasta.into_dataframe(fetch)?;
+                            if count < fetch || count == 0 {
                                 self.status.stop = true;
                             }
                         }
                         SourceInner::Fastq(ref mut fastq) => {
-                            let count = fastq.into_dataframe(left)?;
-                            if count < left || count == 0 {
+                            let count = fastq.into_dataframe(fetch)?;
+                            if count < fetch || count == 0 {
                                 self.status.stop = true;
                             }
                         }
