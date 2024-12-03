@@ -6,7 +6,6 @@ use super::super::ast;
 
 use crate::vm::{Vm, VmMode};
 use filterx_core::{value, FilterxResult};
-use filterx_source::source::SourceType;
 
 use super::functions::get_function;
 use crate::eval::call::builtin as call;
@@ -82,18 +81,7 @@ impl<'a> Eval<'a> for ast::ExprCall {
             "rm" => call::rm(vm, &self.args),
             "select" => call::select(vm, &self.args),
             "col" | "c" => call::col(vm, &self.args),
-            "rename" => {
-                if vm.source_type() == SourceType::Fasta || vm.source_type() == SourceType::Fastq {
-                    let source_type = vm.source_type();
-                    let h = &mut vm.hint;
-                    h.white("Function `rename` does not be supported in source `")
-                        .cyan(&format!("{:?}", source_type))
-                        .white("`.")
-                        .print_and_exit();
-                } else {
-                    call::rename(vm, &self.args)
-                }
-            }
+            "rename" => call::rename(vm, &self.args),
             "head" => call::head(vm, &self.args),
             "tail" => call::tail(vm, &self.args),
             "Sort" => call::sort(vm, &self.args, false),
@@ -112,6 +100,7 @@ impl<'a> Eval<'a> for ast::ExprCall {
             "lower" => call::lower(vm, &self.args, inplace),
             "replace" => call::replace(vm, &self.args, inplace, true),
             "replace_one" => call::replace(vm, &self.args, inplace, false),
+            "extract" | "get" => call::extract(vm, &self.args, inplace),
             "strip" => call::strip(vm, &self.args, inplace, true, true),
             "lstrip" => call::strip(vm, &self.args, inplace, false, true),
             "rstrip" => call::strip(vm, &self.args, inplace, true, false),

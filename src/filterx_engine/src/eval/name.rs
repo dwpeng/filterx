@@ -86,6 +86,9 @@ impl<'a> Eval<'a> for ast::ExprName {
 
         // impl keywords
         let keywords = match name.name.as_str() {
+            "None" => Value::Null,
+            "True" => Value::Bool(true),
+            "False" => Value::Bool(false),
             _ => Value::None,
         };
 

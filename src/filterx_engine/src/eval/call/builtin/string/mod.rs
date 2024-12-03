@@ -11,4 +11,5 @@ builtin_function! {
     (rev, true, true),
     (width, true, true, (w)),
     (trim, true, true),
+    (extract, true, true, (get)),
 }

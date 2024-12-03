@@ -14,7 +14,6 @@ pub enum Value {
     List(Vec<Value>),
     NamedExpr(NamedExpr),
     Null,
-    Na,
     None,
 }
 
@@ -134,7 +133,7 @@ impl Value {
             Value::Name(n) => col(n.name.clone()),
             Value::NamedExpr(e) => e.expr.clone(),
             Value::Null => Expr::Literal(LiteralValue::Null),
-            Value::Na => Expr::Literal(LiteralValue::Null),
+            Value::Bool(b) => b.lit(),
             Value::None => return Err(FilterxError::RuntimeError("function return None".into())),
             _ => return Err(FilterxError::RuntimeError("Can't convert to expr.".into())),
         };
@@ -235,6 +234,13 @@ impl Value {
         }
     }
 
+    pub fn is_keyword(&self) -> bool {
+        match self {
+            Value::Null | Value::Bool(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn is_str(&self) -> bool {
         match self {
             Value::Str(_) => true,
@@ -281,7 +287,6 @@ impl Value {
             }
             Value::Name(n) => n.to_string(),
             Value::Null => String::from("Null"),
-            Value::Na => String::from("Na"),
             Value::None => String::from("None"),
         }
     }

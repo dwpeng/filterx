@@ -431,7 +431,14 @@ fn compare_in<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Filt
                 .print_and_exit();
         }
         CmpOp::Eq | CmpOp::NotEq | CmpOp::Lt | CmpOp::LtE | CmpOp::Gt | CmpOp::GtE => {
-            return compare_cond_expr_in_dataframe(vm, left, right, op)
+            let l = left.is_const() | left.is_keyword();
+            let r = right.is_const() | right.is_keyword();
+            if l && r {
+                let h = &mut vm.hint;
+                h.white("Only support compare between column and constant")
+                    .print_and_exit();
+            }
+            return compare_cond_expr_in_dataframe(vm, left, right, op);
         }
         _ => {
             let h = &mut vm.hint;
@@ -467,24 +474,27 @@ fn compare_cond_expr_in_dataframe<'a>(
 ) -> FilterxResult<Value> {
     let left_expr = left.expr()?;
     let right_expr = right.expr()?;
-    let e = cond_expr_build(vm, left_expr, right_expr, op.clone())?;
-    vm.source_mut().filter(e);
-    Ok(Value::None)
-}
-
-fn cond_expr_build<'a>(vm: &'a mut Vm, left: Expr, right: Expr, op: CmpOp) -> FilterxResult<Expr> {
     let e = match op {
-        CmpOp::Eq => left.eq(right),
-        CmpOp::NotEq => left.neq(right),
-        CmpOp::Lt => left.lt(right),
-        CmpOp::LtE => left.lt_eq(right),
-        CmpOp::Gt => left.gt(right),
-        CmpOp::GtE => left.gt_eq(right),
+        CmpOp::Eq => match (left, right) {
+            (Value::Null, _) => right_expr.is_null(),
+            (_, Value::Null) => left_expr.is_null(),
+            _ => left_expr.eq(right_expr),
+        },
+        CmpOp::NotEq => match (left, right) {
+            (Value::Null, _) => right_expr.is_not_null(),
+            (_, Value::Null) => left_expr.is_not_null(),
+            _ => left_expr.neq(right_expr),
+        },
+        CmpOp::Lt => left_expr.lt(right_expr),
+        CmpOp::LtE => left_expr.lt_eq(right_expr),
+        CmpOp::Gt => left_expr.gt(right_expr),
+        CmpOp::GtE => left_expr.gt_eq(right_expr),
         _ => {
             let h = &mut vm.hint;
             h.white("Only support compare op : ==, !=, >, >=, <, <=")
                 .print_and_exit();
         }
     };
-    Ok(e)
+    vm.source_mut().filter(e);
+    Ok(Value::None)
 }

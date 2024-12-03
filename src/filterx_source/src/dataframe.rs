@@ -144,41 +144,31 @@ impl DataframeSource {
         self.update(lazy);
     }
 
-    pub fn rename<I, J, T, S>(&mut self, columns: I, names: J)
-    where
-        I: IntoIterator<Item = T>,
-        J: IntoIterator<Item = S>,
-        T: AsRef<str>,
-        S: AsRef<str>,
-    {
-        let old = columns
-            .into_iter()
-            .map(|x| x.as_ref().to_string())
-            .collect::<Vec<String>>();
-        let new = names
-            .into_iter()
-            .map(|x| x.as_ref().to_string())
-            .collect::<Vec<String>>();
-
-        for o in &old {
-            if !self.ret_column_names.contains(o) {
-                let mut h = Hint::new();
-                h.white("Column ")
-                    .cyan(o)
-                    .white(" not found in the DataFrame")
-                    .print_and_exit();
-            }
-            let idx = self.ret_column_names.iter().position(|x| x == o).unwrap();
-            self.ret_column_names[idx] = new[idx].clone();
+    pub fn rename(&mut self, old: &str, new: &str) {
+        if !self.check_column(old) {
+            let mut h = Hint::new();
+            h.white("Column ")
+                .cyan(old)
+                .white(" not found in the DataFrame")
+                .print_and_exit();
         }
+        if self.check_column(&new) {
+            let mut h = Hint::new();
+            h.white("Column ")
+                .cyan(new)
+                .white(" already exists in the DataFrame")
+                .print_and_exit();
+        }
+        let idx = self.ret_column_names.iter().position(|x| x == old).unwrap();
+        self.ret_column_names[idx] = new.to_string();
 
         let lazy = self.lazy.clone();
-        let lazy = lazy.rename(old, new, false);
+        let lazy = lazy.rename([old], [new], false);
         self.update(lazy);
     }
 
     pub fn has_column(&self, name: &str) -> () {
-        let ret = self.ret_column_names.contains(&name.to_string());
+        let ret = self.check_column(name);
         if !ret {
             let re = Regex::new(name).unwrap();
             for c in &self.ret_column_names {
@@ -197,6 +187,7 @@ impl DataframeSource {
     }
 
     pub fn check_column(&self, name: &str) -> bool {
-        return self.ret_column_names.contains(&name.to_string());
+        let i = self.ret_column_names.iter().find(|v| v.as_str() == name);
+        i.is_some()
     }
 }
