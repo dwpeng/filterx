@@ -47,8 +47,8 @@ impl DataframeSource {
 
     pub fn index2column(&self, index: usize) -> String {
         if self.has_header {
-            if self.init_column_names.len() > index {
-                return self.init_column_names[index].clone();
+            if index < self.ret_column_names.len() {
+                return self.ret_column_names[index].clone();
             }
             let mut h = Hint::new();
             h.white("Have ")

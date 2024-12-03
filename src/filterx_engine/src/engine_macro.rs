@@ -25,10 +25,10 @@ macro_rules! eval {
 #[macro_export]
 macro_rules! eval_col {
     ($vm:expr, $target:expr, $msg:literal) => {
-        eval!($vm, $target, $msg, Name, Call, Constant)
+        eval!($vm, $target, $msg, Name, Call, Constant, UnaryOp)
     };
     ($vm:expr, $target:expr, $msg:literal,) => {
-        eval!($vm, $target, $msg, Name, Call, Constant)
+        eval!($vm, $target, $msg, Name, Call, Constant, UnaryOp)
     };
 }
 
