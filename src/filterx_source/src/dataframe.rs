@@ -57,7 +57,7 @@ impl DataframeSource {
                 .cyan(&format!("{}", index))
                 .print_and_exit();
         }
-        format!("column_{}", index)
+        format!("column_{}", index + 1)
     }
 
     pub fn set_index_with_name(&mut self, index: usize, name: &str) {
