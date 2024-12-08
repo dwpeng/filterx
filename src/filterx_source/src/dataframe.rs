@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use polars::prelude::*;
 
 use filterx_core::{FilterxResult, Hint};
@@ -12,14 +14,12 @@ pub struct DataframeSource {
 }
 
 pub fn detect_columns(df: LazyFrame) -> FilterxResult<Vec<String>> {
-    let df = df.fetch(100)?;
-    let schema = df.get_column_names();
-    Ok(schema.iter().map(|x| x.to_string()).collect())
+    let schema = df.lazy().collect_schema()?;
+    Ok(schema.iter().map(|x| x.0.to_string()).collect())
 }
 
 impl DataframeSource {
     pub fn new(lazy: LazyFrame) -> Self {
-        let lazy = lazy.with_streaming(true);
         Self {
             lazy,
             has_header: true,
@@ -69,8 +69,11 @@ impl DataframeSource {
         self.ret_column_names[index] = name.to_string();
     }
 
-    pub fn into_df(self) -> FilterxResult<DataFrame> {
-        let df = self.lazy.collect()?;
+    pub fn into_df(&self) -> FilterxResult<DataFrame> {
+        let df = self
+            .lazy
+            .clone()
+            .collect()?;
         Ok(df)
     }
 
@@ -79,10 +82,19 @@ impl DataframeSource {
     }
 
     pub fn update(&mut self, lazy: LazyFrame) {
+        println!("into_df: {}", self.lazy.explain(true).unwrap());
         self.lazy = lazy
             .with_streaming(true)
+            .with_slice_pushdown(true)
+            .with_predicate_pushdown(true)
+            .with_projection_pushdown(true)
             .with_simplify_expr(true)
-            .with_collapse_joins(true);
+            .with_collapse_joins(true)
+            .with_type_coercion(true)
+            .with_cluster_with_columns(true)
+            .with_comm_subexpr_elim(true)
+            .with_comm_subplan_elim(true)
+            ._with_eager(true);
     }
 
     pub fn with_column(&mut self, e: Expr, new_name: Option<String>) {
@@ -96,15 +108,9 @@ impl DataframeSource {
     }
 
     pub fn columns(&self) -> FilterxResult<Schema> {
-        let df = self.lazy.clone().fetch(20)?;
-        let schema = df.schema();
+        let schema = self.lazy.clone().collect_schema()?;
+        let schema = schema.deref().clone();
         Ok(schema)
-    }
-
-    pub fn finish(&mut self) -> FilterxResult<()> {
-        let df = self.lazy.clone().collect()?;
-        self.update(df.lazy());
-        Ok(())
     }
 
     pub fn filter(&mut self, expr: Expr) {

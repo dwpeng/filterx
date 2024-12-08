@@ -68,7 +68,6 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
     vm.source_mut().set_has_header(header.unwrap());
     let expr = util::merge_expr(expr);
     vm.eval_once(&expr)?;
-    vm.finish()?;
     if vm.status.printed {
         return Ok(());
     }

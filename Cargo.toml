@@ -48,8 +48,12 @@ polars = { version = "0.44.2", default-features = false, features = [
     "fmt",
     "fmt_no_tty",
     "dynamic_group_by",
+    "cse",
+    "fused",
+    "rows",
 ] }
 polars-arrow = { version = "0.44.2" }
+polars-lazy = { version = "0.44.2" }
 rustpython-parser = { version = "0.4.0" }
 thiserror = "2.0.0"
 flate2 = { version = "1.0.34", features = ["zlib-rs"] }

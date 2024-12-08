@@ -43,6 +43,11 @@ pub fn open_csv_file_in_lazy(
     let lazy_reader = lazy_reader.with_n_rows(reader_options.n_rows);
     let lazy_reader = lazy_reader.with_infer_schema_length(reader_options.infer_schema_length);
     let lazy_reader = lazy_reader.with_schema(reader_options.schema);
+    let lazy_reader =
+        lazy_reader.with_truncate_ragged_lines(reader_options.parse_options.truncate_ragged_lines);
+    let lazy_reader = lazy_reader.with_cache(true);
+    let lazy_reader = lazy_reader.with_glob(true);
+    let lazy_reader = lazy_reader.with_raise_if_empty(true);
     let lazy = lazy_reader.finish()?;
     Ok(lazy)
 }
@@ -96,7 +101,7 @@ pub fn init_df(
     if schema.is_some() {
         read_options = read_options.with_schema(schema);
     } else {
-        read_options = read_options.with_infer_schema_length(Some(1000));
+        read_options = read_options.with_infer_schema_length(Some(10));
     }
 
     let lazy = open_csv_file_in_lazy(path, read_options);

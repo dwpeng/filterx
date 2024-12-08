@@ -12,6 +12,7 @@ description = "The source library for filterx"
 [dependencies]
 flate2 = { workspace = true }
 polars = { workspace = true }
+polars-lazy = { workspace = true }
 regex = { workspace = true }
 filterx_core = { workspace = true }
 clap = { workspace = true }

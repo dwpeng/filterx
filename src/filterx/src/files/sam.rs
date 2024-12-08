@@ -5,19 +5,19 @@ use filterx_source::{DataframeSource, Source, SourceType};
 use polars::prelude::*;
 
 fn init_sam_schema() -> Option<SchemaRef> {
-    let mut files = Vec::<(String, DataType)>::new();
-    files.push(("qname".into(), DataType::String));
-    files.push(("flag".into(), DataType::UInt16));
-    files.push(("rname".into(), DataType::String));
-    files.push(("pos".into(), DataType::UInt32));
-    files.push(("mapq".into(), DataType::UInt8));
-    files.push(("cigar".into(), DataType::String));
-    files.push(("rnext".into(), DataType::String));
-    files.push(("pnext".into(), DataType::UInt32));
-    files.push(("tlen".into(), DataType::Int32));
-    files.push(("seq".into(), DataType::String));
-    files.push(("qual".into(), DataType::String));
-    util::create_schemas(files)
+    let mut schema = Vec::<(String, DataType)>::with_capacity(16);
+    schema.push(("qname".into(), DataType::String));
+    schema.push(("flag".into(), DataType::UInt16));
+    schema.push(("rname".into(), DataType::String));
+    schema.push(("pos".into(), DataType::UInt32));
+    schema.push(("mapq".into(), DataType::UInt8));
+    schema.push(("cigar".into(), DataType::String));
+    schema.push(("rnext".into(), DataType::String));
+    schema.push(("pnext".into(), DataType::UInt32));
+    schema.push(("tlen".into(), DataType::Int32));
+    schema.push(("seq".into(), DataType::String));
+    schema.push(("qual".into(), DataType::String));
+    util::create_schemas(schema)
 }
 
 pub fn filterx_sam(cmd: SamCommand) -> FilterxResult<()> {
@@ -57,7 +57,6 @@ pub fn filterx_sam(cmd: SamCommand) -> FilterxResult<()> {
     let mut vm = Vm::from_source(Source::new(s.into(), SourceType::Sam), writer);
     let expr = util::merge_expr(expr);
     vm.eval_once(&expr)?;
-    vm.finish()?;
     if vm.status.printed {
         return Ok(());
     }

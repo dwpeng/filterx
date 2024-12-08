@@ -78,7 +78,6 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
             break 'stop_parse;
         }
         vm.eval_once(&expr)?;
-        vm.finish()?;
         if !vm.status.printed {
             let df = vm.into_df()?;
             let writer = &mut vm.writer;

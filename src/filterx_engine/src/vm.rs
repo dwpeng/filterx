@@ -269,9 +269,4 @@ impl Vm {
     pub fn source_type(&self) -> SourceType {
         self.source.source_type
     }
-
-    pub fn finish(&mut self) -> FilterxResult<()> {
-        let s = self.source.df_source_mut();
-        s.finish()
-    }
 }

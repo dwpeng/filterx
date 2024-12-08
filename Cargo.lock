@@ -797,6 +797,7 @@ dependencies = [
  "flate2",
  "memchr",
  "polars",
+ "polars-lazy",
  "regex",
 ]
 

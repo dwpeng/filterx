@@ -137,13 +137,9 @@ impl Source {
     }
 
     pub fn into_df(&self) -> FilterxResult<DataFrame> {
-        let s = match &self.inner {
-            SourceInner::DataFrame(df) => df,
-            SourceInner::Fasta(ref fasta) => &fasta.dataframe,
-            SourceInner::Fastq(ref fastq) => &fastq.dataframe,
-        };
-        let df = s.lazy();
-        Ok(df.collect()?)
+        let s = self.df_source();
+        let df = s.into_df()?;
+        Ok(df)
     }
 
     pub fn get_fastq(&self) -> FilterxResult<&Fastq> {

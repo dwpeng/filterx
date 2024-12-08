@@ -84,7 +84,6 @@ pub fn filterx_vcf(cmd: VcfCommand) -> FilterxResult<()> {
     let mut vm = Vm::from_source(Source::new(s.into(), SourceType::Vcf), writer);
     let expr = util::merge_expr(expr);
     vm.eval_once(&expr)?;
-    vm.finish()?;
     if vm.status.printed {
         return Ok(());
     }
