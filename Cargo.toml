@@ -25,9 +25,9 @@ filterx_core = { path = "src/filterx_core", version = "0.2.12" }
 filterx_engine = { path = "src/filterx_engine", version = "0.2.12" }
 filterx_source = { path = "src/filterx_source", version = "0.2.12" }
 filterx_info = { path = "src/filterx_info", version = "0.2.12" }
-anyhow = "1.0.89"
+anyhow = "1.0.94"
 clap = { version = "4.5.17", features = ["derive"] }
-polars = { version = "0.44.2", default-features = false, features = [
+polars = { version = "0.45.1", default-features = false, features = [
     "lazy",
     "csv",
     "strings",
@@ -51,12 +51,13 @@ polars = { version = "0.44.2", default-features = false, features = [
     "cse",
     "fused",
     "rows",
+    "simd"
 ] }
-polars-arrow = { version = "0.44.2" }
-polars-lazy = { version = "0.44.2" }
+polars-arrow = { version = "0.45.1" }
+polars-lazy = { version = "0.45.1" }
 rustpython-parser = { version = "0.4.0" }
-thiserror = "2.0.0"
-flate2 = { version = "1.0.34", features = ["zlib-rs"] }
+thiserror = "2.0.6"
+flate2 = { version = "1.0.35", features = ["zlib-rs"] }
 gzp = { version = "0.11.3", default-features = false, features = [
     "deflate_rust",
 ] }
