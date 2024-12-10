@@ -37,6 +37,7 @@ jobs:
     - name: Build linux binaries
       if: ${{ matrix.cross }}
       run: |
+        rustup default nightly
         cargo install cargo-zigbuild
         rustup target add ${{ matrix.target }}
         cargo zigbuild -p filterx --release --target ${{ matrix.target }}.2.17
@@ -47,6 +48,7 @@ jobs:
     - name: Build windows/mac binaries
       if: ${{ !matrix.cross }}
       run: |
+        rustup default nightly
         rustup target add ${{ matrix.target }}
         cargo build -p filterx --release --target ${{ matrix.target }}
 

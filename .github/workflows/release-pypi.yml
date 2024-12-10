@@ -22,6 +22,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
+      - uses: dtolnay/rust-toolchain@nightly
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -48,6 +49,7 @@ jobs:
         with:
           python-version: 3.x
           architecture: ${{ matrix.platform.target }}
+      - uses: dtolnay/rust-toolchain@nightly
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -74,6 +76,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
+      - uses: dtolnay/rust-toolchain@nightly
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -86,26 +89,11 @@ jobs:
           name: wheels-macos-${{ matrix.platform.target }}
           path: dist
 
-  sdist:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build sdist
-        uses: PyO3/maturin-action@v1
-        with:
-          command: sdist
-          args: --out dist
-      - name: Upload sdist
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-sdist
-          path: dist
-
   release:
     name: Release
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
-    needs: [linux, windows, macos, sdist]
+    needs: [linux, windows, macos]
     permissions:
       # Use to sign the release artifacts
       id-token: write
