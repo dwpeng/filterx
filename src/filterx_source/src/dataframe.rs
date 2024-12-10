@@ -82,7 +82,6 @@ impl DataframeSource {
     }
 
     pub fn update(&mut self, lazy: LazyFrame) {
-        println!("into_df: {}", self.lazy.explain(true).unwrap());
         self.lazy = lazy
             .with_streaming(true)
             .with_slice_pushdown(true)

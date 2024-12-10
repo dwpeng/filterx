@@ -25,9 +25,15 @@ fn set_thread(thread_size: Option<usize>) {
     thread.set_global();
 }
 
+#[allow(unused)]
+fn enable_debug() {
+    std::env::set_var("POLARS_VERBOSE", "1");
+}
+
 pub fn cli() -> FilterxResult<()> {
     let parser = Cli::parse();
     set_thread(parser.threads);
+    // enable_debug();
     match parser.command {
         Command::Csv(cmd) => filterx_csv(cmd),
         Command::Fasta(cmd) => filterx_fasta(cmd),

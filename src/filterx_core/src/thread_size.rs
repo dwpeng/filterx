@@ -23,7 +23,6 @@ impl ThreadSize {
 
     pub fn set_polars_threads(&self) {
         std::env::set_var("POLARS_MAX_THREADS", self.size.to_string());
-        std::env::set_var("POLARS_VERBOSE", "1");
     }
 
     pub fn get() -> usize {
