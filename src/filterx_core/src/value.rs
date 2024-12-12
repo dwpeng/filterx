@@ -227,6 +227,14 @@ impl Value {
         }
     }
 
+    pub fn name(&self) -> Option<&str> {
+        match self {
+            Value::Name(n) => Some(n.name.as_str()),
+            Value::NamedExpr(e) => e.name.as_ref().map(|s| s.as_str()),
+            _ => None,
+        }
+    }
+
     pub fn is_const(&self) -> bool {
         match self {
             Value::Int(_) | Value::Float(_) | Value::Str(_) => true,

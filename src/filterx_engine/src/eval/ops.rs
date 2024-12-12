@@ -118,6 +118,17 @@ impl<'a> Eval<'a> for ast::ExprBinOp {
             BinOp
         );
 
+        let lname = l.name();
+        let rname = r.name();
+
+        if let Some(name) = lname {
+            vm.source_mut().has_column(name);
+        }
+
+        if let Some(name) = rname {
+            vm.source_mut().has_column(name);
+        }
+
         match self.op {
             ast::Operator::Add
             | ast::Operator::Sub
@@ -400,6 +411,18 @@ impl<'a> Eval<'a> for ast::ExprCompare {
             Name,
             Tuple
         );
+
+        let lname = left.name();
+        let rname = right.name();
+
+        if let Some(name) = lname {
+            vm.source_mut().has_column(name);
+        }
+
+        if let Some(name) = rname {
+            vm.source_mut().has_column(name);
+        }
+
         compare_in(vm, left, right, op)
     }
 }
