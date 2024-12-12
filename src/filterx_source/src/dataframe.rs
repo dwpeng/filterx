@@ -11,6 +11,7 @@ pub struct DataframeSource {
     pub has_header: bool,
     pub init_column_names: Vec<String>,
     pub ret_column_names: Vec<String>,
+    pub is_in_and_ctx: bool,
 }
 
 pub fn detect_columns(df: LazyFrame) -> FilterxResult<Vec<String>> {
@@ -25,11 +26,20 @@ impl DataframeSource {
             has_header: true,
             init_column_names: vec![],
             ret_column_names: vec![],
+            is_in_and_ctx: false,
         }
     }
 }
 
 impl DataframeSource {
+    pub fn enter_and_ctx(&mut self) {
+        self.is_in_and_ctx = true;
+    }
+
+    pub fn exit_and_ctx(&mut self) {
+        self.is_in_and_ctx = false;
+    }
+
     pub fn reset(&mut self) {
         self.has_header = true;
         self.init_column_names.clear();
@@ -70,10 +80,7 @@ impl DataframeSource {
     }
 
     pub fn into_df(&self) -> FilterxResult<DataFrame> {
-        let df = self
-            .lazy
-            .clone()
-            .collect()?;
+        let df = self.lazy.clone().collect()?;
         Ok(df)
     }
 
@@ -113,6 +120,9 @@ impl DataframeSource {
     }
 
     pub fn filter(&mut self, expr: Expr) {
+        if self.is_in_and_ctx {
+            return;
+        }
         let lazy = self.lazy.clone();
         let lazy = lazy.filter(expr);
         self.update(lazy);

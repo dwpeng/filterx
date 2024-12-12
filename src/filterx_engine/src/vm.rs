@@ -18,7 +18,6 @@ pub enum VmMode {
 
 #[derive(Debug)]
 pub struct VmStatus {
-    pub apply_lazy: bool,
     pub stop: bool,
     pub count: usize,
     pub limit_rows: usize,
@@ -31,7 +30,6 @@ pub struct VmStatus {
 impl VmStatus {
     pub fn new() -> Self {
         Self {
-            apply_lazy: true,
             stop: false,
             count: 0,
             limit_rows: usize::MAX,
@@ -44,10 +42,6 @@ impl VmStatus {
 }
 
 impl VmStatus {
-    pub fn update_apply_lazy(&mut self, apply_lazy: bool) {
-        self.apply_lazy = apply_lazy;
-    }
-
     pub fn set_limit_rows(&mut self, limit_rows: usize) {
         self.limit_rows = limit_rows;
     }

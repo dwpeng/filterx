@@ -291,10 +291,9 @@ impl<'a> Eval<'a> for ast::ExprBoolOp {
     type Output = Value;
     fn eval(&self, vm: &'a mut Vm) -> FilterxResult<Self::Output> {
         execuable!(vm, "`and` or `or`");
+        let source = vm.source_mut();
+        source.enter_and_ctx();
         let left = &self.values[0];
-        let vm_apply_lazy = vm.status.apply_lazy;
-        vm.status.update_apply_lazy(false);
-
         let left = eval!(
             vm,
             left,
@@ -303,6 +302,8 @@ impl<'a> Eval<'a> for ast::ExprBoolOp {
             BoolOp
         );
         let right = &self.values[1];
+        // let right_exprs = vec![];
+        // let ops = vec![];
         let right = eval!(
             vm,
             right,
@@ -310,8 +311,6 @@ impl<'a> Eval<'a> for ast::ExprBoolOp {
             Compare,
             BoolOp
         );
-        vm.status.update_apply_lazy(vm_apply_lazy);
-
         boolop_in_dataframe(vm, &left, &right, self.op.clone())
     }
 }
@@ -322,27 +321,22 @@ fn boolop_in_dataframe<'a>(
     r: &Value,
     op: ast::BoolOp,
 ) -> FilterxResult<Value> {
-    let vm_apply_lazy = vm.status.apply_lazy;
-    if !vm_apply_lazy {
-        let e = match op {
-            ast::BoolOp::And => Ok(Value::named_expr(None, l.expr()?.and(r.clone().expr()?))),
-            ast::BoolOp::Or => Ok(Value::named_expr(None, l.expr()?.or(r.clone().expr()?))),
-        };
-        return e;
-    }
-
+    let source = vm.source_mut();
+    let mut lazy = source.lazy();
     match op {
         ast::BoolOp::And => match (l, r) {
             (_, _) => {
-                vm.source_mut().filter(l.expr()?.and(r.clone().expr()?));
+                lazy = lazy.filter(l.expr()?.and(r.clone().expr()?));
             }
         },
         ast::BoolOp::Or => match (l, r) {
             (_, _) => {
-                vm.source_mut().filter(l.expr()?.or(r.expr()?));
+                lazy = lazy.filter(l.expr()?.or(r.expr()?));
             }
         },
     }
+    source.update(lazy);
+    source.exit_and_ctx();
     Ok(Value::None)
 }
 
@@ -462,8 +456,8 @@ fn str_in_col<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Filt
                 .print_and_exit();
         }
     };
-    vm.source_mut().filter(e);
-    Ok(Value::None)
+    vm.source_mut().filter(e.clone());
+    Ok(Value::named_expr(None, e))
 }
 
 fn compare_cond_expr_in_dataframe<'a>(
@@ -495,6 +489,6 @@ fn compare_cond_expr_in_dataframe<'a>(
                 .print_and_exit();
         }
     };
-    vm.source_mut().filter(e);
-    Ok(Value::None)
+    vm.source_mut().filter(e.clone());
+    Ok(Value::named_expr(None, e))
 }
