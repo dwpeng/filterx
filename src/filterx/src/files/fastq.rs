@@ -14,6 +14,7 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
                 output,
                 table: _,
                 output_type,
+                sql,
             },
         chunk: long,
         no_comment,
@@ -62,7 +63,7 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
         detect_size.unwrap(),
     )?;
     let mut writer = FilterxWriter::new(output.clone(), None, output_type)?;
-    if expr.is_empty() {
+    if expr.is_empty() && sql.is_none() {
         while let Some(record) = &mut source.fastq.parse_next()? {
             writeln!(writer, "{}", record.format())?;
         }
@@ -77,7 +78,7 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
         if left.is_none() {
             break 'stop_parse;
         }
-        vm.eval_once(&expr)?;
+        vm.eval_once(&expr, sql.clone())?;
         if !vm.status.printed {
             let df = vm.into_df()?;
             let writer = &mut vm.writer;

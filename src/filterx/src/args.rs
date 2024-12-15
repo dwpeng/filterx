@@ -81,6 +81,10 @@ pub struct ShareArgs {
     /// only works with -o.
     #[clap(long, alias = "ot", default_value = "auto")]
     pub output_type: Option<FileContentType>,
+
+    /// sql string
+    #[clap(long)]
+    pub sql: Option<String>,
 }
 
 #[derive(Debug, Clone, Parser)]

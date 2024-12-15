@@ -13,6 +13,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
                 output,
                 table,
                 output_type,
+                sql,
             },
         header,
         no_header,
@@ -67,11 +68,12 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
     let mut vm = Vm::from_source(Source::new(s.into(), SourceType::Csv), writer);
     vm.source_mut().set_has_header(header.unwrap());
     let expr = util::merge_expr(expr);
-    vm.eval_once(&expr)?;
+    vm.eval_once(&expr, sql)?;
     if vm.status.printed {
         return Ok(());
     }
     let mut df = vm.into_df()?;
+
     if output.is_none() && table.unwrap_or(false) {
         println!("{}", df);
         return Ok(());

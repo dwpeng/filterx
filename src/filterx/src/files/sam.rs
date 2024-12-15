@@ -29,6 +29,7 @@ pub fn filterx_sam(cmd: SamCommand) -> FilterxResult<()> {
                 output,
                 table,
                 output_type,
+                sql,
             },
         header: include_header,
     } = cmd;
@@ -56,7 +57,7 @@ pub fn filterx_sam(cmd: SamCommand) -> FilterxResult<()> {
     s.set_init_column_names(&names);
     let mut vm = Vm::from_source(Source::new(s.into(), SourceType::Sam), writer);
     let expr = util::merge_expr(expr);
-    vm.eval_once(&expr)?;
+    vm.eval_once(&expr, sql)?;
     if vm.status.printed {
         return Ok(());
     }

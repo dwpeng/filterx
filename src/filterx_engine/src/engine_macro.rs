@@ -43,6 +43,16 @@ macro_rules! eval_int {
 }
 
 #[macro_export]
+macro_rules! eval_str {
+    ($vm:expr, $target:expr, $msg:literal) => {
+        eval!($vm, $target, $msg, Constant)
+    };
+    ($vm:expr, $target:expr, $msg:literal,) => {
+        eval!($vm, $target, $msg, Constant)
+    };
+}
+
+#[macro_export]
 macro_rules! builtin_function {
     (   $group: ident,
         $(
@@ -75,7 +85,7 @@ macro_rules! builtin_function {
 macro_rules! execuable {
     ($vm:expr, $target: expr) => {
         use crate::vm::VmMode;
-        if $vm.mode == VmMode::Printable {
+        if $vm.mode == VmMode::Print {
             let h = &mut $vm.hint;
             h.white("Con't use ")
                 .red($target)

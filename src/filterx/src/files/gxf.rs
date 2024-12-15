@@ -42,6 +42,7 @@ pub fn filterx_gxf(cmd: GFFCommand, gxf_type: GxfType) -> FilterxResult<()> {
                 output,
                 table,
                 output_type,
+                sql,
             },
         header: include_header,
     } = cmd;
@@ -68,7 +69,7 @@ pub fn filterx_gxf(cmd: GFFCommand, gxf_type: GxfType) -> FilterxResult<()> {
     s.set_init_column_names(&names);
     let mut vm = Vm::from_source(Source::new(s.into(), gxf_type.into()), writer);
     let expr = util::merge_expr(expr);
-    vm.eval_once(&expr)?;
+    vm.eval_once(&expr, sql.clone())?;
     if vm.status.printed {
         return Ok(());
     }

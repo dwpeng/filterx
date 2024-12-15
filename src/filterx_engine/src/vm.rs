@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use polars::prelude::*;
+use polars::{prelude::*, sql::SQLContext};
 
 use filterx_core::{writer::FilterxWriter, FilterxError, FilterxResult, Hint};
 use filterx_source::{
@@ -13,7 +13,7 @@ use super::eval::Eval;
 #[derive(Debug, PartialEq)]
 pub enum VmMode {
     Expression,
-    Printable,
+    Print,
 }
 
 #[derive(Debug)]
@@ -69,6 +69,7 @@ pub struct Vm {
     pub writer: FilterxWriter,
     pub expr_cache: HashMap<String, (String, Vec<polars::prelude::Expr>)>,
     pub hint: Hint,
+    pub sql_ctx: SQLContext,
 }
 
 impl Vm {
@@ -95,6 +96,7 @@ impl Vm {
             writer: writer,
             expr_cache: HashMap::new(),
             hint: Hint::new(),
+            sql_ctx: SQLContext::new(),
         };
         vm
     }
@@ -110,6 +112,7 @@ impl Vm {
             writer: writer,
             expr_cache: HashMap::new(),
             hint: Hint::new(),
+            sql_ctx: SQLContext::new(),
         }
     }
 
@@ -178,9 +181,10 @@ impl Vm {
         Ok(true)
     }
 
-    pub fn eval_once(&mut self, expr: &str) -> FilterxResult<()> {
+    pub fn eval_once(&mut self, expr: &str, sql: Option<String>) -> FilterxResult<()> {
         // split the expr by ;
         if expr.is_empty() {
+            self.sql(sql)?;
             return Ok(());
         }
         // check ast process
@@ -210,6 +214,7 @@ impl Vm {
                 return Err(FilterxError::RuntimeError("Parse Error".to_string()));
             }
         }
+        self.sql(sql)?;
         Ok(())
     }
 
@@ -262,5 +267,18 @@ impl Vm {
 
     pub fn source_type(&self) -> SourceType {
         self.source.source_type
+    }
+
+    pub fn sql(&mut self, sql: Option<String>) -> FilterxResult<()> {
+        if sql.is_none() {
+            return Ok(());
+        }
+        let sql = sql.unwrap();
+        let lazy = self.source_mut().lazy();
+        let ctx = &mut self.sql_ctx;
+        ctx.register("df", lazy);
+        let lazy = ctx.execute(&sql)?;
+        self.source_mut().update(lazy);
+        Ok(())
     }
 }

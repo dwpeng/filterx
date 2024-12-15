@@ -117,7 +117,7 @@ pub fn print<'a>(vm: &'a mut Vm, args: &Vec<ast::Expr>) -> FilterxResult<value::
     let (fmt, cols) = if let Some(value) = vm.expr_cache.get(&value) {
         (value.0.clone(), value.1.clone())
     } else {
-        vm.set_mode(VmMode::Printable);
+        vm.set_mode(VmMode::Print);
         let (fmt_, cols_) = parse_format_string(&value, vm)?;
         vm.set_mode(VmMode::Expression);
         let cols_ = cols_.unwrap_or(vec![]);

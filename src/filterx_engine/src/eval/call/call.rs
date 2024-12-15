@@ -46,7 +46,7 @@ impl<'a> Eval<'a> for ast::ExprCall {
             function_name = "cast";
         }
 
-        if vm.mode == VmMode::Printable {
+        if vm.mode == VmMode::Print {
             if !f.can_expression {
                 let h = &mut vm.hint;
                 h.white("Function `")
