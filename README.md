@@ -38,8 +38,6 @@ Download the latest release from [releases](https://github.com/dwpeng/filterx/re
 
 ## Documentation
 
-filterx have rich documentations, you can find them in [docs](https://filterx.dwpeng.com).
-
 filterx has a built-in help system, you can use `filterx info --list` to list all available built-in functions, and use `filterx info <command>` to get help for a specific function.
 
 
