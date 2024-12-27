@@ -75,17 +75,9 @@ impl<'a> Eval<'a> for ast::ExprName {
             _ => {}
         };
         let id = self.id.as_str();
-        let name = value::Name {
-            name: id.to_string(),
-            ctx: match self.ctx {
-                ast::ExprContext::Load => value::NameContext::Load,
-                ast::ExprContext::Store => value::NameContext::Store,
-                _ => unreachable!(),
-            },
-        };
 
         // impl keywords
-        let keywords = match name.name.as_str() {
+        let keywords = match id {
             "None" => Value::Null,
             "True" => Value::Bool(true),
             "False" => Value::Bool(false),
@@ -96,6 +88,15 @@ impl<'a> Eval<'a> for ast::ExprName {
             Value::None => {}
             _ => return Ok(keywords),
         }
+
+        let name = value::Name {
+            name: id.to_string(),
+            ctx: match self.ctx {
+                ast::ExprContext::Load => value::NameContext::Load,
+                ast::ExprContext::Store => value::NameContext::Store,
+                _ => unreachable!(),
+            },
+        };
 
         Ok(value::Value::Name(name))
     }
