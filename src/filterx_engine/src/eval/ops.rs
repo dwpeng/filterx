@@ -494,7 +494,7 @@ fn col_in_list<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Fil
             for v in &right_list {
                 if v.is_err() {
                     let h = &mut vm.hint;
-                    h.white("List must be int type").print_and_exit();
+                    h.white("List must be int type, because left col's type is int.").print_and_exit();
                 }
             }
             let mut right_values = Vec::with_capacity(right_list.len());
@@ -509,7 +509,7 @@ fn col_in_list<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Fil
             for v in &right_list {
                 if v.is_err() {
                     let h = &mut vm.hint;
-                    h.white("List must be float type").print_and_exit();
+                    h.white("List must be float type, because left col's type is float.").print_and_exit();
                 }
             }
             let mut right_values = Vec::with_capacity(right_list.len());
@@ -524,7 +524,7 @@ fn col_in_list<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Fil
             for v in &right_list {
                 if v.is_err() {
                     let h = &mut vm.hint;
-                    h.white("List must be string type").print_and_exit();
+                    h.white("List must be string type, because left col's type is string.").print_and_exit();
                 }
             }
             let mut right_values = Vec::with_capacity(right_list.len());
