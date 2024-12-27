@@ -52,7 +52,8 @@ polars = { version = "0.45.1", default-features = false, features = [
     "fused",
     "rows",
     "simd",
-    "sql"
+    "sql",
+    "is_in",
 ] }
 polars-arrow = { version = "0.45.1" }
 polars-lazy = { version = "0.45.1" }

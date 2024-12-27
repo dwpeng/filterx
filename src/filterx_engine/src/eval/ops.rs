@@ -434,8 +434,8 @@ fn compare_in<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Filt
                 return str_in_col(vm, left, right, op);
             }
 
-            if left.is_column() && !left.is_str() && (right.is_str() || right.is_list()) {
-                // TODO
+            if left.is_column() && !left.is_str() && right.is_list() {
+                return col_in_list(vm, left, right, op);
             }
 
             let h = &mut vm.hint;
@@ -463,6 +463,93 @@ fn compare_in<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Filt
                 .print_and_exit();
         }
     };
+}
+
+fn col_in_list<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> FilterxResult<Value> {
+    let left_col: &str = left.column().unwrap();
+    vm.source().has_column(left_col);
+    let right_list: Vec<Value> = right.list().unwrap();
+    if right_list.is_empty() {
+        let h = &mut vm.hint;
+        h.white("List can't be empty").print_and_exit();
+    }
+    let columns = vm.source().columns().unwrap();
+    let left_col_type = columns
+        .iter()
+        .find(|(name, _)| *name == left_col)
+        .unwrap()
+        .1;
+
+    let right_expr: Expr;
+    match left_col_type {
+        DataType::Int64
+        | DataType::Int32
+        | DataType::Int16
+        | DataType::Int8
+        | DataType::UInt64
+        | DataType::UInt32
+        | DataType::UInt16
+        | DataType::UInt8 => {
+            let right_list = right_list.iter().map(|v| v.int()).collect::<Vec<_>>();
+            for v in &right_list {
+                if v.is_err() {
+                    let h = &mut vm.hint;
+                    h.white("List must be int type").print_and_exit();
+                }
+            }
+            let mut right_values = Vec::with_capacity(right_list.len());
+            for v in right_list {
+                right_values.push(v.unwrap());
+            }
+            let right_values = Series::new("__X_x__".into(), right_values);
+            right_expr = right_values.lit();
+        }
+        DataType::Float32 | DataType::Float64 => {
+            let right_list = right_list.iter().map(|v| v.float()).collect::<Vec<_>>();
+            for v in &right_list {
+                if v.is_err() {
+                    let h = &mut vm.hint;
+                    h.white("List must be float type").print_and_exit();
+                }
+            }
+            let mut right_values = Vec::with_capacity(right_list.len());
+            for v in right_list {
+                right_values.push(v.unwrap());
+            }
+            let right_values = Series::new("__X_x__".into(), right_values);
+            right_expr = right_values.lit();
+        }
+        DataType::String => {
+            let right_list = right_list.iter().map(|v| v.string()).collect::<Vec<_>>();
+            for v in &right_list {
+                if v.is_err() {
+                    let h = &mut vm.hint;
+                    h.white("List must be string type").print_and_exit();
+                }
+            }
+            let mut right_values = Vec::with_capacity(right_list.len());
+            for v in right_list {
+                right_values.push(v.unwrap());
+            }
+            let right_values = Series::new("__X_x__".into(), right_values);
+            right_expr = right_values.lit();
+        }
+        _ => {
+            let h = &mut vm.hint;
+            h.white("Only support int, float, string type")
+                .print_and_exit();
+        }
+    }
+    let left_expr = left.expr()?;
+    let e = match op {
+        CmpOp::In => left_expr.is_in(right_expr),
+        CmpOp::NotIn => left_expr.is_in(right_expr).not(),
+        _ => {
+            unreachable!();
+        }
+    };
+    vm.source_mut().filter(e);
+    Ok(Value::None)
 }
 
 fn str_in_col<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> FilterxResult<Value> {
