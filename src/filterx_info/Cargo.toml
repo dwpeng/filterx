@@ -11,7 +11,6 @@ description = "The builtin function documentation library for filterx"
 
 
 [dependencies]
-filterx_core = { workspace = true }
 markdown = { workspace = true }
 colored = { workspace = true }
 memchr = { workspace = true }

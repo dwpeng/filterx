@@ -619,7 +619,6 @@ name = "filterx_info"
 version = "0.3.4"
 dependencies = [
  "colored",
- "filterx_core",
  "markdown",
  "memchr",
 ]

@@ -34,7 +34,7 @@ pub fn filterx_info(info: InfoArgs) -> FilterxResult<()> {
     }
 
     let f = get_function(&name.unwrap());
-    render::render_markdown_help(f.doc)?;
-    render::render_alias_function(&f.alias)?;
+    render::render_markdown_help(f.doc);
+    render::render_alias_function(&f.alias);
     Ok(())
 }
