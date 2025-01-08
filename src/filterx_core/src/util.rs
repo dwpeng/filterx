@@ -73,18 +73,21 @@ pub fn init_df(
     path: &str,
     header: bool,
     comment_prefix: &str,
-    separator: &str,
+    separator: Option<&str>,
     skip_row: usize,
     limit_row: Option<usize>,
     schema: Option<SchemaRef>,
     null_values: Option<Vec<&str>>,
     missing_is_null: bool,
 ) -> FilterxResult<LazyFrame> {
-    let sep = Separator::new(separator);
     let mut parser_options = CsvParseOptions::default()
         .with_comment_prefix(Some(comment_prefix))
-        .with_separator(sep.get_sep()?)
         .with_truncate_ragged_lines(true);
+
+    if separator.is_some() {
+        let sep = Separator::new(separator.unwrap());
+        parser_options = parser_options.with_separator(sep.get_sep()?);
+    }
 
     parser_options = parser_options.with_missing_is_null(missing_is_null);
     if let Some(null_values) = null_values {
@@ -160,4 +163,39 @@ pub fn collect_comment_lines(path: &str, comment_prefix: &str) -> FilterxResult<
         break;
     }
     Ok(comment_lines)
+}
+
+pub fn detect_separator(path: &str, nline: usize) -> FilterxResult<Option<String>> {
+    use std::fs::File;
+    use std::io::BufRead;
+    use std::io::BufReader;
+    let file = File::open(path)?;
+    let mut reader = BufReader::new(file);
+    let mut line = String::new();
+    let mut lines = Vec::with_capacity(nline);
+    for _ in 0..nline {
+        let nsize = reader.read_line(&mut line)?;
+        if nsize == 0 {
+            break;
+        }
+        lines.push(line.clone());
+        line.clear();
+    }
+    let possible_seps = vec!['\t', '|', ':', ' ', ','];
+    for s in possible_seps {
+        // count the number of separators each line
+        let mut sep_count = -1;
+        for line in &lines {
+            let count = line.chars().filter(|&c| c == s).count() as i32;
+            if sep_count == -1 {
+                sep_count = count;
+            } else if sep_count != count {
+                break;
+            }
+        }
+        if sep_count != -1 {
+            return Ok(Some(s.to_string()));
+        }
+    }
+    Ok(None)
 }

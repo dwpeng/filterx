@@ -42,7 +42,7 @@ pub fn filterx_sam(cmd: SamCommand) -> FilterxResult<()> {
         path.as_str(),
         false,
         comment_prefix,
-        separator,
+        Some(separator),
         0,
         None,
         schema,

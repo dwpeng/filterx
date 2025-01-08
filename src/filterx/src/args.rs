@@ -104,8 +104,8 @@ pub struct CsvCommand {
     #[clap(short = 'c', long, default_value = "#")]
     pub comment_prefix: Option<String>,
 
-    /// The separator
-    #[clap(short = 's', long, default_value = ",")]
+    /// The separator, if not set, will try to detect
+    #[clap(short = 's', long)]
     pub separator: Option<String>,
 
     /// The output separator, same as -s if not set

@@ -58,7 +58,7 @@ pub fn filterx_gxf(cmd: GFFCommand, gxf_type: GxfType) -> FilterxResult<()> {
         path.as_str(),
         false,
         comment_prefix,
-        separator,
+        Some(separator),
         0,
         None,
         schema,

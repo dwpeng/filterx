@@ -23,19 +23,20 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         skip,
         limit,
     } = cmd;
-
+    let separator = match separator {
+        Some(s) => Some(s),
+        None => util::detect_separator(path.as_str(), 20)?,
+    };
     let output_separator;
     if _output_separator.is_none() {
         output_separator = separator.clone();
     } else {
         output_separator = _output_separator;
     }
-
     let mut output_header = Some(true);
     if no_header.is_some_and(|v| v == true) || header.is_some_and(|v| v == false) {
         output_header = Some(false);
     }
-
     let limit = match limit {
         Some(l) => {
             if l == 0 {
@@ -46,15 +47,13 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         }
         None => None,
     };
-
     let comment_prefix = comment_prefix.unwrap();
-    let separator = separator.unwrap();
     let writer = FilterxWriter::new(output.clone(), None, output_type)?;
     let lazy_df = util::init_df(
         path.as_str(),
         header.unwrap(),
         &comment_prefix,
-        &separator,
+        separator.as_deref(),
         skip.unwrap(),
         limit,
         None,
@@ -85,7 +84,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
         &mut df,
         &mut vm.writer,
         output_header.unwrap(),
-        Some(output_separator.unwrap().as_str()),
+        output_separator.as_deref(),
         None,
         None,
     )

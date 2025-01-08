@@ -73,7 +73,7 @@ pub fn filterx_vcf(cmd: VcfCommand) -> FilterxResult<()> {
         path.as_str(),
         false,
         comment_prefix,
-        separator,
+        Some(separator),
         0,
         None,
         schema,
