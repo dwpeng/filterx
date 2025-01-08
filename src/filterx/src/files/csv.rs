@@ -1,8 +1,7 @@
 use crate::args::{CsvCommand, ShareArgs};
+use filterx_core::{util, writer::FilterxWriter, FilterxResult};
 use filterx_engine::vm::Vm;
 use filterx_source::{detect_columns, DataframeSource, Source, SourceType};
-
-use filterx_core::{util, writer::FilterxWriter, FilterxResult};
 
 pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
     let CsvCommand {
@@ -25,7 +24,13 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
     } = cmd;
     let separator = match separator {
         Some(s) => Some(s),
-        None => util::detect_separator(path.as_str(), 20)?,
+        None => match util::detect_separator(path.as_str(), 20)? {
+            Some(s) => Some(s),
+            None => {
+                eprintln!("Cannot detect separator, parse as one column.");
+                None
+            }
+        },
     };
     let output_separator;
     if _output_separator.is_none() {

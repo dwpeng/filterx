@@ -6,7 +6,8 @@ use polars::{
 };
 
 use crate::{
-    sep::Separator, thread_size::ThreadSize, writer::FilterxWriter, FilterxError, FilterxResult,
+    reader::FilterxReader, sep::Separator, thread_size::ThreadSize, writer::FilterxWriter,
+    FilterxError, FilterxResult,
 };
 use std::io::Write;
 use std::num::NonZero;
@@ -146,10 +147,9 @@ pub fn write_df(
 }
 
 pub fn collect_comment_lines(path: &str, comment_prefix: &str) -> FilterxResult<Vec<String>> {
-    use std::fs::File;
     use std::io::BufRead;
     use std::io::BufReader;
-    let file = File::open(path)?;
+    let file = FilterxReader::new(path)?;
     let mut reader = BufReader::new(file);
     let mut line = String::new();
     let mut comment_lines = Vec::new();
@@ -166,10 +166,9 @@ pub fn collect_comment_lines(path: &str, comment_prefix: &str) -> FilterxResult<
 }
 
 pub fn detect_separator(path: &str, nline: usize) -> FilterxResult<Option<String>> {
-    use std::fs::File;
     use std::io::BufRead;
     use std::io::BufReader;
-    let file = File::open(path)?;
+    let file = FilterxReader::new(path)?;
     let mut reader = BufReader::new(file);
     let mut line = String::new();
     let mut lines = Vec::with_capacity(nline);
