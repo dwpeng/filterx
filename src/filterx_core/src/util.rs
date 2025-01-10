@@ -184,15 +184,17 @@ pub fn detect_separator(path: &str, nline: usize) -> FilterxResult<Option<String
     for s in possible_seps {
         // count the number of separators each line
         let mut sep_count = -1;
+        let mut found = true;
         for line in &lines {
             let count = line.chars().filter(|&c| c == s).count() as i32;
             if sep_count == -1 {
                 sep_count = count;
             } else if sep_count != count {
+                found = false;
                 break;
             }
         }
-        if sep_count != -1 {
+        if sep_count > 0 && found {
             return Ok(Some(s.to_string()));
         }
     }
