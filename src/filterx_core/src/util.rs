@@ -165,20 +165,42 @@ pub fn collect_comment_lines(path: &str, comment_prefix: &str) -> FilterxResult<
     Ok(comment_lines)
 }
 
-pub fn detect_separator(path: &str, nline: usize) -> FilterxResult<Option<String>> {
+pub fn detect_separator(
+    path: &str,
+    nline: usize,
+    skip_row: Option<usize>,
+    comment_prefix: Option<String>,
+) -> FilterxResult<Option<String>> {
     use std::io::BufRead;
     use std::io::BufReader;
     let file = FilterxReader::new(path)?;
     let mut reader = BufReader::new(file);
     let mut line = String::new();
     let mut lines = Vec::with_capacity(nline);
-    for _ in 0..nline {
+    if let Some(skip_row) = skip_row {
+        for _ in 0..skip_row {
+            reader.read_line(&mut line)?;
+            line.clear();
+        }
+    }
+    let mut line_count = 0;
+    loop {
         let nsize = reader.read_line(&mut line)?;
         if nsize == 0 {
             break;
         }
+        if let Some(comment_prefix) = comment_prefix.as_ref() {
+            if line.starts_with(comment_prefix) {
+                line.clear();
+                continue;
+            }
+        }
         lines.push(line.clone());
         line.clear();
+        line_count += 1;
+        if line_count >= nline {
+            break;
+        }
     }
     let possible_seps = vec!['\t', '|', ':', ' ', ','];
     for s in possible_seps {

@@ -24,7 +24,7 @@ pub fn filterx_csv(cmd: CsvCommand) -> FilterxResult<()> {
     } = cmd;
     let separator = match separator {
         Some(s) => Some(s),
-        None => match util::detect_separator(path.as_str(), 20)? {
+        None => match util::detect_separator(path.as_str(), 20, skip, comment_prefix.clone())? {
             Some(s) => Some(s),
             None => {
                 eprintln!("Cannot detect separator, parse as one column.");
