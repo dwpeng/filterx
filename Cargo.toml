@@ -10,7 +10,7 @@ members = [
 
 [workspace.package]
 authors = ["dwpeng"]
-version = "0.3.5"
+version = "0.3.6"
 edition = "2021"
 description = "A command line tool to filter data by using python-like syntax"
 license = "MIT"
@@ -20,14 +20,14 @@ exclude = ["spec/", "docs/"]
 readme = "README.md"
 
 [workspace.dependencies]
-filterx = { path = "src/filterx", version = "0.3.5" }
-filterx_core = { path = "src/filterx_core", version = "0.3.5" }
-filterx_engine = { path = "src/filterx_engine", version = "0.3.5" }
-filterx_source = { path = "src/filterx_source", version = "0.3.5" }
-filterx_info = { path = "src/filterx_info", version = "0.3.5" }
+filterx = { path = "src/filterx", version = "0.3.6" }
+filterx_core = { path = "src/filterx_core", version = "0.3.6" }
+filterx_engine = { path = "src/filterx_engine", version = "0.3.6" }
+filterx_source = { path = "src/filterx_source", version = "0.3.6" }
+filterx_info = { path = "src/filterx_info", version = "0.3.6" }
 anyhow = "1.0.94"
-clap = { version = "4.5.17", features = ["derive"] }
-polars = { version = "0.45.1", default-features = false, features = [
+clap = { version = "4.5.29", features = ["derive"] }
+polars = { version = "0.46.0", default-features = false, features = [
     "lazy",
     "csv",
     "strings",
@@ -55,7 +55,7 @@ polars = { version = "0.45.1", default-features = false, features = [
     "sql",
     "is_in",
 ] }
-polars-arrow = { version = "0.45.1" }
+polars-arrow = { version = "0.46.0" }
 rustpython-parser = { version = "0.4.0" }
 thiserror = "2.0.6"
 flate2 = { version = "1.0.35", features = ["zlib-rs"] }
@@ -63,7 +63,7 @@ gzp = { version = "0.11.3", default-features = false, features = [
     "deflate_rust",
 ] }
 regex = "1.11.1"
-colored = "2.1.0"
+colored = "3.0.0"
 lazy_static = "1.5.0"
 memchr = "2.7.4"
 markdown = "0.3.0"
