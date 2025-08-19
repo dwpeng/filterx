@@ -24,7 +24,7 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
         detect_size,
     } = cmd;
 
-    let _limit = match limit {
+    let limit = match limit {
         Some(l) => {
             if l == 0 {
                 None
@@ -56,7 +56,10 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
         }
         return Ok(());
     }
-    let chunk_size = long.unwrap();
+    let mut chunk_size = long.unwrap();
+    if let Some(limit) = limit {
+        chunk_size = chunk_size.min(limit);
+    }
     let mut vm = Vm::from_source(Source::new(source.into(), SourceType::Fasta), writer);
     vm.source.df_source_mut().set_init_column_names(&names);
     vm.status.set_chunk_size(chunk_size);
@@ -130,6 +133,12 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
                             break;
                         }
                     }
+                }
+            }
+            writer.flush()?;
+            if let Some(limit) = limit {
+                if rows >= limit {
+                    break 'stop_parse;
                 }
             }
         }

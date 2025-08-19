@@ -24,7 +24,7 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
         detect_size,
     } = cmd;
 
-    let _limit = match limit {
+    let limit = match limit {
         Some(l) => {
             if l == 0 {
                 None
@@ -69,7 +69,10 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
         }
         return Ok(());
     }
-    let chunk_size = long.unwrap();
+    let mut chunk_size = long.unwrap();
+    if let Some(limit) = limit {
+        chunk_size = chunk_size.min(limit);
+    }
     let mut vm = Vm::from_source(Source::new(source.into(), SourceType::Fastq), writer);
     vm.status.set_chunk_size(chunk_size);
     vm.source_mut().set_init_column_names(&names);
@@ -164,6 +167,11 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
                 }
             }
             writer.flush()?;
+            if let Some(limit) = limit {
+                if rows >= limit {
+                    break 'stop_parse;
+                }
+            }
         }
     }
     Ok(())
