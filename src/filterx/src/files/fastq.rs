@@ -24,17 +24,6 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
         detect_size,
     } = cmd;
 
-    let limit = match limit {
-        Some(l) => {
-            if l == 0 {
-                None
-            } else {
-                Some(l)
-            }
-        }
-        None => None,
-    };
-
     let mut names = vec!["name", "comm", "seq", "qual"];
 
     match no_comment {
@@ -62,19 +51,28 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
         phred.unwrap(),
         detect_size.unwrap(),
     )?;
-    let mut writer = FilterxWriter::new(output.clone(), None, output_type)?;
-    if expr.is_empty() && sql.is_none() {
-        while let Some(record) = &mut source.fastq.parse_next()? {
-            writeln!(writer, "{}", record.format())?;
-        }
-        return Ok(());
-    }
     let mut chunk_size = long.unwrap();
     if let Some(limit) = limit {
         chunk_size = chunk_size.min(limit);
     }
+    let mut count = 0;
+    let mut writer = FilterxWriter::new(output.clone(), None, output_type)?;
+    if expr.is_empty() && sql.is_none() {
+        while let Some(record) = &mut source.fastq.parse_next()? {
+            if let Some(limit) = limit {
+                if count >= limit {
+                    break;
+                }
+            }
+            writeln!(writer, "{}", record.format())?;
+            count += 1;
+        }
+        return Ok(());
+    }
+
     let mut vm = Vm::from_source(Source::new(source.into(), SourceType::Fastq), writer);
     vm.status.set_chunk_size(chunk_size);
+    vm.status.set_limit_rows(limit.unwrap_or(usize::MAX));
     vm.source_mut().set_init_column_names(&names);
     'stop_parse: loop {
         let left = vm.next_batch()?;
@@ -168,7 +166,7 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
             }
             writer.flush()?;
             if let Some(limit) = limit {
-                if rows >= limit {
+                if vm.status.consume_rows >= limit {
                     break 'stop_parse;
                 }
             }

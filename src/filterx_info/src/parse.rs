@@ -1,5 +1,7 @@
 use colored::{Color, ColoredString, Colorize};
-use markdown::{tokenize, Block, ListItem, Span};
+// use markdown::{tokenize, Block, ListItem, Span};
+use markdown::{mdast::*, to_mdast};
+
 use memchr::memchr2;
 
 pub trait ToLines {
@@ -99,16 +101,21 @@ fn process_code<'a>(code: &'a str) -> Vec<ColoredString> {
     code_lines.iter().map(|x| x.to_lines()).flatten().collect()
 }
 
-impl ToLines for Block {
+impl ToLines for Node {
     fn to_lines(&self) -> Vec<ColoredString> {
         let mut lines = match self {
-            Block::Paragraph(paragraphs) => {
-                let lines = paragraphs.iter().flat_map(|x| x.to_lines()).collect();
+            Node::Paragraph(paragraphs) => {
+                let lines = paragraphs
+                    .children
+                    .iter()
+                    .flat_map(|x| x.to_lines())
+                    .collect();
                 lines
             }
 
-            Block::Header(h, level) => {
+            Node::Heading(h) => {
                 let mut lines: Vec<_> = h
+                    .children
                     .iter()
                     .flat_map(|x| {
                         x.to_lines()
@@ -117,7 +124,7 @@ impl ToLines for Block {
                             .collect::<Vec<_>>()
                     })
                     .collect();
-                let level = if *level == 1 { 0 } else { *level };
+                let level = h.depth as usize;
                 if level > 0 {
                     lines.insert(0, "#".repeat(level).green().bold());
                     lines.insert(1, " ".into());
@@ -125,9 +132,10 @@ impl ToLines for Block {
                 lines
             }
 
-            Block::CodeBlock(language, code) => {
+            Node::Code(code) => {
                 let mut lines = vec![];
                 let mut have_filename = 0;
+                let language = &code.lang;
                 if let Some(lang) = language {
                     let pos = lang.find("title=");
                     if pos.is_some() {
@@ -144,7 +152,7 @@ impl ToLines for Block {
                         }
                     }
                 }
-                let code_lines = process_code(code);
+                let code_lines = process_code(&code.value);
                 lines.extend(code_lines);
                 if have_filename > 0 {
                     lines.push("-".repeat(have_filename).cyan());
@@ -152,8 +160,9 @@ impl ToLines for Block {
                 lines
             }
 
-            Block::Blockquote(b) => {
+            Node::Blockquote(b) => {
                 let mut lines: Vec<_> = b
+                    .children
                     .iter()
                     .flat_map(|x| {
                         let mut plines = x.to_lines();
@@ -167,11 +176,10 @@ impl ToLines for Block {
                 lines.insert(0, "> ".dimmed());
                 lines
             }
-
-            Block::Raw(r) => vec![r.color(Color::Blue)],
-            Block::UnorderedList(items) => {
+            Node::Text(t) => vec![t.value.color(Color::Blue)],
+            Node::List(items) if !items.ordered => {
                 let mut lines = vec![];
-                for item in items {
+                for item in &items.children {
                     lines.push("* ".blue());
                     lines.extend(item.to_lines());
                     lines.push("\n".into());
@@ -179,16 +187,69 @@ impl ToLines for Block {
                 lines.pop();
                 lines
             }
-            Block::Hr => vec![String::from("---").color(Color::Blue)],
-            Block::OrderedList(items, _order) => {
+            Node::Break(_) => vec![String::from("---").color(Color::Blue)],
+            Node::List(items) if items.ordered => {
                 let mut lines = vec![];
 
-                for (index, item) in items.iter().enumerate() {
+                for (index, item) in items.children.iter().enumerate() {
                     lines.push(format!("{:}. ", index + 1).blue());
                     lines.extend(item.to_lines());
                     lines.push("\n".into());
                 }
                 lines.pop();
+                lines
+            }
+            Node::ListItem(item) => {
+                let mut lines = vec![];
+                for line in &item.children {
+                    lines.extend(line.to_lines());
+                }
+                lines
+            }
+            Node::Strong(s) => {
+                let lines = s
+                    .children
+                    .iter()
+                    .flat_map(|x| x.to_lines())
+                    .collect::<Vec<_>>();
+                let lines = lines.iter().map(|x| x.clone().bold()).collect::<Vec<_>>();
+                lines
+            }
+            Node::Emphasis(e) => {
+                let lines = e
+                    .children
+                    .iter()
+                    .flat_map(|x| x.to_lines())
+                    .collect::<Vec<_>>();
+                let lines = lines.iter().map(|x| x.clone().italic()).collect::<Vec<_>>();
+                lines
+            }
+            Node::Link(link) => {
+                let name = &link.title;
+                let url = &link.url;
+                let name = if name.is_none() {
+                    url.clone()
+                } else {
+                    name.clone().unwrap()
+                };
+                let mut lines = vec![];
+                lines.push(name.color(Color::Blue).bold());
+                lines.push(format!(" ({})", url).dimmed());
+                lines
+            }
+            Node::Image(i) => {
+                let mut lines = vec![];
+                lines.push(i.alt.color(Color::Blue).bold());
+                lines.push(format!(" ({})", i.url).dimmed());
+                lines
+            }
+            Node::InlineCode(c) => {
+                let mut lines = vec![];
+                lines.push(c.value.color(Color::Blue).bold());
+                lines
+            }
+            _ => {
+                let lines = vec![];
                 lines
             }
         };
@@ -197,58 +258,9 @@ impl ToLines for Block {
     }
 }
 
-impl ToLines for ListItem {
-    fn to_lines(&self) -> Vec<ColoredString> {
-        match self {
-            ListItem::Paragraph(p) => {
-                let mut lines = vec![];
-                for line in p {
-                    lines.extend(line.to_lines());
-                }
-                lines
-            }
-            ListItem::Simple(items) => {
-                let mut lines = vec![];
-                for item in items {
-                    lines.extend(item.to_lines());
-                }
-                lines
-            }
-        }
-    }
-}
-
-impl ToLines for Span {
-    fn to_lines(&self) -> Vec<ColoredString> {
-        match self {
-            Span::Break => vec!["\n".into()],
-            Span::Text(t) => vec![t.as_str().into()],
-            Span::Emphasis(s) => {
-                let lines = s.iter().flat_map(|x| x.to_lines()).collect::<Vec<_>>();
-                let lines = lines.iter().map(|x| x.clone().italic()).collect::<Vec<_>>();
-                lines
-            }
-            Span::Strong(s) => {
-                let lines = s.iter().flat_map(|x| x.to_lines()).collect::<Vec<_>>();
-                let lines = lines.iter().map(|x| x.clone().bold()).collect::<Vec<_>>();
-                lines
-            }
-            Span::Link(name, url, _) => {
-                let mut lines = vec![];
-                lines.push(name.color(Color::Blue).bold());
-                lines.push(format!(" ({})", url).dimmed());
-                lines
-            }
-            Span::Image(_, _, _) => vec![],
-            Span::Code(c) => {
-                vec![c.color(Color::Blue)]
-            }
-        }
-    }
-}
-
 pub fn parse(markdown: &str) -> Vec<ColoredString> {
-    let blocks = tokenize(markdown);
+    let options = markdown::ParseOptions::default();
+    let blocks = to_mdast(markdown, &options);
     let mut lines: Vec<_> = blocks.into_iter().flat_map(|b| b.to_lines()).collect();
     lines.pop();
     lines

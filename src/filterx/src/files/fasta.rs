@@ -34,7 +34,10 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
         }
         None => None,
     };
-
+    let mut chunk_size = long.unwrap();
+    if let Some(limit) = limit {
+        chunk_size = chunk_size.min(limit);
+    }
     let names = match no_comment {
         Some(true) => vec!["name", "seq"],
         _ => vec!["name", "comm", "seq"],
@@ -50,19 +53,24 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
         detect_size.unwrap(),
     )?;
     let mut writer = FilterxWriter::new(output.clone(), None, output_type)?;
+    let mut count = 0;
     if expr.is_empty() && sql.is_none() {
         while let Some(record) = &mut source.fasta.parse_next()? {
+            if let Some(limit) = limit {
+                if count >= limit {
+                    break;
+                }
+            }
             writeln!(writer, "{}", record.format())?;
+            count += 1;
         }
         return Ok(());
     }
-    let mut chunk_size = long.unwrap();
-    if let Some(limit) = limit {
-        chunk_size = chunk_size.min(limit);
-    }
+
     let mut vm = Vm::from_source(Source::new(source.into(), SourceType::Fasta), writer);
     vm.source.df_source_mut().set_init_column_names(&names);
     vm.status.set_chunk_size(chunk_size);
+
     'stop_parse: loop {
         let left = vm.next_batch()?;
         if left.is_none() {
@@ -104,7 +112,6 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
             } else {
                 valid_cols = vec![name_col, seq_col]
             }
-
             let rows = df.height();
             for i in 0..rows {
                 if vm.status.consume_rows >= vm.status.limit_rows {
@@ -137,7 +144,7 @@ pub fn filterx_fasta(cmd: FastaCommand) -> FilterxResult<()> {
             }
             writer.flush()?;
             if let Some(limit) = limit {
-                if rows >= limit {
+                if vm.status.consume_rows >= limit {
                     break 'stop_parse;
                 }
             }
