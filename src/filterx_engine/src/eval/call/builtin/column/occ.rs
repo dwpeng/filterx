@@ -1,6 +1,6 @@
 use super::super::*;
 use polars::chunked_array::ops::SortMultipleOptions;
-use polars::prelude::{col as polars_col, JoinArgs};
+use polars::prelude::{by_name, col as polars_col, JoinArgs};
 
 pub fn occ(vm: &mut Vm, args: &Vec<ast::Expr>, lte: bool) -> FilterxResult<value::Value> {
     if args.len() < 2 {
@@ -56,7 +56,7 @@ pub fn occ(vm: &mut Vm, args: &Vec<ast::Expr>, lte: bool) -> FilterxResult<value
         e = e.gt_eq(occ_threshold);
     }
     let lazy_group_by = lazy_group_by.filter(e);
-    let lazy_group_by = lazy_group_by.drop(["__filterx_count__"]);
+    let lazy_group_by = lazy_group_by.drop(by_name(["__filterx_count__"], true));
     let lazy = lazy.join(lazy_group_by, cols.clone(), cols, JoinArgs::default());
     vm.source_mut().update(lazy);
     Ok(value::Value::None)

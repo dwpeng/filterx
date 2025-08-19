@@ -27,7 +27,7 @@ filterx_source = { path = "src/filterx_source", version = "0.3.6" }
 filterx_info = { path = "src/filterx_info", version = "0.3.6" }
 anyhow = "1.0.94"
 clap = { version = "4.5.29", features = ["derive"] }
-polars = { version = "0.46.0", default-features = false, features = [
+polars = { version = "0.50.0", default-features = false, features = [
     "lazy",
     "csv",
     "strings",
@@ -35,7 +35,6 @@ polars = { version = "0.46.0", default-features = false, features = [
     "concat_str",
     "regex",
     "semi_anti_join",
-    "streaming",
     "cum_agg",
     "avx512",
     "dtype-u8",
@@ -55,19 +54,19 @@ polars = { version = "0.46.0", default-features = false, features = [
     "sql",
     "is_in",
 ] }
-polars-arrow = { version = "0.46.0" }
+polars-arrow = { version = "0.50.0" }
 rustpython-parser = { version = "0.4.0" }
-thiserror = "2.0.6"
-flate2 = { version = "1.0.35", features = ["zlib-rs"] }
-gzp = { version = "0.11.3", default-features = false, features = [
+thiserror = "2.0.15"
+flate2 = { version = "1.1.2", features = ["zlib-rs"] }
+gzp = { version = "1.0.1", default-features = false, features = [
     "deflate_rust",
 ] }
 regex = "1.11.1"
 colored = "3.0.0"
 lazy_static = "1.5.0"
-memchr = "2.7.4"
+memchr = "2.7.5"
 markdown = "0.3.0"
-num_cpus = "1.16.0"
+num_cpus = "1.17.0"
 strsim = "0.11.1"
 
 [profile.dev]

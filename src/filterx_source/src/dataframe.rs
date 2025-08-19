@@ -90,7 +90,7 @@ impl DataframeSource {
 
     pub fn update(&mut self, lazy: LazyFrame) {
         self.lazy = lazy
-            .with_streaming(true)
+            .with_new_streaming(true)
             .with_slice_pushdown(true)
             .with_predicate_pushdown(true)
             .with_projection_pushdown(true)
@@ -141,15 +141,14 @@ impl DataframeSource {
             self.ret_column_names.retain(|x| x != c);
         }
         self.ret_column_names = self.ret_column_names.iter().map(|x| x.clone()).collect();
-
         let lazy = self.lazy.clone();
-        let lazy = lazy.drop(columns);
+        let lazy = lazy.drop(by_name(columns, true));
         self.update(lazy);
     }
 
     pub fn unique(&mut self, columns: Vec<String>, keep: UniqueKeepStrategy) {
         let lazy = self.lazy.clone();
-        let lazy = lazy.unique_generic(Some(columns), keep);
+        let lazy = lazy.unique_generic(Some(by_name(columns, true)), keep);
         self.update(lazy);
     }
 

@@ -545,8 +545,8 @@ fn col_in_list<'a>(vm: &'a mut Vm, left: Value, right: Value, op: &CmpOp) -> Fil
     }
     let left_expr = left.expr()?;
     let e = match op {
-        CmpOp::In => left_expr.is_in(right_expr),
-        CmpOp::NotIn => left_expr.is_in(right_expr).not(),
+        CmpOp::In => left_expr.is_in(right_expr, true),
+        CmpOp::NotIn => left_expr.is_in(right_expr, true).not(),
         _ => {
             unreachable!();
         }

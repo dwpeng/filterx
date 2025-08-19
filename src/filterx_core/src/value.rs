@@ -32,10 +32,10 @@ pub struct NamedExpr {
 impl Literal for Value {
     fn lit(self) -> Expr {
         match self {
-            Value::Float(f) => Expr::Literal(LiteralValue::Float64(f)),
-            Value::Int(i) => Expr::Literal(LiteralValue::Int64(i)),
-            Value::Str(s) => Expr::Literal(LiteralValue::String(s.into())),
-            _ => Expr::Literal(LiteralValue::Null),
+            Value::Float(f) => f.lit(),
+            Value::Int(i) => i.lit(),
+            Value::Str(s) => s.lit(),
+            _ => Expr::Literal(LiteralValue::untyped_null()),
         }
     }
 }
@@ -132,7 +132,7 @@ impl Value {
             Value::Str(s) => s.clone().lit(),
             Value::Name(n) => col(n.name.clone()),
             Value::NamedExpr(e) => e.expr.clone(),
-            Value::Null => Expr::Literal(LiteralValue::Null),
+            Value::Null => Expr::Literal(LiteralValue::untyped_null()),
             Value::Bool(b) => b.lit(),
             Value::None => return Err(FilterxError::RuntimeError("function return None".into())),
             _ => return Err(FilterxError::RuntimeError("Can't convert to expr.".into())),

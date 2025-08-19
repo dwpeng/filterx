@@ -23,6 +23,7 @@ pub fn open_csv_file_in_lazy(
             path.display()
         )));
     }
+    let path = PlPath::from_str(path.to_str().unwrap());
     let lazy_reader = LazyCsvReader::new(path);
     let comment_prefix = match reader_options.parse_options.comment_prefix.clone() {
         Some(prefix) => match prefix {
