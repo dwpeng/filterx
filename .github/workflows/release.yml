@@ -31,8 +31,8 @@ jobs:
               cross: false
 
     steps:
-    - uses: actions/checkout@v4
-    - uses: mlugg/setup-zig@v1
+    - uses: actions/checkout@v5
+    - uses: mlugg/setup-zig@v2
 
     - name: Build linux binaries
       if: ${{ matrix.cross }}
