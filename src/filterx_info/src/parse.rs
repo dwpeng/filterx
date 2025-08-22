@@ -104,12 +104,24 @@ fn process_code<'a>(code: &'a str) -> Vec<ColoredString> {
 impl ToLines for Node {
     fn to_lines(&self) -> Vec<ColoredString> {
         let mut lines = match self {
+            Node::Root(root) => {
+                let mut lines = vec![];
+                lines.extend(root.children.iter().flat_map(|x| x.to_lines()));
+                lines
+            }
+
             Node::Paragraph(paragraphs) => {
-                let lines = paragraphs
-                    .children
-                    .iter()
-                    .flat_map(|x| x.to_lines())
-                    .collect();
+                let mut lines = vec![];
+
+                for node in paragraphs.children.iter() {
+                    if let Node::InlineCode(_) = node {
+                        lines.pop();
+                        lines.extend(node.to_lines());
+                        lines.pop();
+                    } else {
+                        lines.extend(node.to_lines());
+                    }
+                }
                 lines
             }
 
@@ -134,9 +146,20 @@ impl ToLines for Node {
 
             Node::Code(code) => {
                 let mut lines = vec![];
-                let mut have_filename = 0;
-                let language = &code.lang;
-                if let Some(lang) = language {
+                let title = &code.meta;
+                let is_example = title.is_some()
+                    && title
+                        .as_ref()
+                        .and_then(|x| Some(x.to_lowercase().contains("example")))
+                        .unwrap_or(false);
+
+                let color = if is_example {
+                    Color::BrightMagenta
+                } else {
+                    Color::Cyan
+                };
+
+                if let Some(lang) = title {
                     let pos = lang.find("title=");
                     if pos.is_some() {
                         let filename = lang.split("title=").nth(1);
@@ -144,19 +167,18 @@ impl ToLines for Node {
                             let filename = filename.trim();
                             let filename = filename.trim_matches('"');
                             let filename = filename.trim_matches('\'');
-                            lines.push(filename.cyan().bold());
-                            lines.push("\n".into());
-                            lines.push("-".repeat(filename.len()).cyan());
-                            lines.push("\n".into());
-                            have_filename = filename.len();
+                            // draw a box
+                            let box_top_border =
+                                "+".to_string() + &"-".repeat(filename.len() + 2) + "+\n";
+                            lines.push(box_top_border.color(color));
+                            let content = "| ".to_string() + filename + " |\n";
+                            lines.push(content.color(color).bold());
+                            lines.push(box_top_border.color(color));
                         }
                     }
                 }
                 let code_lines = process_code(&code.value);
                 lines.extend(code_lines);
-                if have_filename > 0 {
-                    lines.push("-".repeat(have_filename).cyan());
-                }
                 lines
             }
 
@@ -253,7 +275,7 @@ impl ToLines for Node {
                 lines
             }
         };
-        lines.push("\n\n".into());
+        lines.push("\n".into());
         lines
     }
 }
@@ -262,6 +284,7 @@ pub fn parse(markdown: &str) -> Vec<ColoredString> {
     let options = markdown::ParseOptions::default();
     let blocks = to_mdast(markdown, &options);
     let mut lines: Vec<_> = blocks.into_iter().flat_map(|b| b.to_lines()).collect();
+    lines.pop();
     lines.pop();
     lines
 }

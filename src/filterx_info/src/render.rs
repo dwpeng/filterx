@@ -14,7 +14,7 @@ pub fn render_alias_function(alias_names: &[&'static str]) {
     if alias_names.len() == 1 {
         return;
     }
-    print!("\n\nOther alias: ");
+    print!("Other alias: ");
     for name in alias_names.iter().skip(1) {
         print!("{} ", name.green())
     }
