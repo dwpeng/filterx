@@ -219,14 +219,6 @@ impl FastqRecord {
     pub fn format<'a>(&'a self) -> &'a str {
         unsafe { std::str::from_utf8_unchecked(&self.buffer) }
     }
-
-    pub fn as_phred33(&mut self) -> () {
-        if self._qual.0 != self._qual.1 {
-            for i in self._qual.0..self._qual.1 {
-                self.buffer[i] = self.buffer[i] - 33;
-            }
-        }
-    }
 }
 
 impl FastqRecord {
@@ -251,11 +243,6 @@ impl FastqRecord {
     #[inline(always)]
     pub fn seq(&self) -> &str {
         unsafe { std::str::from_utf8_unchecked(&self.buffer[self._sequence.0..self._sequence.1]) }
-    }
-
-    #[inline(always)]
-    pub fn len(&self) -> usize {
-        self._sequence.1 - self._sequence.0 + 1
     }
 
     #[inline(always)]
@@ -308,51 +295,53 @@ impl Fastq {
         if !self.parser_option.include_qual {
             return Ok(());
         }
-        let mut qualitys = vec![QualityType::Auto; detect_size];
-        let mut count = 0;
+        // Quality encoding ranges:
+        //   Sanger / Illumina 1.8+ (phred33): Q = ASCII - 33, chars 33('!')..=74('J', Q41)
+        //   Illumina 1.3-1.7      (phred64): Q = ASCII - 64, chars 64('@')..=105('h', Q41)
+        // The two windows overlap at 64..=74, so per-character detection is
+        // ambiguous there: a common high-quality phred33 run like "IIII"
+        // (ASCII 73 = Q40) must NOT be classified as phred64. A character
+        // above 74 can only come from phred64; everything else is treated as
+        // phred33, which is what virtually all modern data uses.
+        let mut vote: Option<QualityType> = None;
+        let mut record_no = 0usize;
         for _ in 0..detect_size {
-            let record = self.parse_next()?;
-            if let Some(record) = record {
-                let qual = record.qual();
-                if let Some(qual) = qual {
-                    let qual_u8 = qual.as_bytes();
-                    let max = qual_u8.iter().max().unwrap();
-                    let min = qual_u8.iter().min().unwrap();
-                    // Sanger:         0 - 40   +33   33 - 73   phred33
-                    // Solexa:        -5 - 40   +64   59 - 124  phred64  not supported!
-                    // Illumina 1.3:   0 - 40   +64   64 - 124  phred64
-                    // Illumina 1.5:   3 - 40   +64   67 - 104  phred64  0,1,2 are clipped
-                    // Illumina 1.8+:  0 - 41   +33   33 - 73   phred33
-                    let new_quality_type = if *max >= 73 && *min >= 64 {
-                        QualityType::Phred64
-                    } else if *max <= 73 && *min >= 33 {
-                        QualityType::Phred33
-                    } else {
-                        QualityType::Auto
-                    };
-                    qualitys[count] = new_quality_type;
-                    count += 1;
+            let record = match self.parse_next()? {
+                Some(record) => record,
+                None => break,
+            };
+            record_no += 1;
+            let qual = match record.qual() {
+                Some(qual) if !qual.is_empty() => qual,
+                _ => continue,
+            };
+            let max = qual.bytes().max().unwrap();
+            let min = qual.bytes().min().unwrap();
+            if min < 33 || max > 126 {
+                return Err(FilterxError::FastqError(format!(
+                    "Invalid quality character (ASCII {}) in fastq record {} of {}",
+                    if min < 33 { min } else { max },
+                    record_no,
+                    self.path
+                )));
+            }
+            let this = if max > 74 {
+                QualityType::Phred64
+            } else {
+                QualityType::Phred33
+            };
+            match vote {
+                None => vote = Some(this),
+                Some(first) if first == this => {}
+                Some(first) => {
+                    return Err(FilterxError::FastqError(format!(
+                        "Fastq quality type is not consistent: record 1 looks {:?} while record {} looks {:?}. Use --phred to force one.",
+                        first, record_no, this
+                    )));
                 }
             }
         }
-        let t = if count == 0 {
-            QualityType::Auto
-        } else {
-            let mut t = qualitys[0];
-            for i in 1..count {
-                if qualitys[i] != t {
-                    t = QualityType::Auto;
-                    if t == QualityType::Auto {
-                        return Err(filterx_core::FilterxError::FastqError(
-                            "Fastq quality type is not consistent".to_string(),
-                        ));
-                    }
-                    break;
-                }
-            }
-            t
-        };
-        self.quality_type = t;
+        self.quality_type = vote.unwrap_or(QualityType::Auto);
         self.reset()?;
         Ok(())
     }
@@ -428,22 +417,38 @@ impl Fastq {
                 ));
             }
             if record.buffer[buffer_offset] == b'+' {
-                unsafe {
-                    record
-                        .buffer
-                        .set_len(record.buffer.len() - break_line_len - 1);
+                // The '+' line may carry an optional record id (spec allows it).
+                // Re-insert the line break that was stripped from the sequence
+                // so the buffer stays a byte-perfect copy of the record, then
+                // drop only the trailing line break of the '+' line itself.
+                record.buffer.insert(buffer_offset, b'\n');
+                record._sequence.1 = buffer_offset;
+                if record.buffer.ends_with(b"\n") {
+                    unsafe {
+                        record
+                            .buffer
+                            .set_len(record.buffer.len() - break_line_len);
+                    }
                 }
-                record._sequence.1 = record.buffer.len();
                 if self.parser_option.include_qual {
-                    record.buffer.extend_from_slice(&[b'\n', b'+', b'\n']);
+                    record.buffer.extend_from_slice(b"\n");
                     record._qual.0 = record.buffer.len();
                 }
                 break;
             }
-            record.remove_breakline_from_buffer(break_line_len);
+            // Only strip the line break when the line actually ends with one:
+            // read_until stops at EOF without appending '\n', and stripping
+            // bytes then would eat real sequence characters.
+            if record.buffer.ends_with(b"\n") {
+                record.remove_breakline_from_buffer(break_line_len);
+            }
         }
 
         let mut nqual = 0;
+        // A line starting with '@' is the header of the next record only when
+        // the quality string already has the same length as the sequence.
+        // Otherwise it is just a quality character ('@' == phred 31).
+        let seq_len = record._sequence.1 - record._sequence.0;
 
         loop {
             let buffer_offset = record.buffer.len();
@@ -456,6 +461,12 @@ impl Fastq {
             if bytes == 0 {
                 self.read_end = true;
                 if self.parser_option.include_qual {
+                    if nqual < seq_len {
+                        return Err(FilterxError::FastqError(format!(
+                            "Invalid fastq format: quality length ({}) is shorter than sequence length ({}) at the end of {}. Truncated record?",
+                            nqual, seq_len, self.path
+                        )));
+                    }
                     record._qual.1 = record.buffer.len();
                 } else {
                     record._qual = (0, 0);
@@ -465,8 +476,7 @@ impl Fastq {
                 }
                 break;
             }
-            nqual += bytes - break_line_len;
-            if record.buffer[buffer_offset] == b'@' {
+            if record.buffer[buffer_offset] == b'@' && nqual >= seq_len {
                 if self.parser_option.include_qual {
                     unsafe {
                         record.buffer.set_len(buffer_offset);
@@ -485,10 +495,16 @@ impl Fastq {
                 self.buffer_unprocess_size = bytes;
                 break;
             } else {
-                if !self.parser_option.include_qual {
-                    continue;
+                if record.buffer.ends_with(b"\n") {
+                    nqual += bytes - break_line_len;
+                    if !self.parser_option.include_qual {
+                        continue;
+                    }
+                    record.remove_breakline_from_buffer(break_line_len);
+                } else {
+                    // EOF cut the line without a line break; keep every byte
+                    nqual += bytes;
                 }
-                record.remove_breakline_from_buffer(break_line_len);
             }
         }
 

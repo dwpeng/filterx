@@ -3,7 +3,6 @@ use std::ops::Deref;
 use polars::prelude::*;
 
 use filterx_core::{FilterxResult, Hint};
-use regex::Regex;
 
 #[derive(Clone)]
 pub struct DataframeSource {
@@ -182,22 +181,18 @@ impl DataframeSource {
     }
 
     pub fn has_column(&self, name: &str) -> () {
-        let ret = self.check_column(name);
-        if !ret {
-            let re = Regex::new(name).unwrap();
-            for c in &self.ret_column_names {
-                if re.is_match(c) {
-                    return;
-                }
-            }
-            let mut h = Hint::new();
-            h.white("Column ")
-                .cyan(name)
-                .white(" not found. Valid columns: ")
-                .green(&self.ret_column_names.join(", "))
-                .print_and_exit();
+        if self.check_column(name) {
+            return;
         }
-        ()
+        // No fuzzy/regex fallback here: matching a typo against other columns
+        // would silently shift the error to a later stage, and compiling the
+        // name as a regex panics on input like `a(`.
+        let mut h = Hint::new();
+        h.white("Column ")
+            .cyan(name)
+            .white(" not found. Valid columns: ")
+            .green(&self.ret_column_names.join(", "))
+            .print_and_exit();
     }
 
     pub fn check_column(&self, name: &str) -> bool {

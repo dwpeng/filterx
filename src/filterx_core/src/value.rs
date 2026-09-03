@@ -272,6 +272,8 @@ impl Value {
 }
 
 impl Value {
+    // TODO: rename to avoid shadowing `Display::to_string` (clippy error)
+    #[allow(clippy::inherent_to_string_shadow_display)]
     pub fn to_string(&self) -> String {
         match self {
             Value::Int(i) => i.to_string(),

@@ -1,0 +1,7 @@
+[toolchain]
+# polars 0.50 does not compile on newer rustc nightlies:
+# - `std::simd::{LaneCount, SupportedLaneCount}` was removed (polars `simd` feature)
+# - `core::unicode::{Cased, Case_Ignorable}` became private (polars-ops string casing)
+# Pin the last known-good nightly; revisit when upgrading polars.
+channel = "nightly-2025-08-19"
+profile = "minimal"

@@ -24,6 +24,12 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
         detect_size,
     } = cmd;
 
+    // 0 means no limit, keep the same semantics as the fasta/csv commands
+    let limit = match limit {
+        Some(0) => None,
+        other => other,
+    };
+
     let mut names = vec!["name", "comm", "seq", "qual"];
 
     match no_comment {
@@ -84,9 +90,11 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
             let df = vm.into_df()?;
             let writer = &mut vm.writer;
             let cols = df.get_columns();
+            let no_qual = no_quality.unwrap_or(false);
+            let no_comm = no_comment.unwrap_or(false);
+
             let name_col = cols.iter().position(|x| x.name() == "name");
             let seq_col = cols.iter().position(|x| x.name() == "seq");
-            let qual_col = cols.iter().position(|x| x.name() == "qual");
 
             if name_col.is_none() {
                 let h = &mut vm.hint;
@@ -104,7 +112,14 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
                     .print_and_exit();
             }
 
-            if qual_col.is_none() {
+            // --no-qual: the parser never produces a qual column and the
+            // no-expression fast path emits FASTA, so do the same here.
+            let qual_col = if no_qual {
+                None
+            } else {
+                cols.iter().position(|x| x.name() == "qual")
+            };
+            if qual_col.is_none() && !no_qual {
                 let h = &mut vm.hint;
                 h.white("Lost ")
                     .cyan("'qual'")
@@ -112,21 +127,20 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
                     .print_and_exit();
             }
 
-            let valid_cols;
-            let comm_col = match no_comment {
-                Some(true) => None,
-                _ => cols.iter().position(|x| x.name() == "comm"),
+            let comm_col = if no_comm {
+                None
+            } else {
+                cols.iter().position(|x| x.name() == "comm")
             };
 
-            if comm_col.is_some() {
-                valid_cols = vec![
-                    name_col.unwrap(),
-                    comm_col.unwrap(),
-                    seq_col.unwrap(),
-                    qual_col.unwrap(),
-                ]
-            } else {
-                valid_cols = vec![name_col.unwrap(), seq_col.unwrap(), qual_col.unwrap()]
+            // keep the semantic order: name, comm, seq, qual
+            let mut valid_cols = vec![name_col.unwrap()];
+            if let Some(comm_col) = comm_col {
+                valid_cols.push(comm_col);
+            }
+            valid_cols.push(seq_col.unwrap());
+            if let Some(qual_col) = qual_col {
+                valid_cols.push(qual_col);
             }
 
             let rows = df.height();
@@ -137,26 +151,24 @@ pub fn filterx_fastq(cmd: FastqCommand) -> FilterxResult<()> {
                 vm.status.consume_rows += 1;
                 for col_index in &valid_cols {
                     let col = &cols[*col_index];
+                    let value = col.get(i).unwrap();
+                    let value = value.get_str().unwrap_or("");
                     match col.name().as_str() {
                         "name" => {
-                            let name = col.get(i).unwrap();
-                            let name = name.get_str().unwrap_or("");
-                            write!(writer, "@{}", name)?;
+                            if no_qual {
+                                write!(writer, ">{}", value)?;
+                            } else {
+                                write!(writer, "@{}", value)?;
+                            }
                         }
                         "comm" => {
-                            let comm = col.get(i).unwrap();
-                            let comm = comm.get_str().unwrap_or("");
-                            write!(writer, " {}", comm)?;
+                            write!(writer, " {}", value)?;
                         }
                         "seq" => {
-                            let seq = col.get(i).unwrap();
-                            let seq = seq.get_str().unwrap_or("");
-                            write!(writer, "\n{}\n", seq)?;
+                            write!(writer, "\n{}\n", value)?;
                         }
                         "qual" => {
-                            let qual = col.get(i).unwrap();
-                            let qual = qual.get_str().unwrap_or("space");
-                            write!(writer, "+\n{}\n", qual)?;
+                            write!(writer, "+\n{}\n", value)?;
                         }
                         _ => {
                             break;

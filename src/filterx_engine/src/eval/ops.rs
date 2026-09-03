@@ -304,51 +304,35 @@ impl<'a> Eval<'a> for ast::ExprBoolOp {
         execuable!(vm, "`and` or `or`");
         let source = vm.source_mut();
         source.enter_and_ctx();
-        let left = &self.values[0];
-        let left = eval!(
-            vm,
-            left,
-            "Only support chain compare, like a > 1 and a < 2",
-            Compare,
-            BoolOp
-        );
-        let right = &self.values[1];
-        // let right_exprs = vec![];
-        // let ops = vec![];
-        let right = eval!(
-            vm,
-            right,
-            "Only support chain compare, like a > 1 and a < 2",
-            Compare,
-            BoolOp
-        );
-        boolop_in_dataframe(vm, &left, &right, self.op.clone())
+        // fold over all values so `a and b and c` does not silently drop `c`
+        let op = self.op;
+        let mut combined: Option<Expr> = None;
+        for value in &self.values {
+            let v = eval!(
+                vm,
+                value,
+                "Only support chain compare, like a > 1 and a < 2",
+                Compare,
+                BoolOp
+            );
+            let e = v.expr()?;
+            combined = Some(match combined {
+                None => e,
+                Some(acc) => match op {
+                    ast::BoolOp::And => acc.and(e),
+                    ast::BoolOp::Or => acc.or(e),
+                },
+            });
+        }
+        if let Some(e) = combined {
+            let source = vm.source_mut();
+            let lazy = source.lazy().filter(e);
+            source.update(lazy);
+        }
+        let source = vm.source_mut();
+        source.exit_and_ctx();
+        Ok(Value::None)
     }
-}
-
-fn boolop_in_dataframe<'a>(
-    vm: &'a mut Vm,
-    l: &Value,
-    r: &Value,
-    op: ast::BoolOp,
-) -> FilterxResult<Value> {
-    let source = vm.source_mut();
-    let mut lazy = source.lazy();
-    match op {
-        ast::BoolOp::And => match (l, r) {
-            (_, _) => {
-                lazy = lazy.filter(l.expr()?.and(r.clone().expr()?));
-            }
-        },
-        ast::BoolOp::Or => match (l, r) {
-            (_, _) => {
-                lazy = lazy.filter(l.expr()?.or(r.expr()?));
-            }
-        },
-    }
-    source.update(lazy);
-    source.exit_and_ctx();
-    Ok(Value::None)
 }
 
 /// pub enum CmpOp {

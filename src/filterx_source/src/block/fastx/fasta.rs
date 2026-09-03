@@ -180,11 +180,6 @@ impl FastaRecord {
         unsafe { std::str::from_utf8_unchecked(&self.buffer[self._sequence.0..self._sequence.1]) }
     }
 
-    #[inline(always)]
-    pub fn len(&self) -> usize {
-        self._sequence.1 - self._sequence.0 + 1
-    }
-
     pub fn goto_next_record(&mut self, left: usize) {
         if self.buffer.len() < self.buffer.capacity() && left > 0 {
             unsafe {
@@ -399,7 +394,12 @@ impl Fasta {
                 self.buffer_unprocess_size = bytes;
                 break;
             }
-            record.remove_breakline_from_buffer(break_line_len);
+            // Only strip the line break when the line actually ends with one:
+            // read_until stops at EOF without appending '\n', and stripping
+            // bytes then would eat real sequence characters.
+            if record.buffer.ends_with(b"\n") {
+                record.remove_breakline_from_buffer(break_line_len);
+            }
         }
         if record.buffer.is_empty() {
             return Ok(None);

@@ -140,16 +140,23 @@ pub fn detect_breakline_len(reader: &mut FilterxReader) -> FilterxResult<Option<
         if data.is_empty() {
             break;
         }
-        let offset = memrchr(b'\n', data);
-        if offset.is_some() {
-            // test if endwith is \r\n
-            let offset = offset.unwrap();
-            if offset > 0 && data[offset - 1] == b'\r' {
-                break_line_len = 2;
-            } else {
-                break_line_len = 1;
+        match memrchr(b'\n', data) {
+            Some(offset) => {
+                // test if endwith is \r\n
+                break_line_len = if offset > 0 && data[offset - 1] == b'\r' {
+                    2
+                } else {
+                    1
+                };
+                break;
             }
-            break;
+            None => {
+                // No line break in this chunk: consume it and keep scanning.
+                // Without consuming, fill_buf would return the same chunk
+                // forever when the first line is longer than the buffer.
+                let len = data.len();
+                reader.consume(len);
+            }
         }
     }
     reader.reset()?;

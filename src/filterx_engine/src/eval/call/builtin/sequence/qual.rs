@@ -1,6 +1,7 @@
 use super::super::*;
 use filterx_source::QualityType;
 use polars::prelude::*;
+use std::sync::LazyLock;
 
 use polars_arrow::{
     array::{ArrayRef, Float32Array, Utf8ViewArray},
@@ -10,21 +11,19 @@ use polars_arrow::{
 
 // copy from https://github.com/shenwei356/bio/blob/master/seq/seq.go
 
-static mut QUAL_MAP: [f32; 256] = [0.0; 256];
-
-fn init_qual_map() {
-    for i in 0..256 {
-        unsafe {
-            // Q = -10 * log10(p)
-            // p: rate of base error, p = 10 ^ (-Q / 10)
-            // Q: quality score, use i representing 0-255
-            // phred33: ASCII 33 + Q
-            // phred64: ASCII 64 + Q
-            // so, while computing the probability, we need to minus 33 or 64 to get original phred score as Q
-            QUAL_MAP[i] = f32::powf(10.0, i as f32 / -10.0);
-        }
+// Q = -10 * log10(p)
+// p: rate of base error, p = 10 ^ (-Q / 10)
+// Q: quality score, use i representing 0-255
+// phred33: ASCII 33 + Q
+// phred64: ASCII 64 + Q
+// so, while computing the probability, we need to minus 33 or 64 to get original phred score as Q
+static QUAL_MAP: LazyLock<[f32; 256]> = LazyLock::new(|| {
+    let mut map = [0.0f32; 256];
+    for (i, v) in map.iter_mut().enumerate() {
+        *v = f32::powf(10.0, i as f32 / -10.0);
     }
-}
+    map
+});
 
 fn compute_qual_phred33_kernel(array: &Utf8ViewArray) -> ArrayRef {
     let array = array
@@ -36,12 +35,12 @@ fn compute_qual_phred33_kernel(array: &Utf8ViewArray) -> ArrayRef {
             }
             let max = seq.bytes().max().unwrap();
             let min = seq.bytes().min().unwrap();
-            if max > 127 || min < 33 {
+            if max > 126 || min < 33 {
                 return 0.0;
             }
             let sum_qual: f32 = seq
                 .bytes()
-                .map(|b| unsafe {
+                .map(|b| {
                     let b = b as usize - 33;
                     QUAL_MAP[b]
                 })
@@ -67,14 +66,17 @@ fn compute_qual_phred64_kernel(array: &Utf8ViewArray) -> ArrayRef {
             }
             let max = seq.bytes().max().unwrap();
             let min = seq.bytes().min().unwrap();
-            if max > 127 || min < 33 {
+            // phred64 encodes Q as ASCII - 64, so characters below 64 (which
+            // phred33 data is full of) cannot be decoded: bail out with 0.0
+            // instead of underflowing the index.
+            if max > 126 || min < 64 {
                 return 0.0;
             }
             let qual_sum: f32 = seq
                 .bytes()
-                .map(|c| unsafe {
+                .map(|c| {
                     let c = c as usize - 64;
-                    QUAL_MAP[c] as f32
+                    QUAL_MAP[c]
                 })
                 .sum();
             if qual_sum == 0.0 {
@@ -99,7 +101,6 @@ fn compute_qual_phred64(s: Column) -> PolarsResult<Option<Column>> {
             .into(),
         ));
     }
-    init_qual_map();
     let s = s.as_materialized_series();
     let s = s.str()?.as_string();
     let c = s
@@ -119,7 +120,6 @@ fn compute_qual_phred33(s: Column) -> PolarsResult<Option<Column>> {
             .into(),
         ));
     }
-    init_qual_map();
     let s = s.as_materialized_series();
     let s = s.str()?.as_string();
     let c = s
